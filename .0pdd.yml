@@ -1,0 +1,8 @@
+model: true
+errors:
+  - uhbif19@gmail.com
+format:
+  - short-title
+  - title-length=256
+tags:
+  - pdd
