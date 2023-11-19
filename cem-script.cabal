@@ -1,0 +1,119 @@
+cabal-version: 3.8
+name:          cem-script
+version:       0.1.0
+synopsis:      Cardano DApp SDK
+homepage:      https://github.com/cem-script
+author:        MLabs
+maintainer:    gregory@mlabs.city
+data-files:    README.md
+
+flag dev
+  description:
+    Defer errors from the PlutusTx plugin, which break HLS and Haddock. Also disable Werror.
+
+  default:     True
+  manual:      False
+
+common common-lang
+  -- Options from MLabs styleguide
+
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wmissing-export-lists -Wmissing-deriving-strategies
+    -Wno-redundant-constraints
+
+  if !flag(dev)
+    ghc-options: -Werror
+
+  build-depends:
+    , base
+    , mtl
+    , transformers
+
+  default-extensions:
+    BangPatterns
+    BinaryLiterals
+    ConstraintKinds
+    DataKinds
+    DeriveAnyClass
+    DeriveFunctor
+    DeriveGeneric
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    DuplicateRecordFields
+    EmptyCase
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    HexFloatLiterals
+    ImportQualifiedPost
+    InstanceSigs
+    KindSignatures
+    LambdaCase
+    MultiParamTypeClasses
+    NamedFieldPuns
+    NoImplicitPrelude
+    NumericUnderscores
+    OverloadedStrings
+    PatternSynonyms
+    QuantifiedConstraints
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    StrictData
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeFamilyDependencies
+    TypeOperators
+    TypeSynonymInstances
+    UndecidableInstances
+
+  if flag(dev)
+    default-extensions: PartialTypeSignatures
+
+  default-language:   Haskell2010
+
+common common-onchain
+  import:        common-lang
+  build-depends:
+    , plutus-ledger-api
+    , plutus-tx
+    , plutus-tx-plugin
+
+  if flag(dev)
+    ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
+
+  -- Options for Plutus Tx compilations
+  -- (some are enabled additionaly in individual modules)
+
+  ghc-options:
+    -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
+    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+    -fno-specialize -fno-unbox-small-strict-fields
+    -fno-unbox-strict-fields
+
+common common-offchain
+  import:        common-lang
+  build-depends:
+    , bytestring
+    , cardano-api
+    , cardano-ledger-core
+    , containers
+    , filepath
+    , text
+    , time
+    , unix
+
+common common-executable
+  import:      common-offchain
+  ghc-options: -threaded -rtsopts
+
+library cem-sdk
+  import:          common-onchain
+  hs-source-dirs:  src/
