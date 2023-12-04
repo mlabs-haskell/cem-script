@@ -7,6 +7,9 @@ author:        MLabs
 maintainer:    gregory@mlabs.city
 data-files:    README.md
 
+-- @todo #3 Reproduce `cabal repl` and HLS build on another (@adamczykm) computer
+tested-with:   GHC ==9.6.3
+
 flag dev
   description:
     Defer errors from the PlutusTx plugin, which break HLS and Haddock. Also disable Werror.
