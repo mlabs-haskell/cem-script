@@ -5,9 +5,9 @@ synopsis:      Cardano DApp SDK
 homepage:      https://github.com/cem-script
 author:        MLabs
 maintainer:    gregory@mlabs.city
-data-files:    README.md
+data-files:
+  README.md
 
--- @todo #3 Reproduce `cabal repl` and HLS build on another (@adamczykm) computer
 tested-with:   GHC ==9.6.3
 
 flag dev
@@ -21,10 +21,12 @@ common common-lang
   -- Options from MLabs styleguide
 
   ghc-options:
-    -Wall -Wcompat -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wredundant-constraints
-    -Wmissing-export-lists -Wmissing-deriving-strategies
-    -Wno-redundant-constraints
+
+  -- -Wall
+  -- -Wcompat -Wincomplete-record-updates
+  -- -Wincomplete-uni-patterns -Wredundant-constraints
+  -- -Wmissing-export-lists -Wmissing-deriving-strategies
+  -- -Wno-redundant-constraints
 
   if !flag(dev)
     ghc-options: -Werror
@@ -60,6 +62,7 @@ common common-lang
     MultiParamTypeClasses
     NamedFieldPuns
     NoImplicitPrelude
+    NoPolyKinds
     NumericUnderscores
     OverloadedStrings
     PatternSynonyms
@@ -76,6 +79,7 @@ common common-lang
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
+    ViewPatterns
 
   if flag(dev)
     default-extensions: PartialTypeSignatures
@@ -85,12 +89,15 @@ common common-lang
 common common-onchain
   import:        common-lang
   build-depends:
+    , plutus-core
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
+    , template-haskell   >=2.20
+    , th-abstraction     >=0.6.0.0
 
-  if flag(dev)
-    ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
+  -- if flag(dev)
+  --   ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
 
   -- Options for Plutus Tx compilations
   -- (some are enabled additionaly in individual modules)
@@ -99,16 +106,28 @@ common common-onchain
     -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -fno-specialize -fno-unbox-small-strict-fields
-    -fno-unbox-strict-fields
+    -fno-unbox-strict-fields -fno-full-laziness -fno-spec-constr
+    -fno-strictness -fno-unbox-small-strict-fields
 
 common common-offchain
   import:        common-lang
   build-depends:
+    , aeson
     , bytestring
     , cardano-api
+    -- https://github.com/IntersectMBO/cardano-api/issues/502
+    , cardano-api:{internal}
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
     , cardano-ledger-core
+    , cardano-ledger-shelley
     , containers
     , filepath
+    , ouroboros-consensus-cardano
+    , ouroboros-network-protocols
+    , pretty-show
+    , retry
     , text
     , time
     , unix
@@ -117,6 +136,74 @@ common common-executable
   import:      common-offchain
   ghc-options: -threaded -rtsopts
 
-library cem-sdk
-  import:          common-onchain
+library data-spine
+  import:          common-lang
+  hs-source-dirs:  src-lib/data-spine
+  build-depends:
+    , singletons
+    , template-haskell
+
+  exposed-modules: Data.Spine
+
+library cardano-extras
+  import:
+    common-offchain,
+    common-onchain
+
+  hs-source-dirs:  src-lib/cardano-extras
+  build-depends:   template-haskell
+  exposed-modules:
+    Cardano.Extras
+    Plutus.Extras
+
+library
+  import:
+    common-onchain,
+    common-offchain
+
   hs-source-dirs:  src/
+  exposed-modules:
+    Cardano.CEM
+    Cardano.CEM.Examples.Auction
+    Cardano.CEM.Examples.Compilation
+    Cardano.CEM.Examples.Voting
+    Cardano.CEM.Monads
+    Cardano.CEM.Monads.CLB
+    Cardano.CEM.Monads.L1
+    Cardano.CEM.OnChain
+    Cardano.CEM.OffChain
+    Cardano.CEM.Stages
+
+  other-modules:
+    Cardano.CEM.Monads.L1Commons
+
+  build-depends:
+    , clb
+    , ouroboros-consensus
+    , cem-script:{cardano-extras, data-spine}
+    , dependent-map
+    , singletons-th
+
+test-suite cem-sdk-test
+  import:
+    common-onchain,
+    common-offchain,
+
+  type:           exitcode-stdio-1.0
+  build-depends:
+    , cem-script:{cem-script, cardano-extras, data-spine}
+    , dependent-map
+    , hspec
+    , QuickCheck
+    , quickcheck-dynamic
+    , random
+    , clb
+
+  hs-source-dirs: test/
+  other-modules:
+    TestNFT
+    Voting
+    Auction
+    Utils
+    OffChain
+  main-is:        Main.hs

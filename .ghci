@@ -1,0 +1,2 @@
+:set -Wunused-binds -Wunused-imports -Worphans
+:set -isrc -itest
