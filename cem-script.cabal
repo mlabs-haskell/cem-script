@@ -120,3 +120,7 @@ common common-executable
 library cem-sdk
   import:          common-onchain
   hs-source-dirs:  src/
+  exposed-modules:
+    Cardano.CEM
+    Cardano.CEM.Examples.Voting
+    Cardano.CEM.Examples.Auction
