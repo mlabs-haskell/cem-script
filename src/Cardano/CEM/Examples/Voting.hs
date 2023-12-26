@@ -48,7 +48,10 @@ instance CEMScript SimpleVoting where
           MkTransitionSpec
             { stage = Always
             , сonstraints =
-                [ cemScriptStateST params $ InProgress emptyVoteStorage
+                [ MkTxFanC
+                    Out
+                    (BySameCEM $ InProgress emptyVoteStorage)
+                    (Exist 1)
                 ]
             , signers = [creator params]
             }
@@ -66,7 +69,9 @@ instance CEMScript SimpleVoting where
 
         let allowedToVoteConstraints =
               case juryPolicy params of
-                WithToken value -> [MkTxFanC InRef (ByPubKey jury) value]
+                WithToken value ->
+                  [ MkTxFanC InRef (ByPubKey jury) (SumValueEq value)
+                  ]
                 _ -> []
 
         -- Update state
@@ -75,7 +80,10 @@ instance CEMScript SimpleVoting where
           MkTransitionSpec
             { stage = Always
             , сonstraints =
-                [ cemScriptStateST params $ InProgress newVoteStorage
+                [ MkTxFanC
+                    Out
+                    (BySameCEM $ InProgress newVoteStorage)
+                    (Exist 1)
                 ]
                   ++ allowedToVoteConstraints
             , signers = [jury]
@@ -85,7 +93,7 @@ instance CEMScript SimpleVoting where
           MkTransitionSpec
             { stage = Always
             , сonstraints =
-                [ cemScriptStateST params (Finalized (countVotes votes))
+                [ MkTxFanC Out (BySameCEM $ Finalized (countVotes votes)) (Exist 1)
                 ]
             , signers = [creator params]
             }

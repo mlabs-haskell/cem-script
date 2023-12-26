@@ -85,6 +85,7 @@ common common-lang
 common common-onchain
   import:        common-lang
   build-depends:
+    , plutus-core
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
@@ -106,7 +107,6 @@ common common-offchain
   build-depends:
     , bytestring
     , cardano-api
-    , cardano-ledger-core
     , containers
     , filepath
     , text
@@ -118,9 +118,15 @@ common common-executable
   ghc-options: -threaded -rtsopts
 
 library cem-sdk
-  import:          common-onchain
+  import:
+    common-onchain,
+    common-offchain
+
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
-    Cardano.CEM.Examples.Voting
     Cardano.CEM.Examples.Auction
+    Cardano.CEM.Examples.Compilation
+    Cardano.CEM.Examples.Voting
+    Cardano.CEM.Monads
+    Cardano.CEM.OnChain

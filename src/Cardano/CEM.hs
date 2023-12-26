@@ -14,18 +14,21 @@ import PlutusLedgerApi.V2 (
 
 -- Constraints and filters
 
-data TxFanFilter
+data TxFanFilter script
   = Anything
+  | BySameCEM (State script)
   | ByAddress Address
   | ByPubKey PubKeyHash
   | ByDatum BuiltinByteString
-  | And [TxFanFilter]
-  | Or [TxFanFilter]
+  | And [TxFanFilter script]
+  | Or [TxFanFilter script]
+
+data Quantor = Exist Integer | SumValueEq Value
 
 data TxFanKind = In | InRef | Out | InAndOut
 
-data TxFanConstraint
-  = MkTxFanC TxFanKind TxFanFilter Value
+data TxFanConstraint script
+  = MkTxFanC TxFanKind (TxFanFilter script) Quantor
 
 -- Stages
 
@@ -59,7 +62,7 @@ class (Stages (Stage script)) => CEMScript script where
   transitionSpec :: Params script -> State script -> Transition script -> Either String (TransitionSpec script)
 
 data TransitionSpec script = MkTransitionSpec
-  { сonstraints :: [TxFanConstraint]
+  { сonstraints :: [TxFanConstraint script]
   , signers :: [PubKeyHash]
   , stage :: Stage script
   }

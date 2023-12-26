@@ -53,8 +53,8 @@ instance CEMScript SimpleAuction where
         $ MkTransitionSpec
           { stage = Open
           , сonstraints =
-              [ MkTxFanC In (ByPubKey (seller params)) (lot params)
-              , cemScriptStateST params (CurrentBet initialBet)
+              [ MkTxFanC In (ByPubKey (seller params)) (SumValueEq $ lot params)
+              , MkTxFanC Out (BySameCEM (CurrentBet initialBet)) (Exist 1)
               ]
           , signers = [seller params]
           }
@@ -67,7 +67,7 @@ instance CEMScript SimpleAuction where
               { stage = Open
               , сonstraints =
                   [ saveLotConstraint
-                  , cemScriptStateST params (CurrentBet newBet)
+                  , MkTxFanC Out (BySameCEM (CurrentBet newBet)) (Exist 1)
                   ]
               , signers = [better newBet]
               }
@@ -78,7 +78,7 @@ instance CEMScript SimpleAuction where
           { stage = Closed
           , сonstraints =
               [ saveLotConstraint
-              , cemScriptStateST params (Winner currentBet)
+              , MkTxFanC Out (BySameCEM (Winner currentBet)) (Exist 1)
               ]
           , signers = [seller params]
           }
@@ -88,17 +88,17 @@ instance CEMScript SimpleAuction where
           { stage = Closed
           , сonstraints =
               [ -- Example: In constraints redundant for on-chain
-                MkTxFanC In Anything (lot params)
-              , MkTxFanC Out (ByPubKey (better winnerBet)) (lot params)
-              , MkTxFanC In (ByPubKey (better winnerBet)) (betAdaValue winnerBet)
-              , MkTxFanC Out (ByPubKey (seller params)) (betAdaValue winnerBet)
+                MkTxFanC In Anything (SumValueEq $ lot params)
+              , MkTxFanC Out (ByPubKey (better winnerBet)) (SumValueEq $ lot params)
+              , MkTxFanC In (ByPubKey (better winnerBet)) (SumValueEq $ betAdaValue winnerBet)
+              , MkTxFanC Out (ByPubKey (seller params)) (SumValueEq $ betAdaValue winnerBet)
               ]
           , signers = [better winnerBet]
           }
     _ -> Left "Incorrect stage for transition"
     where
       initialBet = MkBet (seller params) 0
-      saveLotConstraint = MkTxFanC InAndOut Anything (lot params)
+      saveLotConstraint = MkTxFanC InAndOut Anything (SumValueEq $ lot params)
       betAdaValue = adaValue . betAmount
       adaValue =
         singleton (CurrencySymbol emptyByteString) (TokenName emptyByteString)
