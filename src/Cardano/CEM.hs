@@ -25,7 +25,7 @@ data TxFanFilter script
 
 data Quantor = Exist Integer | SumValueEq Value
 
-data TxFanKind = In | InRef | Out | InAndOut
+data TxFanKind = In | InRef | Out
 
 data TxFanConstraint script
   = MkTxFanC TxFanKind (TxFanFilter script) Quantor

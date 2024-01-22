@@ -66,9 +66,9 @@ instance CEMScript SimpleAuction where
             $ MkTransitionSpec
               { stage = Open
               , сonstraints =
-                  [ saveLotConstraint
-                  , MkTxFanC Out (BySameCEM (CurrentBet newBet)) (Exist 1)
-                  ]
+                  saveLotConstraints
+                    <> [ MkTxFanC Out (BySameCEM (CurrentBet newBet)) (Exist 1)
+                       ]
               , signers = [better newBet]
               }
         else Left "Wrong bet amount"
@@ -77,9 +77,9 @@ instance CEMScript SimpleAuction where
         $ MkTransitionSpec
           { stage = Closed
           , сonstraints =
-              [ saveLotConstraint
-              , MkTxFanC Out (BySameCEM (Winner currentBet)) (Exist 1)
-              ]
+              saveLotConstraints
+                <> [ MkTxFanC Out (BySameCEM (Winner currentBet)) (Exist 1)
+                   ]
           , signers = [seller params]
           }
     (Winner winnerBet, Buyout) ->
@@ -98,7 +98,10 @@ instance CEMScript SimpleAuction where
     _ -> Left "Incorrect stage for transition"
     where
       initialBet = MkBet (seller params) 0
-      saveLotConstraint = MkTxFanC InAndOut Anything (SumValueEq $ lot params)
+      saveLotConstraints =
+        [ MkTxFanC In Anything (SumValueEq $ lot params)
+        , MkTxFanC Out Anything (SumValueEq $ lot params)
+        ]
       betAdaValue = adaValue . betAmount
       adaValue =
         singleton (CurrencySymbol emptyByteString) (TokenName emptyByteString)
