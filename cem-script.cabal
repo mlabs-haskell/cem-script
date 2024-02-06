@@ -5,7 +5,9 @@ synopsis:      Cardano DApp SDK
 homepage:      https://github.com/cem-script
 author:        MLabs
 maintainer:    gregory@mlabs.city
-data-files:    README.md
+data-files:
+  README.md
+  data/alonzo-params.json
 
 -- @todo #3 Reproduce `cabal repl` and HLS build on another (@adamczykm) computer
 tested-with:   GHC ==9.6.3
@@ -21,10 +23,11 @@ common common-lang
   -- Options from MLabs styleguide
 
   ghc-options:
-    -Wall -Wcompat -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wredundant-constraints
-    -Wmissing-export-lists -Wmissing-deriving-strategies
-    -Wno-redundant-constraints
+    -- -Wall
+    -- -Wcompat -Wincomplete-record-updates
+    -- -Wincomplete-uni-patterns -Wredundant-constraints
+    -- -Wmissing-export-lists -Wmissing-deriving-strategies
+    -- -Wno-redundant-constraints
 
   if !flag(dev)
     ghc-options: -Werror
@@ -76,6 +79,7 @@ common common-lang
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
+    NoPolyKinds
 
   if flag(dev)
     default-extensions: PartialTypeSignatures
@@ -89,24 +93,41 @@ common common-onchain
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
+    , template-haskell >= 2.20
+    , th-abstraction >= 0.6.0.0
 
-  if flag(dev)
-    ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
+  -- if flag(dev)
+  --   ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
 
   -- Options for Plutus Tx compilations
   -- (some are enabled additionaly in individual modules)
 
   ghc-options:
-    -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
+    -fplugin-opt PlutusTx.Plugin:target-version=1.0.0
+    -fobject-code
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -fno-specialize -fno-unbox-small-strict-fields
     -fno-unbox-strict-fields
+    -fno-full-laziness
+    -fno-spec-constr
+    -fno-strictness
+    -fno-unbox-small-strict-fields
 
 common common-offchain
   import:        common-lang
   build-depends:
+    , aeson
     , bytestring
+    , pretty-show
+    , retry
     , cardano-api
+    -- , cardano-cli
+    , cardano-ledger-core
+    , cardano-ledger-babbage
+    , cardano-ledger-alonzo
+    , cardano-ledger-shelley
+    , ouroboros-consensus-cardano
+    , cardano-crypto-class
     , containers
     , filepath
     , text
@@ -117,16 +138,63 @@ common common-executable
   import:      common-offchain
   ghc-options: -threaded -rtsopts
 
-library cem-sdk
+library data-spine
+  import:
+    common-lang
+  hs-source-dirs:  src-lib/data-spine
+  build-depends:
+    template-haskell,
+    singletons,
+  exposed-modules:
+    Data.Spine
+
+library cardano-extras
+  import:
+    common-offchain,
+    common-onchain
+  hs-source-dirs:
+    src-lib/cardano-extras
+  build-depends:
+    template-haskell,
+  exposed-modules:
+    Plutus.Extras
+    Cardano.Extras
+
+library
   import:
     common-onchain,
     common-offchain
-
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
+    Cardano.CEM.Stages
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation
+    -- Cardano.CEM.Examples.Escrow
     Cardano.CEM.Examples.Voting
     Cardano.CEM.Monads
+    Cardano.CEM.Monads.L1
     Cardano.CEM.OnChain
+  build-depends:
+    cem-script:data-spine,
+    cem-script:cardano-extras,
+    dependent-map,
+    singletons-th,
+    -- plutarch,
+
+test-suite cem-sdk-test
+  import:
+    common-onchain,
+    common-offchain,
+  type:           exitcode-stdio-1.0
+  build-depends:
+    hspec,
+    cem-script,
+    QuickCheck,
+    quickcheck-dynamic,
+    cem-script:data-spine,
+    cem-script:cardano-extras,
+    dependent-map,
+    random,
+  hs-source-dirs: test/
+  main-is:        Main.hs

@@ -18,7 +18,7 @@ are covering our high-level goals.
 
 1. DApp logic as whole (synced-by-construction)
 2. Code is free from common security weaknesses by construction (secure-by-construction)
-3. Seamplessly emulate and test anything (emulate-anything)
+3. Seamlessly emulate and test anything (emulate-anything)
 4. Declarativity close to informal specification and bridging lightweight formal methods (declarative-spec)
 5. Generally production ready (production-ready)
 
@@ -40,7 +40,7 @@ are covering our high-level goals.
 ## Reference apps
 
 Those are list of open-source DApps,
-what we use to demonstrate problems in folloging:
+what we use to demonstrate problems in folloving:
 
 * Audited production DApps
     * Agora
@@ -167,6 +167,7 @@ real blockchain behaviour may lead to flacky test behaviour.
 Our script stages abstraction cover all those kind of problems.
 
 * @todo #3: document problems with slots
+    * https://github.com/mlabs-haskell/hydra-auction/issues/236
 * @todo #3: bug example
 
 
