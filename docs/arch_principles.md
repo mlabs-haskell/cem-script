@@ -9,9 +9,8 @@ offchain Tx construction and indexing backend
     * Bi-simulation checking
 * Constraints determine TxIn/Outs up to UTxO coin-selection
 (we call it almost-determinacy)
-@todo #3: wording for almost-determinacy
 * Datum properties encoded as class types
-* Common on-chain optimizations are perfomed if possible
+* Common on-chain optimizations are performed if possible
     * Constraints normalization,  and CSE
     * Best error short-cutting
     * Common security problems prevention
@@ -19,11 +18,11 @@ offchain Tx construction and indexing backend
 ## Potential obstacles
 
 * Ease and optimality of backend compilation
-* Robustnes of SMT conversion and overall normalization
+* Robustness of SMT conversion and overall normalization
 * Possibility for parsing and correct offchain usage
 of almost-determinacy
 * Having enough information for Tx submit retrying strategies
-* Desing for using custom Datum properties is not obvious
+* Design for using custom Datum properties is not obvious
 
 # CEM machine design
 
@@ -40,4 +39,4 @@ all their principles and obstacles are affecting CEM as well.
 ## Potential obstacles
 
 * Some scripts inexpressible by such model (as it happens in PAB)
-* Sub-optimal code from determenistic transitions model
+* Sub-optimal code from deterministic transitions model

@@ -2,14 +2,14 @@
 
 ## Why Cardano DApp modeling language is important?
 
-While protototypes can be easily constructed with existing Cardano frameworks, making it secure and production ready is sisyphean task.
+While prototypes can be easily constructed with existing Cardano frameworks, making it secure and production ready is sisyphean task.
 
-We believe, that onchain PL improvements by themself could not change that. Only higher-level modeling framework can lead to reliable DApp production.
+We believe, that onchain PL improvements by themselves could not change that. Only higher-level modeling framework can lead to reliable DApp production.
 
 In following enumerate our high-level design goals
 and demonstrate them by list of specific problems
 arising in existing DApps codebase.
-Such problems are specific security vulnerabilies types
+Such problems are specific security vulnerabilities types
 and various kinds development, audit and support cost increase.
 After that we examine how existing solutions
 are covering our high-level goals.
@@ -18,8 +18,8 @@ are covering our high-level goals.
 
 1. DApp logic as whole (synced-by-construction)
 2. Code is free from common security weaknesses by construction (secure-by-construction)
-3. Seamplessly emulate and test anything (emulate-anything)
-4. Declarativity close to informal specification and bridging lightweight formal methods (declarative-spec)
+3. Seamlessly emulate and test anything (emulate-anything)
+4. Being declarative: close to informal specification and bridging lightweight formal methods (declarative-spec)
 5. Generally production ready (production-ready)
 
 ## Not in scope at all
@@ -31,32 +31,32 @@ are covering our high-level goals.
 
 * CTL and overall frontend transaction construction model
 * No specific support, but can be added manually
-    * Metadata, reference scripts and non-inlined datums
-    * Stacking and governance features (apart for (security-by-default))
-    * ZK-proofs
+  * Metadata, reference scripts and non-inlined datums
+  * Stacking and governance features (apart for (security-by-default))
+  * ZK-proofs
 
 # Details of examples of problems to be solved
 
 ## Reference apps
 
 Those are list of open-source DApps,
-what we use to demonstrate problems in folloging:
+what we use to demonstrate problems in following:
 
 * Audited production DApps
-    * Agora
-    * MinSwap
-    * Fracada
-    * JPG Vesting Contract
-    * Indigo Protocol
+  * Agora
+  * MinSwap
+  * Fracada
+  * JPG Vesting Contract
+  * Indigo Protocol
 * DApp project we participate, audited or otherwise know it codebase
-    * Hydra Auction
-    * POCRE
-    * CNS
-    * Hydra
-* Plutomicon patterns
+  * Hydra Auction
+  * POCRE
+  * CNS
+  * Hydra
+* Plutonomicon patterns
 * plutus-usecases
 
-@todo #3: much more links to specific bugs and code size blowups
+@todo #3: Add more links to specific bugs and code size blowups in existing DApps.
 
 ## On-chain correctness
 
@@ -68,19 +68,19 @@ Our implementation makes them impossible to happen,
 taking that burden from developers and auditors.
 
 * Double satisfaction
-    * Shown twice in CNS Audit
-    * Shown once in Frada audit (3.2.7)
+  * Shown twice in CNS Audit
+  * Shown once in Fracada audit (3.2.7)
 * Insufficient staking control
-    * Shown once in CNS Audit - https://github.com/mlabs-haskell/cns-plutus-audit/issues/24
+  * Shown once in CNS Audit - https://github.com/mlabs-haskell/cns-plutus-audit/issues/24
 
 ### TxIn ordering and coin change support
 
-Those promlems are similar to previous in that they tend to
+Those problems are similar to previous in that they tend to
 arise in naive Plutus implementations,
 if developer was did not make measures to prevent them.
 
-Almost all transactoins which require fungible tokens as input,
-should not depend from exact UTxO coin-change distirbution.
+Almost all transactions which require fungible tokens as input,
+should not depend from exact UTxO coin-change distribution.
 
 Failure to expect that leads to prohibition of correct transactions.
 On other side too broad constraint might lead to
@@ -95,8 +95,8 @@ of token value or immutable UTxOs.
 Such kind of constraints naturally lead to script
 for which more performant implementation should
 eliminate some constraint following from others.
-Such kind of manual SMT solving excercises are
-known source for security bugs and compilcated code.
+Such kind of manual SMT solving exercises are
+known source for security bugs and complicated code.
 
 Making Plutus contract invariant to `TxIn` ordering
 and participation in multi-script scenarios lead to
@@ -113,15 +113,15 @@ Examples:
 Main feature of any correct application is that it
 behave same as it specification presumes. In our case
 specification for single script is CEM state machine,
-and correctnes means that on-chain script have exactly
+and correctness means that on-chain script have exactly
 same transitions possible.
 
 On-chain script having transition not possible in model
-usually leads to security vulnerablity. Other way around
+usually leads to security vulnerability. Other way around
 it might be DoS vulnerability or just usability bug.
 We aim to check most of such problems automatically.
 Almost all on-chain code bugs are specific cases of
-such violations, at least once we are analysing
+such violations, at least once we are analyzing
 not single script, but whole DApp, which is covered
 in next section.
 
@@ -131,7 +131,7 @@ of bugs are very hard to detect, without transaction fuzzing.
 Such fuzzing can be automated as part of our testing framework.
 Moreover similar task of script usecase benchmarking
 can be covered by same automation. Such kind of benchmarking,
-either on list of scenerios or arbitraly generated inputs
+either on list of scenarios or arbitrary generated inputs
 is essential for checking economics and performance regressions of DApp.
 
 https://plutus.readthedocs.io/en/latest/reference/writing-scripts/common-weaknesses/index.html
@@ -142,13 +142,13 @@ Whole DApp may be modeled as another kind of state-machine.
 It operates on level of whole DApp and generates specific script transitions. Liveliness could be checked by `quickcheck-dynamic`,
 or providing specific usecases just as single script case.
 
-Safety checks is harder to automate. This is not in the scope of current Catalyst project it is possbile to cover this case as well
+Safety checks is harder to automate. This is not in the scope of current Catalyst project it is possible to cover this case as well
 by employing constraint equivalence check,
 and verifying that any deviation from generated transitions
 is not possible. Another solution might be mutation testing.
 Such kind of vulnerabilities are now the most complex kind of attack
 to consider as part of DApp design or auditing.
-Thus, automaing it may be benefitial.
+Thus, automating it may be beneficial.
 
 ### Time and stages handling
 
@@ -162,12 +162,12 @@ Another problem is keeping time logic in sync between on-
 and off-chain code. This is even more hard given that Plutus time
 to slot conversion is not obvious to implement correctly.
 Slot time differences and overall need to make test cases match
-real blockchain behaviour may lead to flacky test behaviour.
+real blockchain behavior may lead to flaky test behavior.
 
 Our script stages abstraction cover all those kind of problems.
 
-* @todo #3: document problems with slots
-* @todo #3: bug example
+* @todo #3: document problems with slots in Plutus/Cardano API
+  * https://github.com/mlabs-haskell/hydra-auction/issues/236
 
 
 ## Logic duplication and spec subtleness
@@ -178,10 +178,10 @@ Designing, understanding and auditing any non-trivial DApp
 is almost impossible without human-readable spec.
 That is why in all reference DApps either used spec in development,
 or was asked to provide specification by auditor.
-Tweag and MLabs audits specificalli list validating provided specification
+Tweag and MLabs audits specifically list validating provided specification
 as one of main tasks of audit.
 
-This leads to lot of cruft with writing, linking and updating specifications. Quite often not only one, but up to three levels of spec granularity would be benefitial for project, which worstens situation.
+This leads to lot of cruft with writing, linking and updating specifications. Quite often not only one, but up to three levels of spec granularity would be beneficial for project, which worsens situation.
 We observe great amount of cruft and spec rot in all projects we were personally involved. Such kind of cruft is often present
 not only on level of single developers, but on communication
 
@@ -197,30 +197,29 @@ but it is very much possible feature as well.
 
 ### On-/Off-chain and spec code duplication
 
-@todo #3: more integration point code duplication examples
+@todo #3: Add more off-chain code duplication examples from existing PABs.
+    Include problems with querying coin-selection, tests, retrying and errors.
 
 ### Correct off-chain Tx construction logic
 
 A lot of on-chain problems, like timing and coin change issues
-have their counterpart on Tx sumbmission side.
+have their counterpart on Tx submission side.
 
-@todo #3: coin-selection, tests, retrying and errors
-
-### Comon backend features
+### Common backend features
 
 There is a list of common tasks shared by multiple backends,
 which could be tackled generically in our framework.
 
 * Parsing transaction back to state-machine transition
-is required for delegated architecures,
-including almost any DApp on Hydra L2.
-* Customized transation indexing is imporant for providing
-data to almost any kind of custom web-backend.
-Also usage of customized indexing may reduce storage space or SaaS dependence for DApp dependent on old transactions being recorded.
-Our framework simplifies generation of custom indexing solution,
-based on transition parsing feature.
+  is required for delegated architectures,
+  including almost any DApp on Hydra L2.
+* Customized transaction indexing is important for providing
+  data to almost any kind of custom web-backend.
+  Also usage of customized indexing may reduce storage space or SaaS dependence for DApp dependent on old transactions being recorded.
+  Our framework simplifies generation of custom indexing solution,
+  based on transition parsing feature.
 * Script hashes and sizes summary is essential
-for DApp users and testers to check on-chain script are matching.
+  for DApp users and testers to check on-chain script are matching.
 
 # Existing solutions
 
@@ -231,36 +230,36 @@ for DApp users and testers to check on-chain script are matching.
 PABs state-machines and `plutus-contract-model` package
 are the ony existing project close to our design.
 
-They are providing CEM state machine model scirpt,
-translatable to on-chain and off-chaing code.
+They are providing CEM state machine model script,
+translatable to on-chain and off-chain code.
 On top of that you may specify custom `ContractModel`
-specifying multy-script DApp as a whole,
+specifying multi-script DApp as a whole,
 and model check your custom invariants and
 very generic "CrashTolerance" safety property
-and "No Locked Funds" liveliness propery.
+and "No Locked Funds" liveliness property.
 Thus they are the only project known to us,
 which aim to cover (declarative-spec) and (synced-by-construction) goals.
 
 This model is generic and covered in Plutus Pioneer tutorial,
 thus already known to many people.
 Our design is based on very similar model.
-Unfortunately, existing `plutus-apps` solution seem to be compeletely
+Unfortunately, existing `plutus-apps` solution seem to be completely
 not (production-ready). We could not find any `ContractModel` usage example on github, apart from forks and tutorials, thus it does not seem that it is indeed not much used in practice.
 Also they provide much less free guaranties and features then we aim to.
 As we will demonstrate in sequel,
-this is most probably imposible to fix without changing PAB design.
+this is most probably impossible to fix without changing PAB design.
 
 State Machine to on-chain translation is very naive
 and would not produce optimal code in multiple typical cases.
-Constaint language used by PAB is fundmentaly more expressible than ours,
-and that complicates possiblity of implementing required optimizations.
-Specifics of those desing considerations are detailed in arch documention.
+Constraint language used by PAB is fundamentally more expressible than ours,
+and that complicates possibility of implementing required optimizations.
+Specifics of those design considerations are detailed in arch documentation.
 
 Same logic stands for (security-by-default) goal,
 in particular providing SMT encoding for constrains,
 which may be used to drastically shrink model-check fuzzing space
 or even completely remove a need to use fuzzing.
-Automatical check for varous other important security properties,
+Automatic check for various other important security properties,
 like almost-determinism is complicated by this as well.
 
 Another important restriction,
@@ -280,20 +279,19 @@ on top of cardano-api. But it has no feature related to goals
 (synced-by-construction), (secure-by-construction)
 and (declarative-spec).
 
-@todo #3: expand docs on Atlas
+@todo #3: Add more specifics on Atlas to docs.
 
 ## Testing tools
 
 ### Tweag's cooked-validators
 
-Project definetly covers goal (production-ready),
-because it was sucessfully used in real-world audits.
-@todo #3: provide examples
+Project definitely covers goal (production-ready),
+because it was successfully used in real-world audits.
 but only partially covers
 (emulate-anything) and (declarative-spec) goals.
 
 While it, surely, can do transaction emulation,
-it, to best of our knoweledge, does not have monad instance
+it, to best of our knowledge, does not have monad instance
 for real L1 blockchain. So you still cannot reuse same code
 across tests and real blockchain Tx construction.
 
@@ -307,8 +305,8 @@ or can be re-selected again (like coin-selected ADA for payment).
 
 Having declarative transition model is even
 more important for mutation testing purposes.
-`cooked-validators` gives Cardan Tx level API,
-for constructoion of mutations.
+`cooked-validators` gives Cardano Tx level API,
+for construction of mutations.
 That means, that you should select, write and evaluate
 them manually, depending on logic of your script.
 This lead to logic coupling between spec, L1 code and test code.
@@ -317,11 +315,11 @@ complicates spec validation and might lead
 to attack vectors missed by mistake.
 
 Our API presumes that means of on-script validation,
-in our case behavour equivalence (aka bi-similarity)
-of delaratime CEM state-machine and real on-chain script
+in our case behavior equivalence (aka bi-similarity)
+of declarative CEM state-machine and real on-chain script
 is verified and validated semi-automatically.
-Also we plan to make some kind of vulerabilities covered by
-`cooked-validators` imposible by constuction, specifically modules:
+Also we plan to make some kind of vulnerabilities covered by
+`cooked-validators` impossible by construction, specifically modules:
 `ValidityRange`, `DoubleSat`, `AddInputsAndOutputs`
 and `OutPermutations`.
 
@@ -339,8 +337,6 @@ and (declarative-spec) goals.
 
 https://abailly.github.io/posts/mutation-testing.html
 
-@todo: examples of test duplication and existing bugs
-
 ### tasty-plutus
 
 Only cover (emulate-anything) goal, does not aim to cover others.
@@ -351,20 +347,20 @@ like `plutus-size-check`, which code we would probably steal.
 ### General Haskell verification tools
 
 We plan to use first two tools in our implementation.
-They both are tested in real prjects and documented well.
+They both are tested in real projects and documented well.
 
 Other tools are not applicable to our project.
 
-1. quickehck-dynamic
+1. quickcheck-dynamic
 2. SMV
 3. apropos
 4. Liquid Haskell
 5. Agda
 
-## On-chain PLs and CIP-30 wrapers
+## On-chain PLs and CIP-30 wrappers
 
 Any kind of on-chain PL can only cover goals
-(emulate-anything) and (production-readyness).
+(emulate-anything) and (production-readiness).
 As far as we aware, none of them are trying
 to solve other goals.
 
@@ -384,7 +380,7 @@ Same stands for any known kind of frontend framework:
 Same stands for any kind of `cardano-api` API translation to other PLs:
 
 * PyCardano - https://pycardano.readthedocs.io/en/latest/guides/plutus.html
-* Cardano Multiplatform Lib
+* Cardano multi-platform Lib
 
 ## Manual formalizations
 

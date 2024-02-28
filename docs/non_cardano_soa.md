@@ -1,14 +1,14 @@
 # Solidity verification
 
-## Comparsion of account-based and EUtXO verification
+## Comparison of account-based and EUtXO verification
 
 Solidity PL has commands for writing in Design-by-Contract style.
 They fail dynamically, and could have been fuzzed for a while.
 Same stands for arithmetic overflow and array bounds errors.
 Recently they got symbolic execution support as well.
 
-Overeflow and bound errors are less dangerous in Plutus,
-because they cannot lead to silentl logic bug,
+Overflow and bound errors are less dangerous in Plutus,
+because they cannot lead to silent logic bug,
 but they can be a reason for getting contract in stuck state as well.
 Complications arising from external contract calls support,
 and re-entrancy bugs in particular are absent in EUTxO model.
@@ -36,5 +36,5 @@ https://docs.soliditylang.org/en/latest/smtchecker.html
 
 Other tools:
 
-* Static analysis - TODO
+* Various static analysis
 * KEVM - operation semantics mechanization for EVM
