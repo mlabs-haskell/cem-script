@@ -1,0 +1,1 @@
+--reload=cem-script.cabal --command="cabal repl test-suite:cem-sdk-test" -W -T ":main"
