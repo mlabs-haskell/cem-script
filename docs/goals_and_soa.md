@@ -352,7 +352,7 @@ They both are tested in real projects and documented well.
 Other tools are not applicable to our project.
 
 1. quickcheck-dynamic
-2. SMV
+2. [SBV](https://hackage.haskell.org/package/sbv)
 3. apropos
 4. Liquid Haskell
 5. Agda
