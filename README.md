@@ -15,6 +15,15 @@ Define and reuse Cardano DApp logic via annotated CEM-machines, resulting in fre
 * Automatically testing invariants
 * Human-readable specs
 
+## Building
+
+Building is performed with cabal.
+Building requires `libblst` and `libsodium` installed.
+
+Arch Linux has `libblst` in AUR, nix are exemplified by IOHK,
+and manual installation is described here:
+https://github.com/input-output-hk/cardano-node-wiki/blob/main/docs/getting-started/install.md#installing-blst
+
 ## Project status
 
 Project is in early development stage and is funded by
