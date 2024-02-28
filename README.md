@@ -10,7 +10,7 @@
 Define and reuse Cardano DApp logic via annotated CEM-machines, resulting in free implementations for:
 
 * On-chain scripts
-* Tx building/submission/resubmission on L1/L2/emulated testnet
+* Tx building/submission/resubmission on L1/emulated testnet
 * Tx parsing/indexing
 * Automatically testing invariants
 * Human-readable specs
