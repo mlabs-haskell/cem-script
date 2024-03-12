@@ -80,6 +80,7 @@ common common-lang
     TypeSynonymInstances
     UndecidableInstances
     NoPolyKinds
+    ViewPatterns
 
   if flag(dev)
     default-extensions: PartialTypeSignatures
@@ -122,6 +123,7 @@ common common-offchain
     , retry
     , cardano-api
     -- , cardano-cli
+    , ouroboros-network-protocols
     , cardano-ledger-core
     , cardano-ledger-babbage
     , cardano-ledger-alonzo
@@ -174,13 +176,13 @@ library
     Cardano.CEM.Examples.Voting
     Cardano.CEM.Monads
     Cardano.CEM.Monads.L1
+    Cardano.CEM.Monads.CLB
     Cardano.CEM.OnChain
   build-depends:
     cem-script:data-spine,
     cem-script:cardano-extras,
     dependent-map,
     singletons-th,
-    -- plutarch,
 
 test-suite cem-sdk-test
   import:
