@@ -12,14 +12,12 @@ import Data.Set qualified as Set
 import Unsafe.Coerce (unsafeCoerce)
 
 import Data.Aeson
+import Data.Aeson.KeyMap ((!?))
 
 -- Cardano imports
--- import Cardano.Ledger.Chain (PredicateFailure)
--- import Cardano.Ledger.Shelley.API ()
--- import Ouroboros.Consensus.Shelley.Ledger (ApplyTxError (..))
--- import Cardano.Ledger.Alonzo.TxInfo (ExtendedUTxO, TranslationError)
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.Shelley (LedgerProtocolParameters (..))
+import Cardano.Api.Shelley (LedgerProtocolParameters (..), )
+import Ouroboros.Network.Protocol.LocalStateQuery.Type (Target (..))
 
 -- CEM imports
 
@@ -73,7 +71,7 @@ queryCardanoNode ::
   QueryInShelleyBasedEra Era b -> L1Runner b
 queryCardanoNode query = do
   node <- localNode <$> ask
-  result <- liftIO $ queryNodeLocalState node Nothing cardanoQuery
+  result <- liftIO $ queryNodeLocalState node VolatileTip cardanoQuery
   return $ case result of
     -- TODO: better handling of wrong-era exceptions
     Right (Right x) -> x
@@ -142,9 +140,6 @@ instance MonadSubmitTx L1Runner where
     mainAddress <- fromPlutusAddressInMonad mainAddress'
     utxo <- queryUtxo $ ByTxIns $ map fst txIns
 
-    -- liftIO $ pPrint preBody
-    -- liftIO $ pPrint utxo
-
     body <-
       either (\x -> fail $ "Autobalance error: " <> show x) return
         =<< callBodyAutoBalance
@@ -190,7 +185,7 @@ callBodyAutoBalance ::
   TxBodyContent BuildTx Era ->
   UTxO Era ->
   AddressInEra Era ->
-  m (Either TxBodyErrorAutoBalance (TxBody Era))
+  m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
 callBodyAutoBalance
   preBody
   utxo
