@@ -123,6 +123,7 @@ common common-offchain
     , cardano-api
     -- , cardano-cli
     , ouroboros-network-protocols
+    , clb
     , cardano-ledger-core
     , cardano-ledger-babbage
     , cardano-ledger-alonzo
