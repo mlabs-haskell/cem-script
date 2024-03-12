@@ -1,4 +1,5 @@
 {-# LANGUAGE NoPolyKinds #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Cardano.CEM.Stages where
 

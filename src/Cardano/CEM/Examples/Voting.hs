@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-overlapping-patterns #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Cardano.CEM.Examples.Voting where
 
