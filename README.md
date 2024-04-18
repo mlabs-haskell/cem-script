@@ -2,9 +2,6 @@
 
 # CEM SDK
 
-* @todo #3 Take decision if to change project name to CEM SDK
-* @todo #3 Found out if we can make PDD bot descriptions and mentions less noisy
-
 ## Project pitch
 
 Define and reuse Cardano DApp logic via annotated CEM-machines, resulting in free implementations for:
@@ -26,6 +23,14 @@ https://github.com/input-output-hk/cardano-node-wiki/blob/main/docs/getting-star
 
 ## Running tests
 
+Tests are runned in emulated environment by default.
+
+Just run: `cabal test`.
+
+For development and fast response once could consider `ghcid`.
+
+## Starting local devnet
+
 Tests depend on localdevnet, which is runned in Docker.
 To start it do:
 
@@ -34,10 +39,6 @@ To start it do:
 docker-compose  -f docker-compose.devnet.yaml up
 sudo chown -R $USER:$USER ./devnet/
 ```
-
-After that run: `cabal test`.
-
-For development and fast response once could consider `ghcid`.
 
 ## Devnet stalling bug
 
