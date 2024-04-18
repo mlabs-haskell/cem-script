@@ -11,9 +11,31 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 index-state:
-  , hackage.haskell.org 2023-11-03T12:09:05Z
-  , cardano-haskell-packages 2023-11-03T12:09:05Z
+  , hackage.haskell.org  2024-03-31T15:25:20Z
+  , cardano-haskell-packages 2024-03-30T16:14:24Z
 
 tests: true
+
+allow-newer:
+  cardano-ledger-shelley-ma:base,
+  ouroboros-consensus-cardano:base,
+
+-- This is needed since prettyprinting stuff was moved to
+-- cardano-ledger-test library which is no longer a subject
+-- to be published on CHaP.
+-- See discussion in https://github.com/IntersectMBO/cardano-ledger/pull/3973
+source-repository-package
+  type: git
+  location: https://github.com/IntersectMBO/cardano-ledger
+  tag: 6e2d37cc0f47bd02e89b4ce9f78b59c35c958e96
+  --sha256: 6+Os/mQDzBOU+TkTD+n/T1MFcI+Mn0/tcBMJhLRfqyA=
+  subdir:
+    libs/cardano-ledger-test
+
+source-repository-package
+  type: git
+  location: https://github.com/mlabs-haskell/clb
+  tag: b0717b7a4e84796dbbd3db25f95230fdbf8b4651
+  --sha256: 6+Os/mQDzBOU+TkTD+n/T1MFcI+Mn0/tcBMJhLRfqyA=
 
 packages: .

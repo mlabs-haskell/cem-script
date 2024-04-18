@@ -22,3 +22,8 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 .vscode
+haddocks
+.direnv/
+# Functions changed by runing local testnet
+devnet/db
+devnet/genesis-*.json
