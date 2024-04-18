@@ -5,9 +5,7 @@ synopsis:      Cardano DApp SDK
 homepage:      https://github.com/cem-script
 author:        MLabs
 maintainer:    gregory@mlabs.city
-data-files:
-  README.md
-
+data-files:    README.md
 tested-with:   GHC ==9.6.3
 
 flag dev
@@ -114,9 +112,7 @@ common common-offchain
   build-depends:
     , aeson
     , bytestring
-    , cardano-api
-    -- https://github.com/IntersectMBO/cardano-api/issues/502
-    , cardano-api:{internal}
+    , cardano-api:{cardano-api, internal}
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
@@ -132,6 +128,7 @@ common common-offchain
     , time
     , unix
 
+-- https://github.com/IntersectMBO/cardano-api/issues/502
 common common-executable
   import:      common-offchain
   ghc-options: -threaded -rtsopts
@@ -171,18 +168,16 @@ library
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1
-    Cardano.CEM.OnChain
     Cardano.CEM.OffChain
+    Cardano.CEM.OnChain
     Cardano.CEM.Stages
 
-  other-modules:
-    Cardano.CEM.Monads.L1Commons
-
+  other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
-    , clb
-    , ouroboros-consensus
     , cem-script:{cardano-extras, data-spine}
+    , clb
     , dependent-map
+    , ouroboros-consensus
     , singletons-th
 
 test-suite cem-sdk-test
@@ -193,18 +188,19 @@ test-suite cem-sdk-test
   type:           exitcode-stdio-1.0
   build-depends:
     , cem-script:{cem-script, cardano-extras, data-spine}
+    , clb
     , dependent-map
     , hspec
     , QuickCheck
     , quickcheck-dynamic
     , random
-    , clb
 
   hs-source-dirs: test/
   other-modules:
-    TestNFT
-    Voting
     Auction
-    Utils
     OffChain
+    TestNFT
+    Utils
+    Voting
+
   main-is:        Main.hs
