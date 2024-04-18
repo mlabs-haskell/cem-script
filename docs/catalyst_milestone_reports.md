@@ -9,7 +9,12 @@ Changes:
 
 ## State graph examples
 
-```graphviz
+![](./auction-state-graph.png)
+
+
+Source code:
+
+```
 digraph Creator {
 rankdir=LR;
 node [shape="dot",fontsize=14,fixedsize=true,width=1.5];
@@ -18,15 +23,5 @@ NotStarted -> CurrentBid [label="Start (stage Open)"];
 CurrentBid -> CurrentBid [label="MakeBid (stage Open)"];
 CurrentBid -> Winner [label="Close (stage Closed)"];
 Winner -> "Void Out" [label="Buyout (stage Closed)"];
-}
-```
-
-```graphviz
-digraph Creator {
-rankdir=LR;
-node [shape="dot",fontsize=14,fixedsize=true,width=1.5];
-edge [fontsize=11];"Void In" [color="orange"];"Void Out" [color="orange"];"Void In" -> Spawning [label="Create (stage Always)"];
-Spawning -> Spawning [label="Spawn (stage Always)"];
-Spawning -> "Void Out" [label="Finalize (stage Always)"];
 }
 ```
