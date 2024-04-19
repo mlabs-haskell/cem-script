@@ -81,6 +81,7 @@ class
   ( HasSpine (Transition script)
   , HasSpine (State script)
   , Stages (Stage script)
+  , Show (Stage script)
   ) =>
   CEMScript script
   where
@@ -101,12 +102,16 @@ class
   -- | Transitions for deterministic CEM-machine
   type Transition script = transition | transition -> script
 
-  -- | Each kind of Transition has statically associated Stage and State spine
+  -- | Each kind of Transition has statically associated Stage
+  -- from/to `State`s spines
   transitionStage ::
     Proxy script ->
     Map.Map
       (Spine (Transition script))
-      (Stage script, Maybe (Spine (State script)))
+      ( Stage script
+      , Maybe (Spine (State script))
+      , Maybe (Spine (State script))
+      )
 
   -- This functions define domain logic
   transitionSpec ::
