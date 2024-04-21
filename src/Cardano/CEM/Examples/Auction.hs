@@ -86,11 +86,11 @@ instance CEMScript SimpleAuction where
 
   transitionStage Proxy =
     Map.fromList
-      [ (CreateSpine, (Open, Nothing))
-      , (StartSpine, (Open, Just NotStartedSpine))
-      , (MakeBidSpine, (Open, Just CurrentBidSpine))
-      , (CloseSpine, (Closed, Just CurrentBidSpine))
-      , (BuyoutSpine, (Closed, Just WinnerSpine))
+      [ (CreateSpine, (Open, Nothing, Just NotStartedSpine))
+      , (StartSpine, (Open, Just NotStartedSpine, Just CurrentBidSpine))
+      , (MakeBidSpine, (Open, Just CurrentBidSpine, Just CurrentBidSpine))
+      , (CloseSpine, (Closed, Just CurrentBidSpine, Just WinnerSpine))
+      , (BuyoutSpine, (Closed, Just WinnerSpine, Nothing))
       ]
 
   {-# INLINEABLE transitionSpec #-}

@@ -161,7 +161,7 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
-    Cardano.CEM.Documentaiton
+    Cardano.CEM.Documentation
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation
     Cardano.CEM.Examples.Voting

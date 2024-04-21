@@ -108,10 +108,10 @@ instance CEMScript SimpleVoting where
 
   transitionStage _ =
     Map.fromList
-      [ (CreateSpine, (Always, Nothing))
-      , (StartSpine, (Always, Just NotStartedSpine))
-      , (VoteSpine, (Always, Just InProgressSpine))
-      , (FinalizeSpine, (Always, Just InProgressSpine))
+      [ (CreateSpine, (Always, Nothing, Just NotStartedSpine))
+      , (StartSpine, (Always, Just NotStartedSpine, Just InProgressSpine))
+      , (VoteSpine, (Always, Just InProgressSpine, Just InProgressSpine))
+      , (FinalizeSpine, (Always, Just InProgressSpine, Nothing))
       ]
 
   {-# INLINEABLE transitionSpec #-}

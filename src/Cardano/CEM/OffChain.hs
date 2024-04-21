@@ -201,7 +201,7 @@ resolveAction
       let
         -- TODO
         mScriptTxIn = case transitionStage (Proxy :: Proxy script) Map.! getSpine transition of
-          (_, Nothing) -> Nothing
+          (_, Nothing, _) -> Nothing
           _ -> mScriptTxIn'
         mState = cemTxOutState =<< snd <$> mScriptTxIn
         witnesedScriptTxIns =

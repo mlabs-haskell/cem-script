@@ -23,6 +23,7 @@ import Data.Singletons
 -}
 class
   ( Ord (Spine sop)
+  , Show (Spine sop)
   ) =>
   HasSpine sop
   where
@@ -110,7 +111,7 @@ deriveSpine name = do
     suffix = "Spine"
     spineName = addSuffix name suffix
     spineTypeQ = reifyType spineName
-  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum]
+  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show]
   -- TODO: derive Sing
   -- TODO: derive HasField (OfSpine ...)
 
