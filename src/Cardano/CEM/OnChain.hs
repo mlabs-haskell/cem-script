@@ -1,14 +1,21 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE NoPolyKinds #-}
+-- This warnings work incorrectly in presence of our Plutus code
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
 {-# HLINT ignore "Redundant bracket" #-}
 
-module Cardano.CEM.OnChain where
+module Cardano.CEM.OnChain (
+  CEMScriptCompiled (..),
+  cemScriptAddress,
+  genericCEMScript,
+) where
 
 import PlutusTx.Prelude
 
-import Data.Proxy
+import Data.Proxy (Proxy)
+import Language.Haskell.TH (conT)
+import Language.Haskell.TH.Syntax (Exp, Name, Q)
 
 import PlutusLedgerApi.Common (SerialisedScript)
 import PlutusLedgerApi.V1.Address (Address, scriptHashAddress)
@@ -16,7 +23,6 @@ import PlutusLedgerApi.V1.Interval (always, contains)
 import PlutusLedgerApi.V1.Scripts (Datum (..))
 import PlutusLedgerApi.V1.Value (geq)
 import PlutusLedgerApi.V2.Contexts (
-  ScriptContext,
   TxInInfo (..),
   TxInfo (..),
   TxOut (..),
@@ -27,14 +33,9 @@ import PlutusLedgerApi.V2.Tx (OutputDatum (..))
 import PlutusTx.IsData (FromData, ToData (toBuiltinData), UnsafeFromData (..))
 import PlutusTx.Show (Show (..))
 
-import Plutus.Extras
-
 import Cardano.CEM
-import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Stages
-import Cardano.Ledger.Babbage.TxBody (getEitherAddrBabbageTxOut)
-import Language.Haskell.TH (Code, conT, unsafe)
-import Language.Haskell.TH.Syntax (Dec, Exp, Name, Q, Type)
+import Plutus.Extras (scriptValidatorHash)
 
 class (CEMScript script, CEMScriptIsData script) => CEMScriptCompiled script where
   cemScriptCompiled :: Proxy script -> SerialisedScript
@@ -56,11 +57,11 @@ type CEMScriptIsData script =
   )
 
 -- Various hacks and type annotations are done due to Plutus limitations
--- Typed quasiquotes do not allow type splicing, so we need use untyped
+-- Typed quasi-quotes do not allow type splicing, so we need use untyped
 -- Fields bug - https://gitlab.haskell.org/ghc/ghc/-/merge_requests/8686
--- Data famlily - not suported -
+-- Data family - not supported -
 -- https://github.com/IntersectMBO/plutus/issues/5768
--- Type familiy mentioning: https://github.com/IntersectMBO/plutus/issues/5769
+-- Type family mentioning: https://github.com/IntersectMBO/plutus/issues/5769
 
 {-# INLINEABLE genericCEMScript #-}
 genericCEMScript ::
@@ -71,26 +72,28 @@ genericCEMScript script scriptStage =
   [|
     \datum' redeemer' context' ->
       let
-        checkTxFan' ownDatum filterSpec' fan =
+        checkTxFan' filterSpec' fan =
           case filterSpec' of
             Anything -> True
             UnsafeBySameCEM stateData ->
               let
-                state = unsafeFromBuiltinData stateData :: State $(conT script)
-                (p1, p2, _) = ownDatum
-                stateChangeDatum = (p1, p2, state)
+                -- TODO: optimize without decoding
+                changedState =
+                  unsafeFromBuiltinData stateData :: State $(conT script)
+                stateChangeDatum = (stageParams, params, stateData)
                 stateChangeDatumBS = toBuiltinData stateChangeDatum
                in
-                checkTxFan' ownDatum (ByDatum stateChangeDatumBS) fan
-            ByDatum expecedDatum ->
+                checkTxFan' (ByDatum stateChangeDatumBS) fan
+            ByDatum expectedDatum ->
               let
                 TxOut _ _ datum _ = fan
                in
                 case datum of
-                  OutputDatum datum -> getDatum datum == expecedDatum
+                  OutputDatum datumContent ->
+                    getDatum datumContent == expectedDatum
                   OutputDatumHash _ -> traceError "Hash datum not supported"
                   _ -> False
-        checkConstraint ownDatum ownAddress info (MkTxFanC fanKind filterSpec quantifier) =
+        checkConstraint (MkTxFanC fanKind filterSpec quantifier) =
           traceIfFalse ("Checking constraint " <> show fanKind <> " " <> show datumSpec)
             $ checkQuantifier
             $ filter checkTxFan fans
@@ -98,7 +101,7 @@ genericCEMScript script scriptStage =
             MkTxFanFilter addressSpec datumSpec = filterSpec
             checkTxFan fan =
               checkTxFanAddress ownAddress addressSpec fan
-                && checkTxFan' ownDatum datumSpec fan
+                && checkTxFan' datumSpec fan
             fans = case fanKind of
               In -> map txInInfoResolved $ txInfoInputs info
               InRef -> map txInInfoResolved $ txInfoReferenceInputs info
@@ -111,9 +114,9 @@ genericCEMScript script scriptStage =
 
         params :: Params $(conT script)
         stageParams :: StageParams ($(conT scriptStage))
-        datum :: CEMScriptDatum $(conT script)
-        datum = unsafeFromBuiltinData datum'
-        (stageParams, params, state) = datum
+        ownDatum :: CEMScriptDatum $(conT script)
+        ownDatum = unsafeFromBuiltinData datum'
+        (stageParams, params, state) = ownDatum
         transition :: Transition $(conT script)
         transition = unsafeFromBuiltinData redeemer'
         context = unsafeFromBuiltinData context'
@@ -129,14 +132,11 @@ genericCEMScript script scriptStage =
               -- do transition
               traceIfFalse
                 "Some constraint not matching"
-                ( all (checkConstraint datum ownAddress info) constraints
-                )
+                (all checkConstraint constraints)
                 -- check signers
                 && traceIfFalse
                   "Wrong signers list"
-                  ( signers
-                      `isSubSetOf` txInfoSignatories info
-                  )
+                  (signers `isSubSetOf` txInfoSignatories info)
                 -- check stage
                 && let
                     expectedInterval =
