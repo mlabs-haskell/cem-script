@@ -39,3 +39,6 @@ source-repository-package
   --sha256: 6+Os/mQDzBOU+TkTD+n/T1MFcI+Mn0/tcBMJhLRfqyA=
 
 packages: .
+
+package cardano-crypto-praos
+  flags: -external-libsodium-vrf
