@@ -39,3 +39,10 @@ jobs:
         cabal update
         cabal build
         cabal test
+    - name: Install and run linters
+      shell: devx {0}
+      run: |
+        cabal install cabal-fmt
+        cabal install fourmolu
+        cabal-fmt --check cem-script.cabal
+        fourmolu .
