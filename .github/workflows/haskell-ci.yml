@@ -1,6 +1,7 @@
 name: Haskell-CI
 on:
   - push
+  - pull_request
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -44,5 +45,5 @@ jobs:
       run: |
         cabal install cabal-fmt
         cabal install fourmolu
-        cabal-fmt --check cem-script.cabal
-        fourmolu .
+        /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
+        /home/runner/.cabal-devx/bin/fourmolu .
