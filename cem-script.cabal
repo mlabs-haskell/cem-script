@@ -112,7 +112,7 @@ common common-offchain
   build-depends:
     , aeson
     , bytestring
-    , cardano-api:{cardano-api, internal}
+    , cardano-api:{cardano-api, internal} == 8.38.0.0
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
