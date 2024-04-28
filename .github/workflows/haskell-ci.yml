@@ -1,16 +1,12 @@
 name: Haskell-CI
 on:
   - pull_request
+  - merge_group
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Cache DevX
-      uses: actions/cache@v3
-      with:
-        path: /nix
-        key: "devx-ghc96"
     - name: Setup DevX
       uses: input-output-hk/actions/devx@latest
       with:
@@ -24,15 +20,11 @@ jobs:
         echo 'Running in DevX'
         ghc --version
         cabal --version
-    - name: Cache ~/.cabal/packages, ~/.cabal/store and dist-newstyle
-      uses: actions/cache@v3
+    - name: Save DevX cache
+      uses: actions/cache/save@v3
       with:
-        path: |
-          ~/.cabal/packages
-          ~/.cabal/store
-          dist-newstyle
-        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
-        restore-keys: ${{ runner.os }}-ghc964-
+        path: /nix/store
+        key: "devx-ghc96"
     - name: Cabal build and test
       shell: devx {0}
       run: |
@@ -45,4 +37,20 @@ jobs:
         cabal install cabal-fmt
         cabal install fourmolu
         /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
-        /home/runner/.cabal-devx/bin/fourmolu .
+        /home/runner/.cabal-devx/bin/fourmolu --mode check .
+    - name: Save cabal cache
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+    - name: Save cabal cache (generic key)
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-
