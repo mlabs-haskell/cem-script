@@ -2,9 +2,9 @@ module Cardano.CEM.Documentation (cemDotGraphString) where
 
 import Prelude
 
+import Data.Foldable (fold)
 import Data.Map qualified as Map
 import Data.Proxy
-import Data.Foldable (fold)
 
 import Cardano.CEM
 
@@ -31,14 +31,14 @@ cemDotGraphString name proxy =
     edges =
       fold $
         [ maybe "\"Void In\"" showSpine from
-              <> " -> "
-              <> maybe "\"Void Out\"" showSpine to
-              <> " [label=\""
-              <> showSpine transition
-              <> " (stage "
-              <> show stage
-              <> ")"
-              <> "\"]; \n"
+          <> " -> "
+          <> maybe "\"Void Out\"" showSpine to
+          <> " [label=\""
+          <> showSpine transition
+          <> " (stage "
+          <> show stage
+          <> ")"
+          <> "\"]; \n"
         | (transition, (stage, from, to)) <-
             Map.assocs $ transitionStage proxy
         ]
