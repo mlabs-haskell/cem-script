@@ -1,6 +1,8 @@
 name: Haskell-CI
 on:
-  - pull_request
+  # Reusing caches requires building in `main` branch
+  - push
+  # Does not seem to work
   - merge_group
 jobs:
   tests:
