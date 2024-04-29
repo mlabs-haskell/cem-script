@@ -20,11 +20,15 @@ jobs:
         echo 'Running in DevX'
         ghc --version
         cabal --version
-    - name: Save DevX cache
-      uses: actions/cache/save@v3
+    - name: Use cabal cache
+      id: cache-cabal
+      uses: actions/cache/restore@v3
       with:
-        path: /nix/store
-        key: "devx-ghc96"
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+        restore-keys: ${{ runner.os }}-ghc964-
     - name: Cabal build and test
       shell: devx {0}
       run: |
