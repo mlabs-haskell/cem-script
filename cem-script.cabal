@@ -151,6 +151,7 @@ library cardano-extras
   exposed-modules:
     Cardano.Extras
     Plutus.Extras
+    Plutus.Deriving
 
 library
   import:
