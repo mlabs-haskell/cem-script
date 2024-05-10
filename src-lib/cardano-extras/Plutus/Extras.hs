@@ -3,7 +3,6 @@ module Plutus.Extras where
 import PlutusTx.Prelude
 
 import Cardano.Api (
-  PlutusScriptVersion (..),
   Script (..),
   SerialiseAsRawBytes (serialiseToRawBytes),
   hashScript,

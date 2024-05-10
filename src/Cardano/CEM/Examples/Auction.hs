@@ -12,7 +12,7 @@ import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V1.Interval qualified as Interval
 import PlutusLedgerApi.V1.Time (POSIXTime)
 import PlutusLedgerApi.V1.Value (CurrencySymbol (..), TokenName (..), singleton)
-import PlutusLedgerApi.V2 (Address, ToData, Value)
+import PlutusLedgerApi.V2 (Value)
 import PlutusTx qualified
 import PlutusTx.Show.TH (deriveShow)
 
@@ -152,10 +152,10 @@ instance CEMScript SimpleAuction where
     _ -> Left "Incorrect state for transition"
     where
       initialBid = MkBet (seller params) 0
-      nextState state =
+      nextState state' =
         MkTxFanC
           Out
-          (MkTxFanFilter BySameScript (bySameCEM state))
+          (MkTxFanFilter BySameScript (bySameCEM state'))
           (SumValueEq $ lot params)
       betAdaValue = adaValue . betAmount
       adaValue =

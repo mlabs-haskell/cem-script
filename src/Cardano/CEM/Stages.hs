@@ -24,12 +24,12 @@ class Stages stage where
 
 -- TODO: rename
 data SingleStage = Always
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 data SingleStageParams
   = NoSingleStageParams
   | AllowedInterval (Interval POSIXTime)
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 instance Stages SingleStage where
   type StageParams SingleStage = SingleStageParams

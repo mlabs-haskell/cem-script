@@ -12,7 +12,6 @@ import Unsafe.Coerce (unsafeCoerce)
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.IPC (TxValidationError)
 import Ouroboros.Network.Protocol.LocalStateQuery.Type (Target (..))
 
 -- Project imports
@@ -67,11 +66,11 @@ instance MonadBlockchainParams L1Runner where
 
 queryCardanoNodeWrapping :: QueryInShelleyBasedEra Era b -> L1Runner b
 queryCardanoNodeWrapping query =
-  handleEitherEra =<< queryCardanoNode (wrapQuery query)
+  handleEitherEra =<< queryCardanoNode wrapped
   where
     handleEitherEra (Right x) = return x
     handleEitherEra (Left _) = fail "Unexpected era mismatch"
-    wrapQuery query = QueryInEra (QueryInShelleyBasedEra shelleyBasedEra query)
+    wrapped = QueryInEra (QueryInShelleyBasedEra shelleyBasedEra query)
 
 -- Design inspired by `Hydra.Chain.CardanoClient` helpers
 queryCardanoNode ::
@@ -108,17 +107,20 @@ instance MonadSubmitTx L1Runner where
               return $ Right $ getTxId body
             SubmitFail (TxValidationErrorInCardanoMode e) ->
               return $ Left $ UnhandledNodeSubmissionError $ unsafeCoerce e
+            SubmitFail (TxValidationEraMismatch _) ->
+              error "Era mismatch error"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
 instance MonadTest L1Runner where
   -- FIXME: cache keys and better error handling
   getTestWalletSks = do
-    mapM key [0 .. 2]
+    mapM keyN [0 .. 2]
     where
-      key n = do
+      keyN n = do
         keyBytes <- liftIO $ BS.readFile $ keysPaths !! fromInteger n
-        let Just key = parseSigningKeyTE keyBytes
-        return key
+        case parseSigningKeyTE keyBytes of
+          Just key -> return key
+          Nothing -> fail "Could not read key"
       keysPaths =
         [ "./devnet/credentials/faucet.sk"
         , "./devnet/credentials/bob.sk"

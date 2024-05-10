@@ -8,9 +8,6 @@ import Prelude
 import Control.Monad.Except (ExceptT (..), runExceptT)
 import Data.Map qualified as Map
 
--- Lib imports
-import Text.Show.Pretty (ppShow)
-
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (LedgerProtocolParameters (..))
