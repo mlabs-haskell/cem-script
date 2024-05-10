@@ -56,14 +56,13 @@ countVotes params votesMap = maxDecision
     votesFor (yesCount, noCount) (vote : vs) = case vote of
       Yes -> votesFor (yesCount + 1, noCount) vs
       No -> votesFor (yesCount, noCount + 1) vs
+      Abstain -> votesFor (yesCount, noCount) vs
     (votesYes, votesNo) = votesFor (0, 0) $ PMap.elems votesMap
     maxDecision =
       case compare votesYes votesNo of
         GT -> Yes
         LT -> No
         EQ -> drawDecision params
-
--- No
 
 -- Other datatypes
 
