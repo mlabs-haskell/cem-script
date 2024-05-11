@@ -120,6 +120,7 @@ class
 
 data TransitionSpec script = MkTransitionSpec
   { constraints :: [TxFanConstraint script]
+  -- List of additional signers (not enforced by TxIns)
   , signers :: [PubKeyHash]
   }
   deriving stock (Show)

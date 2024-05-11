@@ -6,6 +6,7 @@ module Cardano.CEM.Monads.L1Commons where
 import Prelude
 
 import Control.Monad.Except (ExceptT (..), runExceptT)
+import Data.List (nub)
 import Data.Map qualified as Map
 
 -- Cardano imports
@@ -28,18 +29,26 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   -- TODO
   let keyWitnessedTxIns = [fst $ last txIns]
   MkBlockchainParams {protocolParameters} <- queryBlockchainParams
+
+  let additionalSignersKeys =
+        filter (\x -> signingKeyToPKH x `elem` additionalSigners) signer
+
   let preBody =
         TxBodyContent
-          { txIns = txIns
+          { -- FIXME: duplicate TxIn for coin-selection redeemer bug
+            txIns = nub txIns
           , txInsCollateral =
               TxInsCollateral AlonzoEraOnwardsBabbage keyWitnessedTxIns
           , txInsReference =
               TxInsReference BabbageEraOnwardsBabbage txInsReference
           , txOuts
           , txMintValue = toMint
-          , txExtraKeyWits =
-              -- Somehow now it does not requires them, while before does
-              TxExtraKeyWitnesses AlonzoEraOnwardsBabbage []
+          , -- Adding all keys here, cuz other way `txSignedBy` does not see those
+            -- signatures
+            txExtraKeyWits =
+              TxExtraKeyWitnesses AlonzoEraOnwardsBabbage $
+                fmap (verificationKeyHash . getVerificationKey) $
+                  additionalSignersKeys
           , txProtocolParams =
               BuildTxWith $
                 Just $
@@ -68,14 +77,14 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
     mainAddress' = signingKeyToAddress mainSignor
 
   mainAddress <- fromPlutusAddressInMonad mainAddress'
-  utxo <- queryUtxo $ ByTxIns $ map fst txIns
+  txInsUtxo <- queryUtxo $ ByTxIns $ map fst txIns
 
   runExceptT $ do
     body <-
       ExceptT $
         callBodyAutoBalance
           preBody
-          utxo
+          txInsUtxo
           mainAddress
     let
       tx = makeSignedTransactionWithKeys signer body

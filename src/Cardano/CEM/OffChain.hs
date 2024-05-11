@@ -226,6 +226,7 @@ resolveAction
           , txInsReference = []
           , txOuts
           , toMint = TxMintNone
+          , additionalSigners = signers scriptTransition
           , signer = []
           , interval = always
           }

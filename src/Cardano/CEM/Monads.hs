@@ -8,6 +8,7 @@ import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
   Interval (..),
   POSIXTime (..),
+  PubKeyHash,
  )
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
@@ -56,7 +57,9 @@ data ResolvedTx = MkResolvedTx
   , txOuts :: [TxOut CtxTx Era]
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
-  , signer :: [SigningKey PaymentKey]
+  , additionalSigners :: [PubKeyHash]
+  , -- FIXME: rename
+    signer :: [SigningKey PaymentKey]
   }
   deriving stock (Show, Eq)
 
