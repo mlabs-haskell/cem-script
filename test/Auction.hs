@@ -18,7 +18,7 @@ import Test.Hspec (describe, it, shouldBe)
 import TestNFT (testNftAssetClass)
 import Utils (execClb, mintTestTokens, submitAndCheck)
 
-auctionSpec = describe "SimpleAuction usecase" $ do
+auctionSpec = describe "Auction" $ do
   it "Wrong transition resolution error" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks
