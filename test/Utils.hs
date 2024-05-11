@@ -37,7 +37,6 @@ import Cardano.CEM.OffChain (
  )
 import Cardano.Extras
 
-
 import TestNFT
 
 execClb :: ClbT IO a -> IO a

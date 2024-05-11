@@ -5,7 +5,6 @@ import Prelude
 import Control.Monad.Trans (MonadIO (..))
 import PlutusLedgerApi.V1.Value (assetClassValue)
 
-
 import Cardano.CEM
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
