@@ -1,17 +1,16 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Cardano.CEM.Monads.CLB where
 
 import Prelude
 
-import Control.Monad.Reader (MonadReader (..), ReaderT (..), asks)
 import Control.Monad.State (StateT (..), gets)
-import Control.Monad.Trans (MonadIO (..))
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Query (fromLedgerUTxO)
-import Cardano.Api.Shelley (LedgerProtocolParameters (..))
 
 -- Lib imports
 import Clb (
@@ -35,7 +34,6 @@ import Clb.TimeSlot (posixTimeToUTCTime)
 import Cardano.CEM.Monads
 import Cardano.CEM.Monads.L1Commons
 import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
-import Cardano.Extras
 
 instance (MonadFail m) => MonadBlockchainParams (ClbT m) where
   askNetworkId :: ClbT m NetworkId
@@ -80,6 +78,7 @@ instance (MonadFail m) => MonadSubmitTx (ClbT m) where
         case result of
           Success _ _ -> return $ Right $ getTxId body
           _ -> fail "TODO"
+      Right (_, _) -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
 instance (MonadFail m) => MonadTest (ClbT m) where

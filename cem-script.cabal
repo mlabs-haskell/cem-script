@@ -21,8 +21,7 @@ common common-lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wredundant-constraints
-    -Wmissing-export-lists -Wmissing-deriving-strategies
-    -Wno-redundant-constraints
+    -Wmissing-deriving-strategies -Wno-redundant-constraints
 
   if !flag(dev)
     ghc-options: -Werror
@@ -150,6 +149,7 @@ library cardano-extras
   build-depends:   template-haskell
   exposed-modules:
     Cardano.Extras
+    Plutus.Deriving
     Plutus.Extras
 
 library
@@ -186,6 +186,7 @@ test-suite cem-sdk-test
     common-offchain,
 
   type:           exitcode-stdio-1.0
+  ghc-options:    -Wno-missing-signatures -Wno-incomplete-uni-patterns
   build-depends:
     , cem-script
     , cem-script:cardano-extras

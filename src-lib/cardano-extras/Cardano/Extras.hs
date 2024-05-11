@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 {- | Various utils to cope with `cardano-api` types
 Mainly stolen from `hydra-cardano-api` and some from `atlas`
 -}
@@ -23,7 +25,7 @@ import Cardano.Api (
   AssetId (..),
   AssetName (..),
   BabbageEra,
-  BabbageEraOnwards (BabbageEraOnwardsBabbage, BabbageEraOnwardsConway),
+  BabbageEraOnwards (BabbageEraOnwardsBabbage),
   BuildTx,
   BuildTxWith (..),
   ConsensusModeParams (..),

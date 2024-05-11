@@ -3,11 +3,10 @@ module Utils where
 import Prelude
 
 import Control.Monad.Trans (MonadIO (..))
-import Data.Map (elems, keys)
+import Data.Map (keys)
 
-import PlutusLedgerApi.V1.Address (pubKeyHashAddress)
 import PlutusLedgerApi.V1.Interval (always)
-import PlutusLedgerApi.V1.Value (adaSymbol, adaToken, assetClass, assetClassValue)
+import PlutusLedgerApi.V1.Value (assetClassValue)
 
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (
@@ -18,6 +17,8 @@ import Cardano.Api.Shelley (
 
 import Test.Hspec (shouldSatisfy)
 import Text.Show.Pretty (ppShow)
+
+import Clb (ClbT)
 
 import Cardano.CEM.Monads (
   MonadQueryUtxo (..),
@@ -38,19 +39,21 @@ import Cardano.Extras
 
 import TestNFT
 
+execClb :: ClbT IO a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
 
+mintTestTokens ::
+  (MonadIO m, MonadSubmitTx m) => SigningKey PaymentKey -> Integer -> m ()
 mintTestTokens userSk numMint = do
   userAddress <- fromPlutusAddressInMonad $ signingKeyToAddress userSk
   utxo <- queryUtxo $ ByAddresses [signingKeyToAddress userSk]
 
   let
     user1TxIns = keys $ unUTxO utxo
-    Just value = valueToLovelace $ utxoValue utxo
     convert x =
       TxOutValueShelleyBased shelleyBasedEra $
         toMaryValue x
-    out userAddress =
+    out =
       TxOut
         userAddress
         ( convert $
@@ -67,9 +70,7 @@ mintTestTokens userSk numMint = do
       MkResolvedTx
         { txIns = map withKeyWitness user1TxIns
         , txInsReference = []
-        , txOuts =
-            [ out userAddress
-            ]
+        , txOuts = [out]
         , toMint =
             mintedTokens
               (PlutusScriptSerialised testNftPolicy)
@@ -88,7 +89,7 @@ checkTxCreated txId = do
   awaitTx txId
   let
     txIn = TxIn txId (TxIx 0)
-    someValue = lovelaceToValue $ fromInteger 0
+    someValue = lovelaceToValue 0
   utxo <- queryUtxo $ ByTxIns [txIn]
   liftIO $ shouldSatisfy (utxoValue utxo) (/= someValue)
 
@@ -101,6 +102,7 @@ awaitEitherTx eitherTx =
     -- liftIO $ putStrLn $ "Awaited " <> show txId
     Left errorMsg -> error $ "Failed to send tx: " <> ppShow errorMsg
 
+submitAndCheck :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m ()
 submitAndCheck spec = do
   case head $ actions spec of
     MkSomeCEMAction (MkCEMAction _ transition) ->

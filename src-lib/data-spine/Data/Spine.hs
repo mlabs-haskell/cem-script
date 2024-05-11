@@ -3,17 +3,12 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Data.Spine where
+module Data.Spine (HasSpine (..), deriveSpine, OfSpine (..)) where
 
 import Prelude
 
-import Control.Monad
-import Control.Monad.Reader (MonadReader (..))
-import GHC.Records
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-
-import Data.Singletons
 
 -- | Definitions
 
@@ -40,23 +35,6 @@ instance (HasSpine sop1, HasSpine sop2) => HasSpine (sop1, sop2) where
 
 -- | Newtype encoding sop value of fixed known spine
 newtype OfSpine (x :: Spine datatype) = UnsafeMkOfSpine {getValue :: datatype}
-
--- matchOfSpine :: sop -> ...
--- matchOfSpineDMap :: sop -> DMap Spine (OfSpine -> a)
--- mkOfSpine :: sop -> Some .. OfSpine
-
--- TODO: move to module
-
-{- | This class has same behaviour as `MonadReader` storing some record.
-| The difference is that you may not have real record stored.
--}
-class (Monad m) => MonadRecord record m where
-  askField :: forall label a. (HasField label record a) => m a
-  default askField ::
-    forall label a.
-    (MonadReader record m, HasField label record a) =>
-    m a
-  askField = getField @label <$> ask @record
 
 -- | Deriving utils
 addSuffix :: Name -> String -> Name
@@ -92,7 +70,7 @@ deriveTags ty suff classes = do
 
 deriveMapping :: Name -> String -> Q Exp
 deriveMapping ty suff = do
-  (tyName, csNames) <- reifyDatatype ty
+  (_, csNames) <- reifyDatatype ty
   -- XXX: Quasi-quote splice does not work for case matches list
   let
     matches =
@@ -106,11 +84,9 @@ deriveMapping ty suff = do
 -}
 deriveSpine :: Name -> Q [Dec]
 deriveSpine name = do
-  info <- reify name
   let
     suffix = "Spine"
     spineName = addSuffix name suffix
-    spineTypeQ = reifyType spineName
   spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show]
   -- TODO: derive Sing
   -- TODO: derive HasField (OfSpine ...)

@@ -8,52 +8,40 @@ import Prelude
 -- Haskell imports
 import Control.Concurrent (threadDelay)
 import Control.Monad.Except (ExceptT (..), MonadError (..), runExceptT)
-import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Trans (MonadTrans (..))
+import Control.Monad.Trans (MonadIO (..), MonadTrans (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Proxy (..))
 import Data.List (find)
 import Data.Map qualified as Map
-import Data.Set (Set)
 
 import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
-  Interval (..),
-  POSIXTime (..),
   UnsafeFromData (..),
   always,
   fromData,
  )
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
-import Cardano.Api.IPC (TxValidationError)
 import Cardano.Api.Shelley (
   PlutusScript (..),
-  PoolId,
   ReferenceScript (..),
-  fromPlutusData,
   toMaryValue,
   toPlutusData,
  )
-import Cardano.Ledger.Core (PParams)
-import Cardano.Ledger.Shelley.API (ApplyTxError)
 
 -- Project imports
 
 import Cardano.CEM
 import Cardano.CEM.Monads
-import Cardano.CEM.OnChain
+import Cardano.CEM.OnChain (CEMScriptCompiled (..), cemScriptAddress)
 import Cardano.Extras
-import Data.Spine
+import Data.Spine (HasSpine (getSpine))
 
 fromPlutusAddressInMonad ::
   (MonadBlockchainParams m) => Address -> m (AddressInEra Era)
 fromPlutusAddressInMonad address = do
   networkId <- askNetworkId
   return $ fromPlutusAddress networkId address
-
-queryByFanFilter :: (MonadQueryUtxo m) => TxFanFilter script -> m (UTxO Era)
-queryByFanFilter query = return $ error "TODO"
 
 checkTxIdExists :: (MonadQueryUtxo m) => TxId -> m Bool
 checkTxIdExists txId = do
@@ -166,7 +154,7 @@ queryScriptTxInOut params = do
         case Map.assocs $ unUTxO utxo of
           [] -> Nothing
           pairs -> find hasSameParams pairs
-      hasSameParams (txIn, txOut) =
+      hasSameParams (_, txOut) =
         case cemTxOutDatum txOut of
           Just (p1, p2, _) -> params == MkCEMParams p2 p1
           Nothing -> False -- May happen in case of changed Datum encoding
@@ -232,19 +220,6 @@ resolveAction
       txInsPairs <- concat <$> mapM resolveTxIn (byKind In)
       txOuts <- concat <$> mapM compileTxConstraint (byKind Out)
 
-      let
-        txInValue = mconcat $ map (txOutValue . snd) txInsPairs
-        txOutValue' = mconcat $ map txOutValue txOuts
-
-      -- TODO
-      -- traceM $
-      --   "Doing transition: " <> ppShow someAction <>
-      --   "From state: " <> ppShow mState <>
-      --   "With transition spec: " <> ppShow scriptTransition
-      -- traceM $ ppShow witnesedScriptTxIns
-      -- traceM $ ppShow txInsPairs
-      -- traceM $ ppShow txOutValue'
-
       return $
         MkResolvedTx
           { txIns = witnesedScriptTxIns <> map fst txInsPairs
@@ -255,10 +230,9 @@ resolveAction
           , interval = always
           }
     where
-      txOutValue (TxOut _ value _ _) = value
       script = cemScriptCompiled (Proxy :: Proxy script)
       scriptAddress = cemScriptAddress (Proxy :: Proxy script)
-      resolveTxIn (MkTxFanC _ (MkTxFanFilter addressSpec filterSpec) quantor) = do
+      resolveTxIn (MkTxFanC _ (MkTxFanFilter addressSpec _) _) = do
         utxo <- lift $ queryUtxo $ ByAddresses [address]
         return $ map (\(x, y) -> (withKeyWitness x, y)) $ Map.toList $ unUTxO utxo
         where
@@ -278,10 +252,14 @@ resolveAction
               -- FIXME: Can be optimized via Plutarch
               UnsafeBySameCEM newState ->
                 let
-                  datum :: CEMScriptDatum script
-                  datum = (stagesParams params, scriptParams params, unsafeFromBuiltinData newState)
+                  cemDatum :: CEMScriptDatum script
+                  cemDatum =
+                    ( stagesParams params
+                    , scriptParams params
+                    , unsafeFromBuiltinData newState
+                    )
                  in
-                  mkInlineDatum datum
+                  mkInlineDatum cemDatum
             address = addressSpecToAddress scriptAddress addressSpec
             -- TODO: protocol params
             -- calculateMinimumUTxO era txout bpp

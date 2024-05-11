@@ -2,36 +2,20 @@ module Cardano.CEM.Monads where
 
 import Prelude
 
-import Control.Monad.IO.Class (MonadIO (..))
-import Data.Bifunctor (Bifunctor (..))
-import Data.Data (Proxy (..))
-import Data.Map qualified as Map
 import Data.Set (Set)
 
 import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
   Interval (..),
   POSIXTime (..),
-  UnsafeFromData (..),
-  always,
-  fromData,
  )
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
-import Cardano.Api.Shelley (PlutusScript (..), PoolId, ReferenceScript (..), fromPlutusData, toMaryValue, toPlutusData)
+import Cardano.Api.IPC (TxValidationError)
+import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
 
-import Cardano.Api.IPC (TxValidationError)
-import Cardano.CEM
-import Cardano.CEM.OnChain
 import Cardano.Extras
-import Cardano.Ledger.Shelley.API (ApplyTxError)
-import Control.Monad.Except (ExceptT (..), MonadError (..), runExceptT)
-import Control.Monad.Trans (MonadTrans (..))
-import Data.List (find)
-import Data.Maybe (listToMaybe)
-import Data.Spine (HasSpine (..))
-import Text.Show.Pretty (ppShow)
 
 -- MonadBlockchainParams
 

@@ -16,7 +16,6 @@ import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (
   ToData (..),
   Value,
-  fromData,
  )
 import PlutusTx.Show.TH (deriveShow)
 
@@ -28,7 +27,6 @@ import Data.Spine
 data AddressSpec
   = ByAddress Address
   | ByPubKey PubKeyHash
-  | ByScript -- TODO
   | BySameScript
   deriving stock (Show, Prelude.Eq)
 
@@ -73,7 +71,7 @@ data TxFanConstraint script = MkTxFanC
   , txFanCFilter :: TxFanFilter script
   , txFanCQuantor :: Quantor
   }
-  deriving (Show)
+  deriving stock (Show)
 
 -- Main API
 
@@ -124,7 +122,7 @@ data TransitionSpec script = MkTransitionSpec
   { constraints :: [TxFanConstraint script]
   , signers :: [PubKeyHash]
   }
-  deriving (Show)
+  deriving stock (Show)
 
 {- | Static part of CEMScript datum.
 Datatype is actually used only by off-chain code due to Plutus limitations.

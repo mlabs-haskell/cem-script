@@ -3,28 +3,21 @@ module Auction where
 import Prelude
 
 import Control.Monad.Trans (MonadIO (..))
-import GHC.Num (Num (fromInteger))
-
-import PlutusLedgerApi.V1.Address (pubKeyHashAddress)
-import PlutusLedgerApi.V1.Interval (always)
-import PlutusLedgerApi.V1.Value (adaSymbol, adaToken, assetClass, assetClassValue)
-
-import Cardano.Ledger.Val (adaOnly)
+import PlutusLedgerApi.V1.Value (assetClassValue)
 
 import Cardano.CEM
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Monads
-import Cardano.CEM.Monads.CLB (execOnIsolatedClb)
 import Cardano.CEM.OffChain
 import Cardano.Extras
 
-import Test.Hspec (around, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
 import Utils (execClb, mintTestTokens, submitAndCheck)
 
-auctionSpec = describe "SimpleAuction usecase" $ do
+auctionSpec = describe "Auction" $ do
   it "Wrong transition resolution error" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks
@@ -143,7 +136,7 @@ auctionSpec = describe "SimpleAuction usecase" $ do
   it "Successful transition flow" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks
-    bidder2 <- (!! 2) <$> getTestWalletSks
+
     let
       auctionParams =
         MkCEMParams

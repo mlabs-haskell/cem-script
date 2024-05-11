@@ -5,29 +5,17 @@ import Prelude
 import Data.Map (keys)
 
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.Shelley (
-  PlutusScript (..),
-  PoolId,
-  ReferenceScript (..),
-  fromPlutusData,
-  toMaryValue,
-  toPlutusData,
- )
+import Cardano.Api.Shelley (ReferenceScript (..), toMaryValue)
 
-import PlutusLedgerApi.V2 (
-  always,
-  fromData,
- )
+import PlutusLedgerApi.V2 (always)
 
-import Test.Hspec (around, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (describe, it)
 
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Monads
-import Cardano.CEM.Monads.CLB (execOnIsolatedClb)
 import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
 import Cardano.Extras (
   signingKeyToAddress,
-  utxoValue,
   withKeyWitness,
  )
 
@@ -56,7 +44,6 @@ offChainSpec = describe "Checking monad works" $ do
     user2Address <- fromPlutusAddressInMonad $ signingKeyToAddress key2
     let
       user1TxIns = keys $ unUTxO utxo
-      Just value = valueToLovelace $ utxoValue utxo
       convert x =
         TxOutValueShelleyBased shelleyBasedEra $
           toMaryValue x

@@ -4,14 +4,7 @@ import Prelude hiding (readFile)
 
 import Control.Monad.IO.Class (MonadIO (..))
 
-import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.Shelley (
-  PlutusScript (..),
-  ReferenceScript (..),
-  toMaryValue,
- )
-
-import Test.Hspec (around, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (describe, it, shouldBe)
 
 import Cardano.CEM
 import Cardano.CEM.Examples.Compilation ()

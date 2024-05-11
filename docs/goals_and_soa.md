@@ -44,7 +44,8 @@ what we use to demonstrate problems in following:
 
 * Audited production DApps
   * Agora
-  * MinSwap
+  * [MinSwap](https://github.com/minswap/minswap-stableswap?tab=readme-ov-file#references)
+    (with spec)
   * Fracada
   * JPG Vesting Contract
   * Indigo Protocol
@@ -53,6 +54,8 @@ what we use to demonstrate problems in following:
   * POCRE
   * CNS
   * Hydra
+* Public DApp projects with specification
+  * [SundaeSwap](https://cdn.sundaeswap.finance/SundaeV3.pdf)
 * Plutonomicon patterns
 * Plutus tutorial
   * [Game Model](https://github.com/IntersectMBO/plutus-apps/blob/dbafa0ffdc1babcf8e9143ca5a7adde78d021a9a/doc/plutus/tutorials/GameModel.hs)

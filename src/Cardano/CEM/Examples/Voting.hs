@@ -15,8 +15,6 @@ import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
 import PlutusTx.Show.TH (deriveShow)
 
-import Cardano.Api.Ledger (Vote)
-
 import Cardano.CEM
 import Cardano.CEM.Stages
 import Data.Spine (deriveSpine)
@@ -26,7 +24,7 @@ import Data.Spine (deriveSpine)
 data SimpleVoting
 
 data VoteValue = Yes | No | Abstain
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 instance Eq VoteValue where
   Yes == Yes = True
@@ -36,7 +34,7 @@ instance Eq VoteValue where
 
 -- | Policy determinig who can vote
 data JuryPolicy = Anyone | FixedJuryList [PubKeyHash] | WithToken Value
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 -- Votes storage
 
@@ -56,14 +54,13 @@ countVotes params votesMap = maxDecision
     votesFor (yesCount, noCount) (vote : vs) = case vote of
       Yes -> votesFor (yesCount + 1, noCount) vs
       No -> votesFor (yesCount, noCount + 1) vs
+      Abstain -> votesFor (yesCount, noCount) vs
     (votesYes, votesNo) = votesFor (0, 0) $ PMap.elems votesMap
     maxDecision =
       case compare votesYes votesNo of
         GT -> Yes
         LT -> No
         EQ -> drawDecision params
-
--- No
 
 -- Other datatypes
 
@@ -74,20 +71,20 @@ data SimpleVotingParams = MkVotingParams
   , abstainAllowed :: Bool
   , drawDecision :: VoteValue
   }
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 data SimpleVotingState
   = NotStarted
   | InProgress VoteStorage
   | Finalized VoteValue
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 data SimpleVotingTransition
   = Create
   | Start
   | Vote PubKeyHash VoteValue
   | Finalize
-  deriving (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq)
 
 PlutusTx.unstableMakeIsData ''VoteValue
 PlutusTx.unstableMakeIsData ''JuryPolicy
@@ -169,5 +166,5 @@ instance CEMScript SimpleVoting where
             }
       _ -> Left "Wrong state transition" where
     where
-      nextScriptState state =
-        MkTxFanC Out (MkTxFanFilter BySameScript (bySameCEM state)) (Exist 1)
+      nextScriptState state' =
+        MkTxFanC Out (MkTxFanFilter BySameScript (bySameCEM state')) (Exist 1)
