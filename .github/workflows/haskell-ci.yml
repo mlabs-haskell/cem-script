@@ -40,8 +40,8 @@ jobs:
     - name: Install and run linters
       shell: devx {0}
       run: |
-        cabal install cabal-fmt
-        cabal install fourmolu
+        cabal install --overwrite-policy=always cabal-fmt
+        cabal install --overwrite-policy=always fourmolu
         /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
         /home/runner/.cabal-devx/bin/fourmolu --mode check .
     - name: Save cabal cache
