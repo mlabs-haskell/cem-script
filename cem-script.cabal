@@ -170,6 +170,7 @@ library
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.Stages
+    Cardano.CEM.Testing.StateMachine
 
   other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
@@ -178,6 +179,8 @@ library
     , clb
     , dependent-map
     , ouroboros-consensus
+    , QuickCheck
+    , quickcheck-dynamic
     , singletons-th
 
 test-suite cem-sdk-test
@@ -201,6 +204,7 @@ test-suite cem-sdk-test
   hs-source-dirs: test/
   other-modules:
     Auction
+    Dynamic
     OffChain
     TestNFT
     Utils
