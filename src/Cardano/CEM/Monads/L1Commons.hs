@@ -6,6 +6,7 @@ module Cardano.CEM.Monads.L1Commons where
 import Prelude
 
 import Control.Monad.Except (ExceptT (..), runExceptT)
+import Data.List (nub)
 import Data.Map qualified as Map
 
 -- Cardano imports
@@ -25,21 +26,29 @@ cardanoTxBodyFromResolvedTx ::
   m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
 cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   -- (lowerBound, upperBound) <- convertValidityBound validityBound
-  -- TODO
+  -- FIXME
   let keyWitnessedTxIns = [fst $ last txIns]
   MkBlockchainParams {protocolParameters} <- queryBlockchainParams
+
+  let additionalSignersKeys =
+        filter (\x -> signingKeyToPKH x `elem` additionalSigners) [signer]
+
   let preBody =
         TxBodyContent
-          { txIns = txIns
+          { -- FIXME: duplicate TxIn for coin-selection redeemer bug
+            txIns = nub txIns
           , txInsCollateral =
               TxInsCollateral AlonzoEraOnwardsBabbage keyWitnessedTxIns
           , txInsReference =
               TxInsReference BabbageEraOnwardsBabbage txInsReference
           , txOuts
           , txMintValue = toMint
-          , txExtraKeyWits =
-              -- Somehow now it does not requires them, while before does
-              TxExtraKeyWitnesses AlonzoEraOnwardsBabbage []
+          , -- Adding all keys here, cuz other way `txSignedBy` does not see those
+            -- signatures
+            txExtraKeyWits =
+              TxExtraKeyWitnesses AlonzoEraOnwardsBabbage $
+                fmap (verificationKeyHash . getVerificationKey) $
+                  additionalSignersKeys
           , txProtocolParams =
               BuildTxWith $
                 Just $
@@ -63,22 +72,18 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
           , txVotingProcedures = Nothing
           }
 
-  let
-    mainSignor = signer !! 0
-    mainAddress' = signingKeyToAddress mainSignor
-
-  mainAddress <- fromPlutusAddressInMonad mainAddress'
-  utxo <- queryUtxo $ ByTxIns $ map fst txIns
+  signerAddress <- fromPlutusAddressInMonad $ signingKeyToAddress signer
+  txInsUtxo <- queryUtxo $ ByTxIns $ map fst txIns
 
   runExceptT $ do
     body <-
       ExceptT $
         callBodyAutoBalance
           preBody
-          utxo
-          mainAddress
+          txInsUtxo
+          signerAddress
     let
-      tx = makeSignedTransactionWithKeys signer body
+      tx = makeSignedTransactionWithKeys [signer] body
       txInMode = TxInMode ShelleyBasedEraBabbage tx
     return (body, txInMode)
 

@@ -61,21 +61,6 @@ awaitTx txId = do
         then return ()
         else go $ n - 1
 
-data TxSigner = MkTxSigner
-  { signerKey :: SigningKey PaymentKey
-  , allowTxInSpending :: Bool
-  , allowFeeCovering :: Bool
-  }
-  deriving stock (Show, Eq)
-
-mkMainSigner :: SigningKey PaymentKey -> TxSigner
-mkMainSigner signerKey =
-  MkTxSigner
-    { signerKey
-    , allowTxInSpending = True
-    , allowFeeCovering = True
-    }
-
 data CEMAction script
   = MkCEMAction (CEMParams script) (Transition script)
 
@@ -106,7 +91,7 @@ instance Show SomeCEMAction where
 
 data TxSpec = MkTxSpec
   { actions :: [SomeCEMAction]
-  , specSigners :: [TxSigner]
+  , specSigner :: SigningKey PaymentKey
   }
   deriving stock (Show)
 
@@ -226,7 +211,8 @@ resolveAction
           , txInsReference = []
           , txOuts
           , toMint = TxMintNone
-          , signer = []
+          , additionalSigners = signers scriptTransition
+          , signer = error "TODO"
           , interval = always
           }
     where
@@ -279,10 +265,11 @@ resolveTxAndSubmit spec = runExceptT $ do
   -- Merge specs
   let
     mergedSpec' = head actionsSpecs
-    mergedSpec = mergedSpec' {signer = map signerKey $ specSigners spec}
+    mergedSpec = mergedSpec' {signer = specSigner spec}
 
-  -- TODO
-  !utxo <- lift $ queryUtxo $ ByAddresses [signingKeyToAddress $ head $ signer mergedSpec]
+  -- FIXME: more robust fee covering
+  !utxo <-
+    lift $ queryUtxo $ ByAddresses [signingKeyToAddress $ signer mergedSpec]
   let ins = map withKeyWitness $ Map.keys $ unUTxO utxo
   let result = submitResolvedTx $ mergedSpec {txIns = txIns mergedSpec ++ ins}
   ExceptT $ (bimap UnhandledSubmittingError id) <$> result

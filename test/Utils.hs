@@ -77,7 +77,8 @@ mintTestTokens userSk numMint = do
               ()
               [(tokenToAsset testNftTokenName, fromInteger numMint)]
         , interval = always
-        , signer = [userSk]
+        , additionalSigners = []
+        , signer = userSk
         }
   awaitEitherTx =<< submitResolvedTx tx
   return ()

@@ -147,7 +147,7 @@ instance CEMScript SimpleAuction where
                   (MkTxFanFilter (ByPubKey (seller params)) Anything)
                   (SumValueEq $ betAdaValue winnerBet)
               ]
-          , signers = [better winnerBet]
+          , signers = []
           }
     _ -> Left "Incorrect state for transition"
     where

@@ -64,7 +64,8 @@ offChainSpec = describe "Checking monad works" $ do
               ]
           , toMint = TxMintNone
           , interval = always
-          , signer = [key1]
+          , additionalSigners = []
+          , signer = key1
           }
     awaitEitherTx =<< submitResolvedTx tx
 

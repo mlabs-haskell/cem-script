@@ -8,12 +8,13 @@ import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
   Interval (..),
   POSIXTime (..),
+  PubKeyHash,
  )
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
-import Cardano.Api.IPC (TxValidationError)
 import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
+import Cardano.Ledger.Shelley.API (ApplyTxError (..))
 
 import Cardano.Extras
 
@@ -56,7 +57,9 @@ data ResolvedTx = MkResolvedTx
   , txOuts :: [TxOut CtxTx Era]
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
-  , signer :: [SigningKey PaymentKey]
+  , additionalSigners :: [PubKeyHash]
+  , -- FIXME
+    signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 
@@ -67,7 +70,7 @@ data TxSubmittingError
   = WrongSlot WrongSlotKind Integer
   | TxInOutdated [TxIn]
   | UnhandledAutobalanceError (TxBodyErrorAutoBalance Era)
-  | UnhandledNodeSubmissionError (TxValidationError Era)
+  | UnhandledNodeSubmissionError (ApplyTxError LedgerEra)
   deriving stock (Show)
 
 -- | Ability to send transaction to chain

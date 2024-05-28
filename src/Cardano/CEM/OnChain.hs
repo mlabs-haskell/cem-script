@@ -77,7 +77,7 @@ genericCEMScript script scriptStage =
             Anything -> True
             UnsafeBySameCEM stateData ->
               let
-                -- TODO: optimize without decoding
+                -- FIXUP: do not decode unnecessary
                 changedState =
                   unsafeFromBuiltinData stateData :: State $(conT script)
                 stateChangeDatum = (stageParams, params, stateData)
@@ -148,7 +148,7 @@ genericCEMScript script scriptStage =
                       `contains` txInfoValidRange info
             Left _ -> traceIfFalse "Wrong transition" False
        in
-        if True
+        if result
           then ()
           else error ()
     |]

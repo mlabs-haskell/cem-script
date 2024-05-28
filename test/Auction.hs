@@ -42,7 +42,7 @@ auctionSpec = describe "Auction" $ do
         { actions =
             [ MkSomeCEMAction $ MkCEMAction auctionParams Create
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     let
@@ -59,7 +59,7 @@ auctionSpec = describe "Auction" $ do
               [ MkSomeCEMAction $
                   MkCEMAction auctionParams (MakeBid bid1)
               ]
-          , specSigners = [mkMainSigner bidder1]
+          , specSigner = bidder1
           }
     ~( Left
         ( MkTransitionError
@@ -95,7 +95,7 @@ auctionSpec = describe "Auction" $ do
         { actions =
             [ MkSomeCEMAction $ MkCEMAction auctionParams Create
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     submitAndCheck $
@@ -104,7 +104,7 @@ auctionSpec = describe "Auction" $ do
             [ MkSomeCEMAction $
                 MkCEMAction auctionParams Start
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     let
@@ -121,7 +121,7 @@ auctionSpec = describe "Auction" $ do
               [ MkSomeCEMAction $
                   MkCEMAction auctionParams (MakeBid bid1)
               ]
-          , specSigners = [mkMainSigner bidder1]
+          , specSigner = bidder1
           }
     ~( Left
         ( MkTransitionError
@@ -160,7 +160,7 @@ auctionSpec = describe "Auction" $ do
         { actions =
             [ MkSomeCEMAction $ MkCEMAction auctionParams Create
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     Just NotStarted <- queryScriptState auctionParams
@@ -183,7 +183,7 @@ auctionSpec = describe "Auction" $ do
             [ MkSomeCEMAction $
                 MkCEMAction auctionParams Start
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     Just (CurrentBid currentBid') <- queryScriptState auctionParams
@@ -195,7 +195,7 @@ auctionSpec = describe "Auction" $ do
             [ MkSomeCEMAction $
                 MkCEMAction auctionParams (MakeBid bid1)
             ]
-        , specSigners = [mkMainSigner bidder1]
+        , specSigner = bidder1
         }
 
     Just (CurrentBid currentBid) <- queryScriptState auctionParams
@@ -207,7 +207,7 @@ auctionSpec = describe "Auction" $ do
             [ MkSomeCEMAction $
                 MkCEMAction auctionParams Close
             ]
-        , specSigners = [mkMainSigner seller]
+        , specSigner = seller
         }
 
     submitAndCheck $
@@ -216,5 +216,5 @@ auctionSpec = describe "Auction" $ do
             [ MkSomeCEMAction $
                 MkCEMAction auctionParams Buyout
             ]
-        , specSigners = [mkMainSigner bidder1]
+        , specSigner = bidder1
         }
