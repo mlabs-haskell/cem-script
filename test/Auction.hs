@@ -205,6 +205,18 @@ auctionSpec = describe "Auction" $ do
       MkTxSpec
         { actions =
             [ MkSomeCEMAction $
+                MkCEMAction
+                  auctionParams
+                  ( MakeBid $ MkBet (signingKeyToPKH bidder1) 4_000_000
+                  )
+            ]
+        , specSigner = bidder1
+        }
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
                 MkCEMAction auctionParams Close
             ]
         , specSigner = seller

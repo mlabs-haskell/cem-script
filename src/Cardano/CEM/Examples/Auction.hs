@@ -105,7 +105,7 @@ instance CEMScript SimpleAuction where
                   (SumValueEq $ lot params)
               , nextState NotStarted
               ]
-          , signers = [seller params]
+          , signers = []
           }
     (Just NotStarted, Start) ->
       Right
