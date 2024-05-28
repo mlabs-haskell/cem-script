@@ -77,16 +77,21 @@ instance (MonadFail m) => MonadSubmitTx (ClbT m) where
         result <- sendTx tx'
         case result of
           Success _ _ -> return $ Right $ getTxId body
-          _ -> fail "TODO"
+          Fail _ validationError ->
+            return $ Left $ UnhandledNodeSubmissionError validationError
       Right (_, _) -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
 instance (MonadFail m) => MonadTest (ClbT m) where
   getTestWalletSks = return $ map intToCardanoSk [1 .. 10]
 
+genesisClbState :: Value -> ClbState
+genesisClbState genesisValue =
+  initClb defaultBabbage genesisValue genesisValue
+
 execOnIsolatedClb :: Value -> ClbT IO a -> IO a
 execOnIsolatedClb genesisValue action =
   fst
     <$> runStateT
       (unwrapClbT action)
-      (initClb defaultBabbage genesisValue genesisValue)
+      (genesisClbState genesisValue)
