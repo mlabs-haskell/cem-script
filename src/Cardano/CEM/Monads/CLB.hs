@@ -77,7 +77,8 @@ instance (MonadFail m) => MonadSubmitTx (ClbT m) where
         result <- sendTx tx'
         case result of
           Success _ _ -> return $ Right $ getTxId body
-          _ -> fail "TODO"
+          Fail _ validationError ->
+            return $ Left $ UnhandledNodeSubmissionError validationError
       Right (_, _) -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
