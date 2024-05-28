@@ -58,8 +58,8 @@ data ResolvedTx = MkResolvedTx
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
   , additionalSigners :: [PubKeyHash]
-  , -- FIXME: rename
-    signer :: [SigningKey PaymentKey]
+  , -- FIXME
+    signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 

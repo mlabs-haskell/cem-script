@@ -39,13 +39,13 @@ votingSpec = describe "Voting" $ do
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Create]
-          , specSigners = [mkMainSigner creator]
+          , specSigner = creator
           }
 
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Start]
-          , specSigners = [mkMainSigner creator]
+          , specSigner = creator
           }
 
       -- Vote
@@ -53,13 +53,13 @@ votingSpec = describe "Voting" $ do
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction $ Vote (signingKeyToPKH jury1) Yes]
-          , specSigners = [mkMainSigner jury1]
+          , specSigner = jury1
           }
 
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction $ Vote (signingKeyToPKH jury2) No]
-          , specSigners = [mkMainSigner jury2]
+          , specSigner = jury2
           }
 
       -- Count result
@@ -67,7 +67,7 @@ votingSpec = describe "Voting" $ do
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Finalize]
-          , specSigners = [mkMainSigner jury2]
+          , specSigner = jury2
           }
 
       Just state <- queryScriptState params

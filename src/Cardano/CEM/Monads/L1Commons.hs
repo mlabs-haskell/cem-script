@@ -26,12 +26,12 @@ cardanoTxBodyFromResolvedTx ::
   m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
 cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   -- (lowerBound, upperBound) <- convertValidityBound validityBound
-  -- TODO
+  -- FIXME
   let keyWitnessedTxIns = [fst $ last txIns]
   MkBlockchainParams {protocolParameters} <- queryBlockchainParams
 
   let additionalSignersKeys =
-        filter (\x -> signingKeyToPKH x `elem` additionalSigners) signer
+        filter (\x -> signingKeyToPKH x `elem` additionalSigners) [signer]
 
   let preBody =
         TxBodyContent
@@ -72,11 +72,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
           , txVotingProcedures = Nothing
           }
 
-  let
-    mainSignor = signer !! 0
-    mainAddress' = signingKeyToAddress mainSignor
-
-  mainAddress <- fromPlutusAddressInMonad mainAddress'
+  signerAddress <- fromPlutusAddressInMonad $ signingKeyToAddress signer
   txInsUtxo <- queryUtxo $ ByTxIns $ map fst txIns
 
   runExceptT $ do
@@ -85,9 +81,9 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
         callBodyAutoBalance
           preBody
           txInsUtxo
-          mainAddress
+          signerAddress
     let
-      tx = makeSignedTransactionWithKeys signer body
+      tx = makeSignedTransactionWithKeys [signer] body
       txInMode = TxInMode ShelleyBasedEraBabbage tx
     return (body, txInMode)
 
