@@ -8,10 +8,10 @@ import Control.Monad.Reader (MonadReader (..), ReaderT (..))
 import Control.Monad.Trans (MonadIO (..))
 import Data.ByteString qualified as BS
 import Data.Set qualified as Set
-import Unsafe.Coerce (unsafeCoerce)
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
+import Cardano.Api.InMode (TxValidationError (..), fromConsensusApplyTxErr)
 import Ouroboros.Network.Protocol.LocalStateQuery.Type (Target (..))
 
 -- Project imports
@@ -105,8 +105,11 @@ instance MonadSubmitTx L1Runner where
           submitTxToNodeLocal ci txInMode >>= \case
             SubmitSuccess ->
               return $ Right $ getTxId body
-            SubmitFail (TxValidationErrorInCardanoMode e) ->
-              return $ Left $ UnhandledNodeSubmissionError $ unsafeCoerce e
+            -- FIXME: check other eras support
+            SubmitFail (TxValidationErrorInCardanoMode (ShelleyTxValidationError ShelleyBasedEraBabbage e)) ->
+              return $ Left $ UnhandledNodeSubmissionError e
+            SubmitFail (TxValidationErrorInCardanoMode _) ->
+              error "Era mismatch error"
             SubmitFail (TxValidationEraMismatch _) ->
               error "Era mismatch error"
       Left e -> return $ Left $ UnhandledAutobalanceError e

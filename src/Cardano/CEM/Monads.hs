@@ -12,9 +12,9 @@ import PlutusLedgerApi.V2 (
  )
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
-import Cardano.Api.IPC (TxValidationError)
 import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
+import Cardano.Ledger.Shelley.API (ApplyTxError (..))
 
 import Cardano.Extras
 
@@ -70,7 +70,7 @@ data TxSubmittingError
   = WrongSlot WrongSlotKind Integer
   | TxInOutdated [TxIn]
   | UnhandledAutobalanceError (TxBodyErrorAutoBalance Era)
-  | UnhandledNodeSubmissionError (TxValidationError Era)
+  | UnhandledNodeSubmissionError (ApplyTxError LedgerEra)
   deriving stock (Show)
 
 -- | Ability to send transaction to chain
