@@ -125,6 +125,15 @@ data TransitionSpec script = MkTransitionSpec
   }
   deriving stock (Show)
 
+-- | List of all signing keys required for transition spec
+getAllSpecSigners :: TransitionSpec script -> [PubKeyHash]
+getAllSpecSigners spec = signers spec ++ txInPKHs
+  where
+    txInPKHs = mapMaybe getPubKey $ filter ((Prelude.== In) . txFanCKind) $ constraints spec
+    getPubKey c = case address (txFanCFilter c) of
+      ByPubKey key -> Just key
+      _ -> Nothing
+
 {- | Static part of CEMScript datum.
 Datatype is actually used only by off-chain code due to Plutus limitations.
 -}
