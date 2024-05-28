@@ -84,9 +84,13 @@ instance (MonadFail m) => MonadSubmitTx (ClbT m) where
 instance (MonadFail m) => MonadTest (ClbT m) where
   getTestWalletSks = return $ map intToCardanoSk [1 .. 10]
 
+genesisClbState :: Value -> ClbState
+genesisClbState genesisValue =
+  initClb defaultBabbage genesisValue genesisValue
+
 execOnIsolatedClb :: Value -> ClbT IO a -> IO a
 execOnIsolatedClb genesisValue action =
   fst
     <$> runStateT
       (unwrapClbT action)
-      (initClb defaultBabbage genesisValue genesisValue)
+      (genesisClbState genesisValue)
