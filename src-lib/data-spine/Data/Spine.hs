@@ -25,13 +25,13 @@ class
   type Spine sop
   getSpine :: sop -> Spine sop
 
--- instance (SingI sop1, SingI sop2) => SingI (sop1, sop2) where
-
 instance (HasSpine sop1, HasSpine sop2) => HasSpine (sop1, sop2) where
   type Spine (sop1, sop2) = (Spine sop1, Spine sop2)
   getSpine (d1, d2) = (getSpine d1, getSpine d2)
 
--- TODO: mkOfSpine, using Sing
+instance (HasSpine sop) => HasSpine (Maybe sop) where
+  type Spine (Maybe sop) = Maybe (Spine sop)
+  getSpine = fmap getSpine
 
 -- | Newtype encoding sop value of fixed known spine
 newtype OfSpine (x :: Spine datatype) = UnsafeMkOfSpine {getValue :: datatype}
