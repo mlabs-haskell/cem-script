@@ -53,7 +53,7 @@ awaitTx txId = do
   go 5
   where
     go :: Integer -> m ()
-    go 0 = liftIO $ fail "Tx was not awaited." -- TODO
+    go 0 = liftIO $ fail "Tx was not awaited." -- FIXME
     go n = do
       exists <- checkTxIdExists txId
       liftIO $ threadDelay 1_000_000
@@ -64,28 +64,19 @@ awaitTx txId = do
 data CEMAction script
   = MkCEMAction (CEMParams script) (Transition script)
 
--- TODO
 deriving stock instance
-  ( Show (CEMParams script)
-  , Show (State script)
-  , Show (Transition script)
-  ) =>
-  Show (CEMAction script)
+  (CEMScript script) => Show (CEMAction script)
 
+-- FIXME: use generic Some
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.
-    ( CEMScriptCompiled script
-    , Show (CEMAction script)
-    , Show (State script)
-    , Show (Transition script)
-    , Eq (CEMParams script)
-    ) =>
+    (CEMScriptCompiled script) =>
     CEMAction script ->
     SomeCEMAction
 
 instance Show SomeCEMAction where
-  -- TODO: show script name
+  -- FIXME: show script name
   show :: SomeCEMAction -> String
   show (MkSomeCEMAction action) = show action
 
@@ -129,7 +120,6 @@ queryScriptTxInOut ::
   forall m script.
   ( MonadQueryUtxo m
   , CEMScriptCompiled script
-  , Eq (CEMParams script)
   ) =>
   CEMParams script ->
   m (Maybe (TxIn, TxOut CtxUTxO Era))
@@ -151,7 +141,6 @@ queryScriptState ::
   forall m script.
   ( MonadQueryUtxo m
   , CEMScriptCompiled script
-  , Eq (CEMParams script)
   ) =>
   CEMParams script ->
   m (Maybe (State script))

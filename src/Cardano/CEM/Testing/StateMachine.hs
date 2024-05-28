@@ -52,8 +52,8 @@ data ScriptStateParams a = MkScriptStateParams
 params :: ScriptStateParams script -> Params script
 params = scriptParams . cemParams
 
-deriving stock instance (Eq (CEMParams a)) => Eq (ScriptStateParams a)
-deriving stock instance (Show (CEMParams a)) => Show (ScriptStateParams a)
+deriving stock instance (CEMScript a) => Eq (ScriptStateParams a)
+deriving stock instance (CEMScript a) => Show (ScriptStateParams a)
 
 data ScriptState a
   = Void
@@ -66,10 +66,8 @@ data ScriptState a
       }
   deriving stock (Generic)
 
-deriving stock instance
-  (Eq (State a), Eq (CEMParams a)) => Eq (ScriptState a)
-deriving stock instance
-  (Show (State a), Show (CEMParams a)) => Show (ScriptState a)
+deriving stock instance (CEMScript a) => Eq (ScriptState a)
+deriving stock instance (CEMScript a) => Show (ScriptState a)
 
 instance HasVariables (ScriptState a) where
   getAllVariables _ = Set.empty
@@ -78,14 +76,7 @@ instance {-# OVERLAPS #-} HasVariables (Action (ScriptState script) a) where
   getAllVariables _ = Set.empty
 
 class
-  ( CEMScriptCompiled script
-  , Show (Transition script)
-  , Show (State script)
-  , Show (CEMParams script)
-  , Eq (State script)
-  , Eq (CEMParams script)
-  , Eq (Transition script)
-  ) =>
+  (CEMScriptCompiled script) =>
   CEMScriptArbitrary script
   where
   arbitraryCEMParams :: [SigningKey PaymentKey] -> Gen (CEMParams script)
