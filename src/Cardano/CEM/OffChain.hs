@@ -238,7 +238,7 @@ resolveAction
             address = addressSpecToAddress scriptAddress addressSpec
             -- TODO: protocol params
             -- calculateMinimumUTxO era txout bpp
-            minUtxoValue = convertTxOut $ lovelaceToValue $ Lovelace 3_000_000
+            minUtxoValue = convertTxOut $ lovelaceToValue 3_000_000
             -- TODO
             convertTxOut x =
               TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
