@@ -92,6 +92,8 @@ class CEMScriptTypes script where
   -- | which is stored immutable in script Datum as well.
   type Stage script
 
+  type Stage script = SingleStage
+
   -- | `State` is changing part of script Datum.
   -- | It is in
   type State script = params | params -> script
