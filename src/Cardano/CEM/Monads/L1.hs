@@ -5,7 +5,6 @@ module Cardano.CEM.Monads.L1 where
 import Prelude
 
 import Control.Monad.Reader (MonadReader (..), ReaderT (..))
-import Control.Monad.Trans (MonadIO (..))
 import Data.ByteString qualified as BS
 import Data.Set qualified as Set
 

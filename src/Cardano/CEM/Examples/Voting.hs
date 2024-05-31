@@ -13,11 +13,10 @@ import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
-import PlutusTx.Show.TH (deriveShow)
 
 import Cardano.CEM
 import Cardano.CEM.Stages
-import Data.Spine (deriveSpine)
+import Cardano.CEM.TH (deriveCEMAssociatedTypes)
 
 -- Voting
 
@@ -88,21 +87,16 @@ data SimpleVotingTransition
 
 PlutusTx.unstableMakeIsData ''VoteValue
 PlutusTx.unstableMakeIsData ''JuryPolicy
-PlutusTx.unstableMakeIsData ''SimpleVotingState
-PlutusTx.unstableMakeIsData ''SimpleVotingParams
-PlutusTx.unstableMakeIsData ''SimpleVotingTransition
 
-deriveShow ''SimpleVoting
-
-deriveSpine ''SimpleVotingTransition
-deriveSpine ''SimpleVotingState
-
-instance CEMScript SimpleVoting where
+instance CEMScriptTypes SimpleVoting where
   type Stage SimpleVoting = SingleStage
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
 
+$(deriveCEMAssociatedTypes False ''SimpleVoting)
+
+instance CEMScript SimpleVoting where
   transitionStage _ =
     Map.fromList
       [ (CreateSpine, (Always, Nothing, Just NotStartedSpine))

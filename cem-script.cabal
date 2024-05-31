@@ -148,6 +148,7 @@ library
     Cardano.CEM.OnChain
     Cardano.CEM.Stages
     Cardano.CEM.Testing.StateMachine
+    Cardano.CEM.TH
 
   other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
