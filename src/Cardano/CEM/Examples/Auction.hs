@@ -14,11 +14,10 @@ import PlutusLedgerApi.V1.Time (POSIXTime)
 import PlutusLedgerApi.V1.Value (CurrencySymbol (..), TokenName (..), singleton)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx qualified
-import PlutusTx.Show.TH (deriveShow)
 
 import Cardano.CEM
-import Cardano.CEM.Stages
-import Data.Spine
+import Cardano.CEM.Stages (Stages (..))
+import Cardano.CEM.TH (deriveCEMAssociatedTypes, deriveStageAssociatedTypes)
 
 -- Simple no-deposit auction
 
@@ -66,24 +65,17 @@ data SimpleAuctionTransition
   deriving stock (Prelude.Eq, Prelude.Show)
 
 PlutusTx.unstableMakeIsData ''Bid
-PlutusTx.unstableMakeIsData 'MkAuctionParams
-PlutusTx.unstableMakeIsData 'NotStarted
-PlutusTx.unstableMakeIsData 'MakeBid
-PlutusTx.unstableMakeIsData ''SimpleAuctionStage
-PlutusTx.unstableMakeIsData ''SimpleAuctionStageParams
-deriveShow ''SimpleAuction
 
-deriveSpine ''SimpleAuctionTransition
-deriveSpine ''SimpleAuctionState
-
-instance CEMScript SimpleAuction where
+instance CEMScriptTypes SimpleAuction where
   type Stage SimpleAuction = SimpleAuctionStage
   type Params SimpleAuction = SimpleAuctionParams
-
   type State SimpleAuction = SimpleAuctionState
-
   type Transition SimpleAuction = SimpleAuctionTransition
 
+$(deriveStageAssociatedTypes ''SimpleAuctionStage)
+$(deriveCEMAssociatedTypes False ''SimpleAuction)
+
+instance CEMScript SimpleAuction where
   transitionStage Proxy =
     Map.fromList
       [ (CreateSpine, (Open, Nothing, Just NotStartedSpine))
