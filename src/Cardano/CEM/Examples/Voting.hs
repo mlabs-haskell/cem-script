@@ -89,7 +89,6 @@ PlutusTx.unstableMakeIsData ''VoteValue
 PlutusTx.unstableMakeIsData ''JuryPolicy
 
 instance CEMScriptTypes SimpleVoting where
-  type Stage SimpleVoting = SingleStage
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
