@@ -75,11 +75,21 @@ data TxFanConstraint script = MkTxFanC
 
 -- Main API
 
+-- FIXME: move IsData here (now it breaks Plutus compilation)
+type DefaultConstraints datatype =
+  ( Prelude.Eq datatype
+  , Prelude.Show datatype
+  )
+
 class
   ( HasSpine (Transition script)
   , HasSpine (State script)
   , Stages (Stage script)
-  , Show (Stage script)
+  , DefaultConstraints (Stage script)
+  , DefaultConstraints (Transition script)
+  , DefaultConstraints (State script)
+  , DefaultConstraints (Params script)
+  , DefaultConstraints (StageParams (Stage script))
   ) =>
   CEMScript script
   where
@@ -142,19 +152,10 @@ data CEMParams script = MkCEMParams
   , stagesParams :: StageParams (Stage script)
   }
 
-deriving stock instance
-  ( Show (Params script)
-  , (Show (StageParams (Stage script)))
-  ) =>
-  (Show (CEMParams script))
+deriving stock instance (CEMScript script) => (Show (CEMParams script))
+deriving stock instance (CEMScript script) => (Prelude.Eq (CEMParams script))
 
-deriving stock instance
-  ( Prelude.Eq (Params script)
-  , (Prelude.Eq (StageParams (Stage script)))
-  ) =>
-  (Prelude.Eq (CEMParams script))
-
--- TODO: doc
+-- FIXME: documentation
 type CEMScriptDatum script =
   (StageParams (Stage script), Params script, State script)
 

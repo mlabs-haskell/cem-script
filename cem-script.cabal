@@ -86,7 +86,7 @@ common common-onchain
   build-depends:
     , plutus-core
     , plutus-ledger-api
-    , plutus-tx
+    , plutus-tx          >=1.24
     , plutus-tx-plugin
     , template-haskell   >=2.20
     , th-abstraction     >=0.6.0.0
@@ -106,10 +106,13 @@ common common-onchain
 
 common common-offchain
   import:        common-lang
+
+  -- Cardano-api:internal required due to:
+  -- https://github.com/IntersectMBO/cardano-api/issues/502
   build-depends:
     , aeson
     , bytestring
-    , cardano-api                  ==8.38.0.0
+    , cardano-api
     , cardano-api:internal
     , cardano-crypto-class
     , cardano-ledger-alonzo
@@ -118,7 +121,6 @@ common common-offchain
     , cardano-ledger-shelley
     , containers
     , filepath
-    , ouroboros-consensus-cardano
     , ouroboros-network-protocols
     , pretty-show
     , retry
@@ -126,7 +128,6 @@ common common-offchain
     , time
     , unix
 
--- https://github.com/IntersectMBO/cardano-api/issues/502
 common common-executable
   import:      common-offchain
   ghc-options: -threaded -rtsopts
