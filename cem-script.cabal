@@ -32,54 +32,30 @@ common common-lang
     , transformers
 
   default-extensions:
-    BangPatterns
-    BinaryLiterals
-    ConstraintKinds
     DataKinds
     DeriveAnyClass
-    DeriveFunctor
-    DeriveGeneric
-    DeriveTraversable
     DerivingStrategies
     DerivingVia
     DuplicateRecordFields
-    EmptyCase
-    FlexibleContexts
-    FlexibleInstances
     FunctionalDependencies
     GADTs
-    GeneralizedNewtypeDeriving
-    HexFloatLiterals
-    ImportQualifiedPost
-    InstanceSigs
-    KindSignatures
     LambdaCase
-    MultiParamTypeClasses
-    NamedFieldPuns
     NoImplicitPrelude
     NoPolyKinds
-    NumericUnderscores
     OverloadedStrings
     PatternSynonyms
     QuantifiedConstraints
-    RankNTypes
-    ScopedTypeVariables
-    StandaloneDeriving
     StrictData
     TemplateHaskell
-    TupleSections
-    TypeApplications
     TypeFamilies
     TypeFamilyDependencies
-    TypeOperators
-    TypeSynonymInstances
     UndecidableInstances
     ViewPatterns
 
   if flag(dev)
     default-extensions: PartialTypeSignatures
 
-  default-language:   Haskell2010
+  default-language:   GHC2021
 
 common common-onchain
   import:        common-lang
