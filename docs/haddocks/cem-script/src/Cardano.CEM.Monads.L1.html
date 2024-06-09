@@ -1,0 +1,630 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Monads.L1</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadReader</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ReaderT</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">BS</span></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Cardano imports</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-9ce61ed6f4f6a48753883a4b458503c397451c80e8ace4b49db7a1ba5822eb9f/share/doc/html/src/Cardano.Api.html"><span class="hs-identifier">Cardano.Api</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.Expr.html#queryUtxo"><span class="hs-identifier">queryUtxo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html"><span class="hs-identifier">Cardano.Api.InMode</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxValidationError"><span class="hs-identifier">TxValidationError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#fromConsensusApplyTxErr"><span class="hs-identifier">fromConsensusApplyTxErr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalStateQuery.Type.html"><span class="hs-identifier">Ouroboros.Network.Protocol.LocalStateQuery.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalStateQuery.Type.html#Target"><span class="hs-identifier">Target</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Project imports</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html"><span class="hs-identifier">Cardano.CEM.Monads</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-20"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#BlockchainParams"><span class="hs-identifier">BlockchainParams</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.html#MkBlockchainParams"><span class="hs-identifier">MkBlockchainParams</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadBlockchainParams"><span class="hs-identifier">MonadBlockchainParams</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadQueryUtxo"><span class="hs-identifier">MonadQueryUtxo</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadSubmitTx"><span class="hs-identifier">MonadSubmitTx</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadTest"><span class="hs-identifier">MonadTest</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#ResolvedTx"><span class="hs-identifier">ResolvedTx</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#TxSubmittingError"><span class="hs-identifier">TxSubmittingError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#UtxoQuery"><span class="hs-identifier">UtxoQuery</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1Commons.html"><span class="hs-identifier">Cardano.CEM.Monads.L1Commons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.L1Commons.html#cardanoTxBodyFromResolvedTx"><span class="hs-identifier">cardanoTxBodyFromResolvedTx</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.OffChain.html"><span class="hs-identifier">Cardano.CEM.OffChain</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.OffChain.html#fromPlutusAddressInMonad"><span class="hs-identifier">fromPlutusAddressInMonad</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html"><span class="hs-identifier">Cardano.Extras</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier">Era</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#addressInEraToAny"><span class="hs-identifier">addressInEraToAny</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#cardanoModeParams"><span class="hs-identifier">cardanoModeParams</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#parseSigningKeyTE"><span class="hs-identifier">parseSigningKeyTE</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">newtype</span><span> </span><span id="ExecutionContext"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#ExecutionContext"><span class="hs-identifier hs-var">ExecutionContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkExecutionContext"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#MkExecutionContext"><span class="hs-identifier hs-var">MkExecutionContext</span></a></span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AlocalNode%3AMkExecutionContext"><span class="annot"><span class="annottext">ExecutionContext -&gt; LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var hs-var">localNode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#LocalNodeConnectInfo"><span class="hs-identifier hs-type">LocalNodeConnectInfo</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">newtype</span><span> </span><span id="L1Runner"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-var">L1Runner</span></a></span></span><span> </span><span id="local-6989586621679558063"><span class="annot"><a href="#local-6989586621679558063"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkL1Runner"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#MkL1Runner"><span class="hs-identifier hs-var">MkL1Runner</span></a></span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AunL1Runner%3AMkL1Runner"><span class="annot"><span class="annottext">forall a. L1Runner a -&gt; ReaderT ExecutionContext IO a
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AunL1Runner%3AMkL1Runner"><span class="hs-identifier hs-var hs-var">unL1Runner</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#ExecutionContext"><span class="hs-identifier hs-type">ExecutionContext</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679558063"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">newtype</span></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">(</span><span> </span><span id="local-6989586621679558267"><span id="local-6989586621679558273"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b)
+-&gt; (forall a b. a -&gt; L1Runner b -&gt; L1Runner a) -&gt; Functor L1Runner
+forall a b. a -&gt; L1Runner b -&gt; L1Runner a
+forall a b. (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+fmap :: forall a b. (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+$c&lt;$ :: forall a b. a -&gt; L1Runner b -&gt; L1Runner a
+&lt;$ :: forall a b. a -&gt; L1Runner b -&gt; L1Runner a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558283"><span id="local-6989586621679558289"><span id="local-6989586621679558294"><span id="local-6989586621679558299"><span id="local-6989586621679558304"><span class="annot"><span class="annottext">Functor L1Runner
+Functor L1Runner =&gt;
+(forall a. a -&gt; L1Runner a)
+-&gt; (forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c) -&gt; L1Runner a -&gt; L1Runner b -&gt; L1Runner c)
+-&gt; (forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b)
+-&gt; (forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner a)
+-&gt; Applicative L1Runner
+forall a. a -&gt; L1Runner a
+forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner a
+forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+forall a b c.
+(a -&gt; b -&gt; c) -&gt; L1Runner a -&gt; L1Runner b -&gt; L1Runner c
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; L1Runner a
+pure :: forall a. a -&gt; L1Runner a
+$c&lt;*&gt; :: forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+&lt;*&gt; :: forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+$cliftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; L1Runner a -&gt; L1Runner b -&gt; L1Runner c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; L1Runner a -&gt; L1Runner b -&gt; L1Runner c
+$c*&gt; :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+*&gt; :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+$c&lt;* :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner a
+&lt;* :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558314"><span id="local-6989586621679558320"><span id="local-6989586621679558325"><span class="annot"><span class="annottext">Applicative L1Runner
+Applicative L1Runner =&gt;
+(forall a b. L1Runner a -&gt; (a -&gt; L1Runner b) -&gt; L1Runner b)
+-&gt; (forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b)
+-&gt; (forall a. a -&gt; L1Runner a)
+-&gt; Monad L1Runner
+forall a. a -&gt; L1Runner a
+forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+forall a b. L1Runner a -&gt; (a -&gt; L1Runner b) -&gt; L1Runner b
+forall (m :: * -&gt; *).
+Applicative m =&gt;
+(forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b. L1Runner a -&gt; (a -&gt; L1Runner b) -&gt; L1Runner b
+&gt;&gt;= :: forall a b. L1Runner a -&gt; (a -&gt; L1Runner b) -&gt; L1Runner b
+$c&gt;&gt; :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+&gt;&gt; :: forall a b. L1Runner a -&gt; L1Runner b -&gt; L1Runner b
+$creturn :: forall a. a -&gt; L1Runner a
+return :: forall a. a -&gt; L1Runner a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558335"><span class="annot"><span class="annottext">Monad L1Runner
+Monad L1Runner =&gt;
+(forall a. IO a -&gt; L1Runner a) -&gt; MonadIO L1Runner
+forall a. IO a -&gt; L1Runner a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. IO a -&gt; m a) -&gt; MonadIO m
+$cliftIO :: forall a. IO a -&gt; L1Runner a
+liftIO :: forall a. IO a -&gt; L1Runner a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadIO</span></span></span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558346"><span class="annot"><span class="annottext">Monad L1Runner
+Monad L1Runner =&gt;
+(forall a. String -&gt; L1Runner a) -&gt; MonadFail L1Runner
+forall a. String -&gt; L1Runner a
+forall (m :: * -&gt; *).
+Monad m =&gt;
+(forall a. String -&gt; m a) -&gt; MonadFail m
+$cfail :: forall a. String -&gt; L1Runner a
+fail :: forall a. String -&gt; L1Runner a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var">MonadFail</span></span></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558357"><span id="local-6989586621679558363"><span id="local-6989586621679558368"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#ExecutionContext"><span class="hs-identifier hs-type">ExecutionContext</span></a></span></span></span></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- Monad implementations</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadBlockchainParams"><span class="hs-identifier hs-type">MonadBlockchainParams</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621679558383"><span class="annot"><span class="annottext">askNetworkId :: L1Runner NetworkId
+</span><a href="#local-6989586621679558383"><span class="hs-identifier hs-var hs-var hs-var hs-var">askNetworkId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo -&gt; NetworkId
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#localNodeNetworkId"><span class="hs-identifier hs-var">localNodeNetworkId</span></a></span><span> </span><span class="annot"><span class="annottext">(LocalNodeConnectInfo -&gt; NetworkId)
+-&gt; (ExecutionContext -&gt; LocalNodeConnectInfo)
+-&gt; ExecutionContext
+-&gt; NetworkId
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ExecutionContext -&gt; LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var">localNode</span></a></span><span> </span><span class="annot"><span class="annottext">(ExecutionContext -&gt; NetworkId)
+-&gt; L1Runner ExecutionContext -&gt; L1Runner NetworkId
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">L1Runner ExecutionContext
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679558398"><span class="annot"><span class="annottext">queryCurrentSlot :: L1Runner SlotNo
+</span><a href="#local-6989586621679558398"><span class="hs-identifier hs-var hs-var hs-var hs-var">queryCurrentSlot</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-54"></span><span>    </span><span id="local-6989586621679558400"><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558400"><span class="hs-identifier hs-var">node</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ExecutionContext -&gt; LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var">localNode</span></a></span><span> </span><span class="annot"><span class="annottext">(ExecutionContext -&gt; LocalNodeConnectInfo)
+-&gt; L1Runner ExecutionContext -&gt; L1Runner LocalNodeConnectInfo
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">L1Runner ExecutionContext
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-55"></span><span>    </span><span id="local-6989586621679558401"><span class="annot"><span class="annottext">ChainTip
+</span><a href="#local-6989586621679558401"><span class="hs-identifier hs-var">tip</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO ChainTip -&gt; L1Runner ChainTip
+forall a. IO a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO ChainTip -&gt; L1Runner ChainTip)
+-&gt; IO ChainTip -&gt; L1Runner ChainTip
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo -&gt; IO ChainTip
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#getLocalChainTip"><span class="hs-identifier hs-var">getLocalChainTip</span></a></span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558400"><span class="hs-identifier hs-var">node</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChainTip
+</span><a href="#local-6989586621679558401"><span class="hs-identifier hs-var">tip</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-57"></span><span>      </span><span class="annot"><span class="annottext">ChainTip
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Block.html#ChainTipAtGenesis"><span class="hs-identifier hs-var">ChainTipAtGenesis</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SlotNo -&gt; L1Runner SlotNo
+forall a. a -&gt; L1Runner a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">SlotNo
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-58"></span><span>      </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Block.html#ChainTip"><span class="hs-identifier hs-type">ChainTip</span></a></span><span> </span><span id="local-6989586621679558406"><span class="annot"><span class="annottext">SlotNo
+</span><a href="#local-6989586621679558406"><span class="hs-identifier hs-var">slotNo</span></a></span></span><span> </span><span class="annot"><span class="annottext">Hash BlockHeader
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BlockNo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SlotNo -&gt; L1Runner SlotNo
+forall a. a -&gt; L1Runner a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">SlotNo
+</span><a href="#local-6989586621679558406"><span class="hs-identifier hs-var">slotNo</span></a></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span>  </span><span id="local-6989586621679558412"><span class="annot"><span class="annottext">queryBlockchainParams :: L1Runner BlockchainParams
+</span><a href="#local-6989586621679558412"><span class="hs-identifier hs-var hs-var hs-var hs-var">queryBlockchainParams</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><span class="annottext">PParams LedgerEra
+-&gt; SystemStart -&gt; LedgerEpochInfo -&gt; Set PoolId -&gt; BlockchainParams
+</span><a href="Cardano.CEM.Monads.html#MkBlockchainParams"><span class="hs-identifier hs-var">MkBlockchainParams</span></a></span><span>
+</span><span id="line-62"></span><span>      </span><span class="annot"><span class="annottext">(PParams LedgerEra
+ -&gt; SystemStart
+ -&gt; LedgerEpochInfo
+ -&gt; Set PoolId
+ -&gt; BlockchainParams)
+-&gt; L1Runner (PParams LedgerEra)
+-&gt; L1Runner
+     (SystemStart -&gt; LedgerEpochInfo -&gt; Set PoolId -&gt; BlockchainParams)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era (PParams LedgerEra)
+-&gt; L1Runner (PParams LedgerEra)
+forall b. QueryInShelleyBasedEra Era b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNodeWrapping"><span class="hs-identifier hs-var">queryCardanoNodeWrapping</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era (PParams (ShelleyLedgerEra Era))
+QueryInShelleyBasedEra Era (PParams LedgerEra)
+forall era.
+QueryInShelleyBasedEra era (PParams (ShelleyLedgerEra era))
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryProtocolParameters"><span class="hs-identifier hs-var">QueryProtocolParameters</span></a></span><span>
+</span><span id="line-63"></span><span>      </span><span class="annot"><span class="annottext">L1Runner
+  (SystemStart -&gt; LedgerEpochInfo -&gt; Set PoolId -&gt; BlockchainParams)
+-&gt; L1Runner SystemStart
+-&gt; L1Runner (LedgerEpochInfo -&gt; Set PoolId -&gt; BlockchainParams)
+forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryInMode SystemStart -&gt; L1Runner SystemStart
+forall b. QueryInMode b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNode"><span class="hs-identifier hs-var">queryCardanoNode</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInMode SystemStart
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QuerySystemStart"><span class="hs-identifier hs-var">QuerySystemStart</span></a></span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><span class="annottext">L1Runner (LedgerEpochInfo -&gt; Set PoolId -&gt; BlockchainParams)
+-&gt; L1Runner LedgerEpochInfo
+-&gt; L1Runner (Set PoolId -&gt; BlockchainParams)
+forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">EraHistory -&gt; LedgerEpochInfo
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#toLedgerEpochInfo"><span class="hs-identifier hs-var">toLedgerEpochInfo</span></a></span><span> </span><span class="annot"><span class="annottext">(EraHistory -&gt; LedgerEpochInfo)
+-&gt; L1Runner EraHistory -&gt; L1Runner LedgerEpochInfo
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryInMode EraHistory -&gt; L1Runner EraHistory
+forall b. QueryInMode b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNode"><span class="hs-identifier hs-var">queryCardanoNode</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInMode EraHistory
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryEraHistory"><span class="hs-identifier hs-var">QueryEraHistory</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>      </span><span class="annot"><span class="annottext">L1Runner (Set PoolId -&gt; BlockchainParams)
+-&gt; L1Runner (Set PoolId) -&gt; L1Runner BlockchainParams
+forall a b. L1Runner (a -&gt; b) -&gt; L1Runner a -&gt; L1Runner b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era (Set PoolId) -&gt; L1Runner (Set PoolId)
+forall b. QueryInShelleyBasedEra Era b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNodeWrapping"><span class="hs-identifier hs-var">queryCardanoNodeWrapping</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era (Set PoolId)
+forall era. QueryInShelleyBasedEra era (Set PoolId)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryStakePools"><span class="hs-identifier hs-var">QueryStakePools</span></a></span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span id="local-6989586621679558163"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#queryCardanoNodeWrapping"><span class="hs-identifier hs-type">queryCardanoNodeWrapping</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryInShelleyBasedEra"><span class="hs-identifier hs-type">QueryInShelleyBasedEra</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679558163"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679558163"><span class="hs-identifier hs-type">b</span></a></span></span><span>
+</span><span id="line-68"></span><span id="queryCardanoNodeWrapping"><span class="annot"><span class="annottext">queryCardanoNodeWrapping :: forall b. QueryInShelleyBasedEra Era b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNodeWrapping"><span class="hs-identifier hs-var hs-var">queryCardanoNodeWrapping</span></a></span></span><span> </span><span id="local-6989586621679558425"><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era b
+</span><a href="#local-6989586621679558425"><span class="hs-identifier hs-var">query</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><span class="annottext">Either EraMismatch b -&gt; L1Runner b
+forall {m :: * -&gt; *} {a} {a}. MonadFail m =&gt; Either a a -&gt; m a
+</span><a href="#local-6989586621679558426"><span class="hs-identifier hs-var">handleEitherEra</span></a></span><span> </span><span class="annot"><span class="annottext">(Either EraMismatch b -&gt; L1Runner b)
+-&gt; L1Runner (Either EraMismatch b) -&gt; L1Runner b
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">QueryInMode (Either EraMismatch b)
+-&gt; L1Runner (Either EraMismatch b)
+forall b. QueryInMode b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNode"><span class="hs-identifier hs-var">queryCardanoNode</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInMode (Either EraMismatch b)
+</span><a href="#local-6989586621679558428"><span class="hs-identifier hs-var">wrapped</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621679558426"><span class="annot"><span class="annottext">handleEitherEra :: Either a a -&gt; m a
+</span><a href="#local-6989586621679558426"><span class="hs-identifier hs-var hs-var">handleEitherEra</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679558443"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679558443"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679558443"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="#local-6989586621679558426"><span class="hs-identifier hs-var">handleEitherEra</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; m a
+forall a. String -&gt; m a
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unexpected era mismatch&quot;</span></span><span>
+</span><span id="line-73"></span><span>    </span><span id="local-6989586621679558428"><span class="annot"><span class="annottext">wrapped :: QueryInMode (Either EraMismatch b)
+</span><a href="#local-6989586621679558428"><span class="hs-identifier hs-var hs-var">wrapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">QueryInEra Era b -&gt; QueryInMode (Either EraMismatch b)
+forall era result1.
+QueryInEra era result1 -&gt; QueryInMode (Either EraMismatch result1)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryInEra"><span class="hs-identifier hs-var">QueryInEra</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+-&gt; QueryInShelleyBasedEra Era b -&gt; QueryInEra Era b
+forall era result.
+ShelleyBasedEra era
+-&gt; QueryInShelleyBasedEra era result -&gt; QueryInEra era result
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryInShelleyBasedEra"><span class="hs-identifier hs-var">QueryInShelleyBasedEra</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+forall era. IsShelleyBasedEra era =&gt; ShelleyBasedEra era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#shelleyBasedEra"><span class="hs-identifier hs-var">shelleyBasedEra</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era b
+</span><a href="#local-6989586621679558425"><span class="hs-identifier hs-var">query</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Design inspired by `Hydra.Chain.CardanoClient` helpers</span><span>
+</span><span id="line-76"></span><span id="local-6989586621679558167"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#queryCardanoNode"><span class="hs-identifier hs-type">queryCardanoNode</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-77"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryInMode"><span class="hs-identifier hs-type">QueryInMode</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679558167"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679558167"><span class="hs-identifier hs-type">b</span></a></span></span><span>
+</span><span id="line-78"></span><span id="queryCardanoNode"><span class="annot"><span class="annottext">queryCardanoNode :: forall b. QueryInMode b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNode"><span class="hs-identifier hs-var hs-var">queryCardanoNode</span></a></span></span><span> </span><span id="local-6989586621679558454"><span class="annot"><span class="annottext">QueryInMode b
+</span><a href="#local-6989586621679558454"><span class="hs-identifier hs-var">query</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>  </span><span id="local-6989586621679558455"><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558455"><span class="hs-identifier hs-var">node</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ExecutionContext -&gt; LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var">localNode</span></a></span><span> </span><span class="annot"><span class="annottext">(ExecutionContext -&gt; LocalNodeConnectInfo)
+-&gt; L1Runner ExecutionContext -&gt; L1Runner LocalNodeConnectInfo
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">L1Runner ExecutionContext
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-80"></span><span>  </span><span id="local-6989586621679558456"><span class="annot"><span class="annottext">Either AcquiringFailure b
+</span><a href="#local-6989586621679558456"><span class="hs-identifier hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO (Either AcquiringFailure b)
+-&gt; L1Runner (Either AcquiringFailure b)
+forall a. IO a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either AcquiringFailure b)
+ -&gt; L1Runner (Either AcquiringFailure b))
+-&gt; IO (Either AcquiringFailure b)
+-&gt; L1Runner (Either AcquiringFailure b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo
+-&gt; Target ChainPoint
+-&gt; QueryInMode b
+-&gt; IO (Either AcquiringFailure b)
+forall result.
+LocalNodeConnectInfo
+-&gt; Target ChainPoint
+-&gt; QueryInMode result
+-&gt; IO (Either AcquiringFailure result)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#queryNodeLocalState"><span class="hs-identifier hs-var">queryNodeLocalState</span></a></span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558455"><span class="hs-identifier hs-var">node</span></a></span><span> </span><span class="annot"><span class="annottext">Target ChainPoint
+forall point. Target point
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalStateQuery.Type.html#VolatileTip"><span class="hs-identifier hs-var">VolatileTip</span></a></span><span> </span><span class="annot"><span class="annottext">QueryInMode b
+</span><a href="#local-6989586621679558454"><span class="hs-identifier hs-var">query</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either AcquiringFailure b
+</span><a href="#local-6989586621679558456"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-comment">-- FIXME: better handling of wrong-era exceptions</span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679558459"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679558459"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">b -&gt; L1Runner b
+forall a. a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679558459"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><span class="annottext">Either AcquiringFailure b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; L1Runner b
+forall a. String -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unhandled Cardano API error&quot;</span></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadQueryUtxo"><span class="hs-identifier hs-type">MonadQueryUtxo</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621679558478"><span class="annot"><span class="annottext">queryUtxo :: UtxoQuery -&gt; L1Runner (UTxO Era)
+</span><a href="#local-6989586621679558478"><span class="hs-identifier hs-var hs-var hs-var hs-var">queryUtxo</span></a></span></span><span> </span><span id="local-6989586621679558480"><span class="annot"><span class="annottext">UtxoQuery
+</span><a href="#local-6989586621679558480"><span class="hs-identifier hs-var">query</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621679558481"><span class="annot"><span class="annottext">QueryUTxOFilter
+</span><a href="#local-6989586621679558481"><span class="hs-identifier hs-var">utxoQuery</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">UtxoQuery
+</span><a href="#local-6989586621679558480"><span class="hs-identifier hs-var">query</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-89"></span><span>      </span><span class="annot"><a href="Cardano.CEM.Monads.html#ByTxIns"><span class="hs-identifier hs-type">ByTxIns</span></a></span><span> </span><span id="local-6989586621679558483"><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679558483"><span class="hs-identifier hs-var">txIns</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-90"></span><span>        </span><span class="annot"><span class="annottext">QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter
+forall a. a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter)
+-&gt; QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set TxIn -&gt; QueryUTxOFilter
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryUTxOByTxIn"><span class="hs-identifier hs-var">QueryUTxOByTxIn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[TxIn] -&gt; Set TxIn
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679558483"><span class="hs-identifier hs-var">txIns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>      </span><span class="annot"><a href="Cardano.CEM.Monads.html#ByAddresses"><span class="hs-identifier hs-type">ByAddresses</span></a></span><span> </span><span id="local-6989586621679558487"><span class="annot"><span class="annottext">[Address]
+</span><a href="#local-6989586621679558487"><span class="hs-identifier hs-var">addresses</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-92"></span><span>        </span><span id="local-6989586621679558488"><span class="annot"><span class="annottext">[AddressAny]
+</span><a href="#local-6989586621679558488"><span class="hs-identifier hs-var">cardanoAddresses</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-93"></span><span>          </span><span class="annot"><span class="annottext">(AddressInEra Era -&gt; AddressAny)
+-&gt; [AddressInEra Era] -&gt; [AddressAny]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">AddressInEra Era -&gt; AddressAny
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#addressInEraToAny"><span class="hs-identifier hs-var">addressInEraToAny</span></a></span><span> </span><span class="annot"><span class="annottext">([AddressInEra Era] -&gt; [AddressAny])
+-&gt; L1Runner [AddressInEra Era] -&gt; L1Runner [AddressAny]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Address -&gt; L1Runner (AddressInEra Era))
+-&gt; [Address] -&gt; L1Runner [AddressInEra Era]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Address -&gt; L1Runner (AddressInEra Era)
+forall (m :: * -&gt; *).
+MonadBlockchainParams m =&gt;
+Address -&gt; m (AddressInEra Era)
+</span><a href="Cardano.CEM.OffChain.html#fromPlutusAddressInMonad"><span class="hs-identifier hs-var">fromPlutusAddressInMonad</span></a></span><span> </span><span class="annot"><span class="annottext">[Address]
+</span><a href="#local-6989586621679558487"><span class="hs-identifier hs-var">addresses</span></a></span><span>
+</span><span id="line-94"></span><span>        </span><span class="annot"><span class="annottext">QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter
+forall a. a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter)
+-&gt; QueryUTxOFilter -&gt; L1Runner QueryUTxOFilter
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set AddressAny -&gt; QueryUTxOFilter
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryUTxOByAddress"><span class="hs-identifier hs-var">QueryUTxOByAddress</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[AddressAny] -&gt; Set AddressAny
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">[AddressAny]
+</span><a href="#local-6989586621679558488"><span class="hs-identifier hs-var">cardanoAddresses</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><span class="annottext">QueryInShelleyBasedEra Era (UTxO Era) -&gt; L1Runner (UTxO Era)
+forall b. QueryInShelleyBasedEra Era b -&gt; L1Runner b
+</span><a href="Cardano.CEM.Monads.L1.html#queryCardanoNodeWrapping"><span class="hs-identifier hs-var">queryCardanoNodeWrapping</span></a></span><span> </span><span class="annot"><span class="annottext">(QueryInShelleyBasedEra Era (UTxO Era) -&gt; L1Runner (UTxO Era))
+-&gt; QueryInShelleyBasedEra Era (UTxO Era) -&gt; L1Runner (UTxO Era)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">QueryUTxOFilter -&gt; QueryInShelleyBasedEra Era (UTxO Era)
+forall era.
+QueryUTxOFilter -&gt; QueryInShelleyBasedEra era (UTxO era)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#QueryUTxO"><span class="hs-identifier hs-var">QueryUTxO</span></a></span><span> </span><span class="annot"><span class="annottext">QueryUTxOFilter
+</span><a href="#local-6989586621679558481"><span class="hs-identifier hs-var">utxoQuery</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadSubmitTx"><span class="hs-identifier hs-type">MonadSubmitTx</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-comment">-- FIXME: code duplication, probably refactor out</span><span>
+</span><span id="line-99"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#submitResolvedTx"><span class="hs-identifier hs-type">submitResolvedTx</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#ResolvedTx"><span class="hs-identifier hs-type">ResolvedTx</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#TxSubmittingError"><span class="hs-identifier hs-type">TxSubmittingError</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.TxIn.html#TxId"><span class="hs-identifier hs-type">TxId</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>  </span><span id="local-6989586621679558510"><span class="annot"><span class="annottext">submitResolvedTx :: ResolvedTx -&gt; L1Runner (Either TxSubmittingError TxId)
+</span><a href="Cardano.CEM.Monads.html#submitResolvedTx"><span class="hs-identifier hs-var hs-var hs-var hs-var">submitResolvedTx</span></a></span></span><span> </span><span id="local-6989586621679558511"><span class="annot"><span class="annottext">ResolvedTx
+</span><a href="#local-6989586621679558511"><span class="hs-identifier hs-var">tx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-101"></span><span>    </span><span id="local-6989586621679558512"><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558512"><span class="hs-identifier hs-var">ci</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ExecutionContext -&gt; LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var">localNode</span></a></span><span> </span><span class="annot"><span class="annottext">(ExecutionContext -&gt; LocalNodeConnectInfo)
+-&gt; L1Runner ExecutionContext -&gt; L1Runner LocalNodeConnectInfo
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">L1Runner ExecutionContext
+forall r (m :: * -&gt; *). MonadReader r m =&gt; m r
+</span><span class="hs-identifier hs-var">ask</span></span><span>
+</span><span id="line-102"></span><span>    </span><span class="annot"><span class="annottext">ResolvedTx
+-&gt; L1Runner
+     (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+forall (m :: * -&gt; *).
+(MonadQueryUtxo m, MonadBlockchainParams m) =&gt;
+ResolvedTx
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+</span><a href="Cardano.CEM.Monads.L1Commons.html#cardanoTxBodyFromResolvedTx"><span class="hs-identifier hs-var">cardanoTxBodyFromResolvedTx</span></a></span><span> </span><span class="annot"><span class="annottext">ResolvedTx
+</span><a href="#local-6989586621679558511"><span class="hs-identifier hs-var">tx</span></a></span><span> </span><span class="annot"><span class="annottext">L1Runner
+  (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+-&gt; (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode)
+    -&gt; L1Runner (Either TxSubmittingError TxId))
+-&gt; L1Runner (Either TxSubmittingError TxId)
+forall a b. L1Runner a -&gt; (a -&gt; L1Runner b) -&gt; L1Runner b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-103"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679558513"><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558513"><span class="hs-identifier hs-var">body</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558514"><span class="annot"><span class="annottext">TxInMode
+</span><a href="#local-6989586621679558514"><span class="hs-identifier hs-var">txInMode</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-104"></span><span>        </span><span class="annot"><span class="annottext">IO (Either TxSubmittingError TxId)
+-&gt; L1Runner (Either TxSubmittingError TxId)
+forall a. IO a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO (Either TxSubmittingError TxId)
+ -&gt; L1Runner (Either TxSubmittingError TxId))
+-&gt; IO (Either TxSubmittingError TxId)
+-&gt; L1Runner (Either TxSubmittingError TxId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-105"></span><span>          </span><span class="annot"><span class="annottext">LocalNodeConnectInfo
+-&gt; TxInMode -&gt; IO (SubmitResult TxValidationErrorInCardanoMode)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#submitTxToNodeLocal"><span class="hs-identifier hs-var">submitTxToNodeLocal</span></a></span><span> </span><span class="annot"><span class="annottext">LocalNodeConnectInfo
+</span><a href="#local-6989586621679558512"><span class="hs-identifier hs-var">ci</span></a></span><span> </span><span class="annot"><span class="annottext">TxInMode
+</span><a href="#local-6989586621679558514"><span class="hs-identifier hs-var">txInMode</span></a></span><span> </span><span class="annot"><span class="annottext">IO (SubmitResult TxValidationErrorInCardanoMode)
+-&gt; (SubmitResult TxValidationErrorInCardanoMode
+    -&gt; IO (Either TxSubmittingError TxId))
+-&gt; IO (Either TxSubmittingError TxId)
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-106"></span><span>            </span><span class="annot"><span class="annottext">SubmitResult TxValidationErrorInCardanoMode
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalTxSubmission.Type.html#SubmitSuccess"><span class="hs-identifier hs-var">SubmitSuccess</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-107"></span><span>              </span><span class="annot"><span class="annottext">Either TxSubmittingError TxId -&gt; IO (Either TxSubmittingError TxId)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either TxSubmittingError TxId
+ -&gt; IO (Either TxSubmittingError TxId))
+-&gt; Either TxSubmittingError TxId
+-&gt; IO (Either TxSubmittingError TxId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxId -&gt; Either TxSubmittingError TxId
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(TxId -&gt; Either TxSubmittingError TxId)
+-&gt; TxId -&gt; Either TxSubmittingError TxId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxBody Era -&gt; TxId
+forall era. TxBody era -&gt; TxId
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#getTxId"><span class="hs-identifier hs-var">getTxId</span></a></span><span> </span><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558513"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-108"></span><span>            </span><span class="hs-comment">-- FIXME: check other eras support</span><span>
+</span><span id="line-109"></span><span>            </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalTxSubmission.Type.html#SubmitFail"><span class="hs-identifier hs-type">SubmitFail</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxValidationErrorInCardanoMode"><span class="hs-identifier hs-type">TxValidationErrorInCardanoMode</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#ShelleyTxValidationError"><span class="hs-identifier hs-type">ShelleyTxValidationError</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#ShelleyBasedEraBabbage"><span class="hs-identifier hs-var">ShelleyBasedEraBabbage</span></a></span><span> </span><span id="local-6989586621679558524"><span class="annot"><span class="annottext">ApplyTxErr
+  (ShelleyBlock (ConsensusProtocol era) (ShelleyLedgerEra era))
+</span><a href="#local-6989586621679558524"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-110"></span><span>              </span><span class="annot"><span class="annottext">Either TxSubmittingError TxId -&gt; IO (Either TxSubmittingError TxId)
+forall a. a -&gt; IO a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either TxSubmittingError TxId
+ -&gt; IO (Either TxSubmittingError TxId))
+-&gt; Either TxSubmittingError TxId
+-&gt; IO (Either TxSubmittingError TxId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxSubmittingError -&gt; Either TxSubmittingError TxId
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(TxSubmittingError -&gt; Either TxSubmittingError TxId)
+-&gt; TxSubmittingError -&gt; Either TxSubmittingError TxId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ApplyTxError LedgerEra -&gt; TxSubmittingError
+</span><a href="Cardano.CEM.Monads.html#UnhandledNodeSubmissionError"><span class="hs-identifier hs-var">UnhandledNodeSubmissionError</span></a></span><span> </span><span class="annot"><span class="annottext">ApplyTxError LedgerEra
+ApplyTxErr
+  (ShelleyBlock (ConsensusProtocol era) (ShelleyLedgerEra era))
+</span><a href="#local-6989586621679558524"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-111"></span><span>            </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalTxSubmission.Type.html#SubmitFail"><span class="hs-identifier hs-type">SubmitFail</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxValidationErrorInCardanoMode"><span class="hs-identifier hs-type">TxValidationErrorInCardanoMode</span></a></span><span> </span><span class="annot"><span class="annottext">TxValidationError era
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-112"></span><span>              </span><span class="annot"><span class="annottext">String -&gt; IO (Either TxSubmittingError TxId)
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Era mismatch error&quot;</span></span><span>
+</span><span id="line-113"></span><span>            </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-protocols-0.7.0.0-e7590ed685c351d3473fc3e479a59c3fb2b79b6f496d92f1aa7afaa86a5eb8e1/share/doc/html/src/Ouroboros.Network.Protocol.LocalTxSubmission.Type.html#SubmitFail"><span class="hs-identifier hs-type">SubmitFail</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxValidationEraMismatch"><span class="hs-identifier hs-type">TxValidationEraMismatch</span></a></span><span> </span><span class="annot"><span class="annottext">EraMismatch
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-114"></span><span>              </span><span class="annot"><span class="annottext">String -&gt; IO (Either TxSubmittingError TxId)
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Era mismatch error&quot;</span></span><span>
+</span><span id="line-115"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679558530"><span class="annot"><span class="annottext">TxBodyErrorAutoBalance Era
+</span><a href="#local-6989586621679558530"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either TxSubmittingError TxId
+-&gt; L1Runner (Either TxSubmittingError TxId)
+forall a. a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either TxSubmittingError TxId
+ -&gt; L1Runner (Either TxSubmittingError TxId))
+-&gt; Either TxSubmittingError TxId
+-&gt; L1Runner (Either TxSubmittingError TxId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxSubmittingError -&gt; Either TxSubmittingError TxId
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(TxSubmittingError -&gt; Either TxSubmittingError TxId)
+-&gt; TxSubmittingError -&gt; Either TxSubmittingError TxId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TxBodyErrorAutoBalance Era -&gt; TxSubmittingError
+</span><a href="Cardano.CEM.Monads.html#UnhandledAutobalanceError"><span class="hs-identifier hs-var">UnhandledAutobalanceError</span></a></span><span> </span><span class="annot"><span class="annottext">TxBodyErrorAutoBalance Era
+</span><a href="#local-6989586621679558530"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadTest"><span class="hs-identifier hs-type">MonadTest</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-comment">-- FIXME: cache keys and better error handling</span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621679558552"><span class="annot"><span class="annottext">getTestWalletSks :: L1Runner [SigningKey PaymentKey]
+</span><a href="#local-6989586621679558552"><span class="hs-identifier hs-var hs-var hs-var hs-var">getTestWalletSks</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><span class="annottext">(Integer -&gt; L1Runner (SigningKey PaymentKey))
+-&gt; [Integer] -&gt; L1Runner [SigningKey PaymentKey]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; L1Runner (SigningKey PaymentKey)
+</span><a href="#local-6989586621679558554"><span class="hs-identifier hs-var">keyN</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">2</span></span><span class="hs-special">]</span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>      </span><span id="local-6989586621679558554"><span class="annot"><span class="annottext">keyN :: Integer -&gt; L1Runner (SigningKey PaymentKey)
+</span><a href="#local-6989586621679558554"><span class="hs-identifier hs-var hs-var">keyN</span></a></span></span><span> </span><span id="local-6989586621679558555"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679558555"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-123"></span><span>        </span><span id="local-6989586621679558556"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679558556"><span class="hs-identifier hs-var">keyBytes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO ByteString -&gt; L1Runner ByteString
+forall a. IO a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">(IO ByteString -&gt; L1Runner ByteString)
+-&gt; IO ByteString -&gt; L1Runner ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ByteString
+</span><span class="hs-identifier hs-var">BS.readFile</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ByteString) -&gt; String -&gt; IO ByteString
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679558558"><span class="hs-identifier hs-var">keysPaths</span></a></span><span> </span><span class="annot"><span class="annottext">[String] -&gt; Int -&gt; String
+forall a. HasCallStack =&gt; [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Int
+forall a. Num a =&gt; Integer -&gt; a
+</span><span class="hs-identifier hs-var">fromInteger</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679558555"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-124"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Maybe (SigningKey PaymentKey)
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#parseSigningKeyTE"><span class="hs-identifier hs-var">parseSigningKeyTE</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679558556"><span class="hs-identifier hs-var">keyBytes</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-125"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679558560"><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679558560"><span class="hs-identifier hs-var">key</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; L1Runner (SigningKey PaymentKey)
+forall a. a -&gt; L1Runner a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679558560"><span class="hs-identifier hs-var">key</span></a></span><span>
+</span><span id="line-126"></span><span>          </span><span class="annot"><span class="annottext">Maybe (SigningKey PaymentKey)
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; L1Runner (SigningKey PaymentKey)
+forall a. String -&gt; L1Runner a
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Could not read key&quot;</span></span><span>
+</span><span id="line-127"></span><span>      </span><span id="local-6989586621679558558"><span class="annot"><span class="annottext">keysPaths :: [String]
+</span><a href="#local-6989586621679558558"><span class="hs-identifier hs-var hs-var">keysPaths</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>        </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;./devnet/credentials/faucet.sk&quot;</span></span><span>
+</span><span id="line-129"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;./devnet/credentials/bob.sk&quot;</span></span><span>
+</span><span id="line-130"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;./devnet/credentials/carol.sk&quot;</span></span><span>
+</span><span id="line-131"></span><span>        </span><span class="hs-special">]</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><span class="hs-comment">-- | Starting local devnet</span></span><span>
+</span><span id="line-134"></span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#localDevnetNetworkId"><span class="hs-identifier hs-type">localDevnetNetworkId</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.NetworkId.html#NetworkId"><span class="hs-identifier hs-type">NetworkId</span></a></span><span>
+</span><span id="line-135"></span><span id="localDevnetNetworkId"><span class="annot"><span class="annottext">localDevnetNetworkId :: NetworkId
+</span><a href="Cardano.CEM.Monads.L1.html#localDevnetNetworkId"><span class="hs-identifier hs-var hs-var">localDevnetNetworkId</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NetworkMagic -&gt; NetworkId
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.NetworkId.html#Testnet"><span class="hs-identifier hs-var">Testnet</span></a></span><span> </span><span class="annot"><span class="annottext">(NetworkMagic -&gt; NetworkId) -&gt; NetworkMagic -&gt; NetworkId
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; NetworkMagic
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/ouroboros-network-api-0.6.3.0-ea3fd6de4524ed96f7a2789b43979531bd6aa8cff88467eff2d6e218fe978b2d/share/doc/html/src/Ouroboros.Network.Magic.html#NetworkMagic"><span class="hs-identifier hs-var">NetworkMagic</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">42</span></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span id="local-6989586621679558241"><span class="annot"><a href="Cardano.CEM.Monads.L1.html#execOnLocalDevnet"><span class="hs-identifier hs-type">execOnLocalDevnet</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#L1Runner"><span class="hs-identifier hs-type">L1Runner</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679558241"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679558241"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-138"></span><span id="execOnLocalDevnet"><span class="annot"><span class="annottext">execOnLocalDevnet :: forall a. L1Runner a -&gt; IO a
+</span><a href="Cardano.CEM.Monads.L1.html#execOnLocalDevnet"><span class="hs-identifier hs-var hs-var">execOnLocalDevnet</span></a></span></span><span> </span><span id="local-6989586621679558570"><span class="annot"><span class="annottext">L1Runner a
+</span><a href="#local-6989586621679558570"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-139"></span><span>  </span><span class="annot"><span class="annottext">ReaderT ExecutionContext IO a -&gt; ExecutionContext -&gt; IO a
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">L1Runner a -&gt; ReaderT ExecutionContext IO a
+forall a. L1Runner a -&gt; ReaderT ExecutionContext IO a
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AunL1Runner%3AMkL1Runner"><span class="hs-identifier hs-var">unL1Runner</span></a></span><span> </span><span class="annot"><span class="annottext">L1Runner a
+</span><a href="#local-6989586621679558570"><span class="hs-identifier hs-var">action</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ExecutionContext
+</span><a href="#local-6989586621679558572"><span class="hs-identifier hs-var">localNodeContext</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>    </span><span id="local-6989586621679558572"><span class="annot"><span class="annottext">localNodeContext :: ExecutionContext
+</span><a href="#local-6989586621679558572"><span class="hs-identifier hs-var hs-var">localNodeContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-142"></span><span>      </span><span class="annot"><a href="Cardano.CEM.Monads.L1.html#MkExecutionContext"><span class="hs-identifier hs-type">MkExecutionContext</span></a></span><span>
+</span><span id="line-143"></span><span>        </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:localNode:MkExecutionContext :: LocalNodeConnectInfo
+</span><a href="Cardano.CEM.Monads.L1.html#%24sel%3AlocalNode%3AMkExecutionContext"><span class="hs-identifier hs-var">localNode</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-144"></span><span>            </span><span class="annot"><span class="annottext">ConsensusModeParams
+-&gt; NetworkId -&gt; SocketPath -&gt; LocalNodeConnectInfo
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.IPC.html#LocalNodeConnectInfo"><span class="hs-identifier hs-var">LocalNodeConnectInfo</span></a></span><span>
+</span><span id="line-145"></span><span>              </span><span class="annot"><span class="annottext">ConsensusModeParams
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#cardanoModeParams"><span class="hs-identifier hs-var">cardanoModeParams</span></a></span><span>
+</span><span id="line-146"></span><span>              </span><span class="annot"><span class="annottext">NetworkId
+</span><a href="Cardano.CEM.Monads.L1.html#localDevnetNetworkId"><span class="hs-identifier hs-var">localDevnetNetworkId</span></a></span><span>
+</span><span id="line-147"></span><span>              </span><span class="annot"><span class="annottext">SocketPath
+</span><span class="hs-string">&quot;./devnet/node.socket&quot;</span></span><span>
+</span><span id="line-148"></span><span>        </span><span class="hs-special">}</span><span>
+</span><span id="line-149"></span></pre></body></html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE NoPolyKinds #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Stages</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.html"><span class="hs-identifier">PlutusTx</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V2.html"><span class="hs-identifier">PlutusLedgerApi.V2</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#Interval"><span class="hs-identifier">Interval</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html#POSIXTime"><span class="hs-identifier">POSIXTime</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-11"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#always"><span class="hs-identifier">always</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-12"></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- Stages</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- This covers constraints on blockchain slot time,</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- used by both on- and off-chain code</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">class</span><span> </span><span id="Stages"><span class="annot"><a href="Cardano.CEM.Stages.html#Stages"><span class="hs-identifier hs-var">Stages</span></a></span></span><span> </span><span id="local-6989586621679556343"><span class="annot"><a href="#local-6989586621679556343"><span class="hs-identifier hs-type">stage</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="StageParams"><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-var">StageParams</span></a></span></span><span> </span><span id="local-6989586621679556343"><span class="annot"><a href="#local-6989586621679556343"><span class="hs-identifier hs-type">stage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679556376"><span class="annot"><a href="#local-6989586621679556376"><span class="hs-identifier hs-type">params</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621679556376"><span class="hs-identifier hs-type">params</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679556343"><span class="hs-identifier hs-type">stage</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span id="stageToOnChainInterval"><span class="annot"><a href="Cardano.CEM.Stages.html#stageToOnChainInterval"><span class="hs-identifier hs-type">stageToOnChainInterval</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-type">StageParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556343"><span class="hs-identifier hs-type">stage</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679556343"><span class="hs-identifier hs-type">stage</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#Interval"><span class="hs-identifier hs-type">Interval</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html#POSIXTime"><span class="hs-identifier hs-type">POSIXTime</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- Common</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- TODO: rename</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="SingleStage"><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStage"><span class="hs-identifier hs-var">SingleStage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Always"><span class="annot"><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556380"><span id="local-6989586621679556382"><span id="local-6989586621679556386"><span class="annot"><span class="annottext">Int -&gt; SingleStage -&gt; ShowS
+[SingleStage] -&gt; ShowS
+SingleStage -&gt; String
+(Int -&gt; SingleStage -&gt; ShowS)
+-&gt; (SingleStage -&gt; String)
+-&gt; ([SingleStage] -&gt; ShowS)
+-&gt; Show SingleStage
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SingleStage -&gt; ShowS
+showsPrec :: Int -&gt; SingleStage -&gt; ShowS
+$cshow :: SingleStage -&gt; String
+show :: SingleStage -&gt; String
+$cshowList :: [SingleStage] -&gt; ShowS
+showList :: [SingleStage] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556390"><span id="local-6989586621679556392"><span class="annot"><span class="annottext">SingleStage -&gt; SingleStage -&gt; Bool
+(SingleStage -&gt; SingleStage -&gt; Bool)
+-&gt; (SingleStage -&gt; SingleStage -&gt; Bool) -&gt; Eq SingleStage
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SingleStage -&gt; SingleStage -&gt; Bool
+== :: SingleStage -&gt; SingleStage -&gt; Bool
+$c/= :: SingleStage -&gt; SingleStage -&gt; Bool
+/= :: SingleStage -&gt; SingleStage -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="SingleStageParams"><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStageParams"><span class="hs-identifier hs-var">SingleStageParams</span></a></span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NoSingleStageParams"><span class="annot"><a href="Cardano.CEM.Stages.html#NoSingleStageParams"><span class="hs-identifier hs-var">NoSingleStageParams</span></a></span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AllowedInterval"><span class="annot"><a href="Cardano.CEM.Stages.html#AllowedInterval"><span class="hs-identifier hs-var">AllowedInterval</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#Interval"><span class="hs-identifier hs-type">Interval</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html#POSIXTime"><span class="hs-identifier hs-type">POSIXTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556399"><span id="local-6989586621679556406"><span id="local-6989586621679556410"><span class="annot"><span class="annottext">Int -&gt; SingleStageParams -&gt; ShowS
+[SingleStageParams] -&gt; ShowS
+SingleStageParams -&gt; String
+(Int -&gt; SingleStageParams -&gt; ShowS)
+-&gt; (SingleStageParams -&gt; String)
+-&gt; ([SingleStageParams] -&gt; ShowS)
+-&gt; Show SingleStageParams
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SingleStageParams -&gt; ShowS
+showsPrec :: Int -&gt; SingleStageParams -&gt; ShowS
+$cshow :: SingleStageParams -&gt; String
+show :: SingleStageParams -&gt; String
+$cshowList :: [SingleStageParams] -&gt; ShowS
+showList :: [SingleStageParams] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556414"><span id="local-6989586621679556420"><span class="annot"><span class="annottext">SingleStageParams -&gt; SingleStageParams -&gt; Bool
+(SingleStageParams -&gt; SingleStageParams -&gt; Bool)
+-&gt; (SingleStageParams -&gt; SingleStageParams -&gt; Bool)
+-&gt; Eq SingleStageParams
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SingleStageParams -&gt; SingleStageParams -&gt; Bool
+== :: SingleStageParams -&gt; SingleStageParams -&gt; Bool
+$c/= :: SingleStageParams -&gt; SingleStageParams -&gt; Bool
+/= :: SingleStageParams -&gt; SingleStageParams -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#Stages"><span class="hs-identifier hs-type">Stages</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStage"><span class="hs-identifier hs-type">SingleStage</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="StageParams"><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-var">StageParams</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStage"><span class="hs-identifier hs-type">SingleStage</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStageParams"><span class="hs-identifier hs-type">SingleStageParams</span></a></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679556428"><span class="annot"><span class="annottext">stageToOnChainInterval :: StageParams SingleStage -&gt; SingleStage -&gt; Interval POSIXTime
+</span><a href="Cardano.CEM.Stages.html#stageToOnChainInterval"><span class="hs-identifier hs-var hs-var hs-var hs-var">stageToOnChainInterval</span></a></span></span><span> </span><span class="annot"><span class="annottext">SingleStageParams
+StageParams SingleStage
+</span><a href="Cardano.CEM.Stages.html#NoSingleStageParams"><span class="hs-identifier hs-var">NoSingleStageParams</span></a></span><span> </span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Interval POSIXTime
+forall a. Interval a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#always"><span class="hs-identifier hs-var">always</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Stages.html#stageToOnChainInterval"><span class="hs-identifier hs-var">stageToOnChainInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Stages.html#AllowedInterval"><span class="hs-identifier hs-type">AllowedInterval</span></a></span><span> </span><span id="local-6989586621679556429"><span class="annot"><span class="annottext">Interval POSIXTime
+</span><a href="#local-6989586621679556429"><span class="hs-identifier hs-var">interval</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Interval POSIXTime
+</span><a href="#local-6989586621679556429"><span class="hs-identifier hs-var">interval</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span id="local-6989586621679556431"><span id="local-6989586621679556435"><span id="local-6989586621679556437"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SingleStage</span></span></span></span><span>
+</span><span id="line-41"></span><span id="local-6989586621679556468"><span id="local-6989586621679556475"><span id="local-6989586621679556477"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">'</span><span class="hs-identifier">NoSingleStageParams</span></span></span></span><span>
+</span><span id="line-42"></span></pre></body></html>

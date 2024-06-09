@@ -1,0 +1,431 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE TemplateHaskellQuotes #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">{- |
+ Module: PlutusTx.Deriving
+ Copyright: (C) MLabs 2021
+ License: Apache 2.0
+ Maintainer: Koz Ross &lt;koz@mlabs.city&gt;
+ Portability: GHC only
+ Stability: Experimental
+
+ Taken from here and updated to new TH version:
+ https://github.com/Liqwid-Labs/plutus-extra/blob/master/
+ plutus-deriving/src/PlutusTx/Deriving.hs
+-}</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Plutus.Deriving</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Plutus.Deriving.html#deriveEq"><span class="hs-identifier">deriveEq</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">replicateM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH</span></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="hs-identifier">Body</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NormalB</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><span class="hs-identifier">Clause</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Clause</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><span class="hs-identifier">Con</span></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><span class="hs-identifier">ForallC</span></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="hs-identifier">GadtC</span></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="hs-identifier">InfixC</span></span><span class="hs-special">,</span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="hs-identifier">NormalC</span></span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="hs-identifier">RecC</span></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="hs-identifier">RecGadtC</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><span class="hs-identifier">Dec</span></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-identifier">DataD</span></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><span class="hs-identifier">FunD</span></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="hs-identifier">InstanceD</span></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="hs-identifier">NewtypeD</span></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="hs-identifier">PragmaD</span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="hs-identifier">Exp</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ConE</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">UInfixE</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">VarE</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="hs-identifier">Info</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">TyConI</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><span class="hs-identifier">Inline</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Inlinable</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><span class="hs-identifier">Name</span></span><span class="hs-special">,</span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><span class="hs-identifier">Pat</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ConP</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">VarP</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">WildP</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><span class="hs-identifier">Phases</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AllPhases</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><span class="hs-identifier">Pragma</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">InlineP</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><span class="hs-identifier">Q</span></span><span class="hs-special">,</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><span class="hs-identifier">RuleMatch</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">FunLike</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><span class="hs-identifier">TyVarBndr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">KindedTV</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">PlainTV</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="hs-identifier">Type</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">AppT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ConT</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">VarT</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="hs-identifier">nameBase</span></span><span class="hs-special">,</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="hs-identifier">newName</span></span><span class="hs-special">,</span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><span class="hs-identifier">reify</span></span><span class="hs-special">,</span><span>
+</span><span id="line-52"></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Prelude.html"><span class="hs-identifier">PlutusTx.Prelude</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">PTx</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><span class="hs-comment">{- | Generates a lawful 'PTx.Eq' instance for the type named by the input. This
+ instance will obey the following laws:
+
+ * Reflexivity (for any @x@, @x == x = True@)
+ * Symmetry (for any @x, y@, @x == y = y PTx.== x@)
+ * Transitivity (for any @x, y, z@, if @x == y@ and @y == z@, then @x == z@)
+ * Substitution (for any @x, y@ and pure @f@, @x == y@ implies @f x == f y@)
+
+ @since 1.0
+-}</span></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Plutus.Deriving.html#deriveEq"><span class="hs-identifier hs-type">deriveEq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Dec</span></span><span class="hs-special">]</span><span>
+</span><span id="line-66"></span><span id="deriveEq"><span class="annot"><span class="annottext">deriveEq :: Name -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#deriveEq"><span class="hs-identifier hs-var hs-var">deriveEq</span></a></span></span><span> </span><span id="local-6989586621679277190"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277190"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621679277191"><span class="annot"><span class="annottext">Info
+</span><a href="#local-6989586621679277191"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Q Info
+</span><span class="hs-identifier hs-var">reify</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277190"><span class="hs-identifier hs-var">name</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Info
+</span><a href="#local-6989586621679277191"><span class="hs-identifier hs-var">info</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">TyConI</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">DataD</span></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679277192"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277192"><span class="hs-identifier hs-var">name'</span></a></span></span><span> </span><span id="local-6989586621679277193"><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><a href="#local-6989586621679277193"><span class="hs-identifier hs-var">tyVars</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Kind
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679277194"><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277194"><span class="hs-identifier hs-var">constructors</span></a></span></span><span> </span><span class="annot"><span class="annottext">[DerivClause]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-70"></span><span>      </span><span class="annot"><span class="annottext">Name -&gt; [TyVarBndr ()] -&gt; [Con] -&gt; Q [Dec]
+forall w. Name -&gt; [TyVarBndr w] -&gt; [Con] -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#mkEq"><span class="hs-identifier hs-var">mkEq</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277192"><span class="hs-identifier hs-var">name'</span></a></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><a href="#local-6989586621679277193"><span class="hs-identifier hs-var">tyVars</span></a></span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277194"><span class="hs-identifier hs-var">constructors</span></a></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">TyConI</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NewtypeD</span></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679277196"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277196"><span class="hs-identifier hs-var">name'</span></a></span></span><span> </span><span id="local-6989586621679277197"><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><a href="#local-6989586621679277197"><span class="hs-identifier hs-var">tyVars</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe Kind
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679277198"><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679277198"><span class="hs-identifier hs-var">constructor</span></a></span></span><span> </span><span class="annot"><span class="annottext">[DerivClause]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-72"></span><span>      </span><span class="annot"><span class="annottext">Name -&gt; [TyVarBndr ()] -&gt; [Con] -&gt; Q [Dec]
+forall w. Name -&gt; [TyVarBndr w] -&gt; [Con] -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#mkEq"><span class="hs-identifier hs-var">mkEq</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277196"><span class="hs-identifier hs-var">name'</span></a></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><a href="#local-6989586621679277197"><span class="hs-identifier hs-var">tyVars</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679277198"><span class="hs-identifier hs-var">constructor</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><span class="annottext">Info
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Q [Dec]
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Q [Dec]) -&gt; [Char] -&gt; Q [Dec]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Char]
+</span><span class="hs-identifier hs-var">nameBase</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277190"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char] -&gt; [Char]
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; is not a data or newtype-defined type.&quot;</span></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- Helpers</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span id="local-6989586621679277073"><span class="annot"><a href="Plutus.Deriving.html#mkEq"><span class="hs-identifier hs-type">mkEq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">TyVarBndr</span></span><span> </span><span class="annot"><a href="#local-6989586621679277073"><span class="hs-identifier hs-type">w</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Dec</span></span><span class="hs-special">]</span></span><span>
+</span><span id="line-78"></span><span id="mkEq"><span class="annot"><span class="annottext">mkEq :: forall w. Name -&gt; [TyVarBndr w] -&gt; [Con] -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#mkEq"><span class="hs-identifier hs-var hs-var">mkEq</span></a></span></span><span> </span><span id="local-6989586621679277205"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277205"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679277206"><span class="annot"><span class="annottext">[TyVarBndr w]
+</span><a href="#local-6989586621679277206"><span class="hs-identifier hs-var">tyVars</span></a></span></span><span> </span><span id="local-6989586621679277207"><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277207"><span class="hs-identifier hs-var">constructors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277208"><span class="annot"><span class="annottext">namePreds :: [(Name, Kind)]
+</span><a href="#local-6989586621679277208"><span class="hs-identifier hs-var hs-var">namePreds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TyVarBndr w -&gt; (Name, Kind)
+forall w. TyVarBndr w -&gt; (Name, Kind)
+</span><a href="Plutus.Deriving.html#mkCtxVar"><span class="hs-identifier hs-var">mkCtxVar</span></a></span><span> </span><span class="annot"><span class="annottext">(TyVarBndr w -&gt; (Name, Kind)) -&gt; [TyVarBndr w] -&gt; [(Name, Kind)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr w]
+</span><a href="#local-6989586621679277206"><span class="hs-identifier hs-var">tyVars</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277211"><span class="annot"><span class="annottext">instanceType :: Kind
+</span><a href="#local-6989586621679277211"><span class="hs-identifier hs-var hs-var">instanceType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; [Name] -&gt; Kind
+</span><a href="Plutus.Deriving.html#mkInstanceType"><span class="hs-identifier hs-var">mkInstanceType</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277205"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name, Kind) -&gt; Name
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((Name, Kind) -&gt; Name) -&gt; [(Name, Kind)] -&gt; [Name]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Name, Kind)]
+</span><a href="#local-6989586621679277208"><span class="hs-identifier hs-var">namePreds</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>  </span><span id="local-6989586621679277214"><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679277214"><span class="hs-identifier hs-var">method</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Con] -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#mkEqMethod"><span class="hs-identifier hs-var">mkEqMethod</span></a></span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277207"><span class="hs-identifier hs-var">constructors</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="annot"><span class="annottext">[Dec] -&gt; Q [Dec]
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Maybe Overlap -&gt; Cxt -&gt; Kind -&gt; [Dec] -&gt; Dec
+</span><span class="hs-identifier hs-var">InstanceD</span></span><span> </span><span class="annot"><span class="annottext">Maybe Overlap
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name, Kind) -&gt; Kind
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">((Name, Kind) -&gt; Kind) -&gt; [(Name, Kind)] -&gt; Cxt
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Name, Kind)]
+</span><a href="#local-6989586621679277208"><span class="hs-identifier hs-var">namePreds</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679277211"><span class="hs-identifier hs-var">instanceType</span></a></span><span> </span><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679277214"><span class="hs-identifier hs-var">method</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span id="local-6989586621679277081"><span class="annot"><a href="Plutus.Deriving.html#mkCtxVar"><span class="hs-identifier hs-type">mkCtxVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">TyVarBndr</span></span><span> </span><span class="annot"><a href="#local-6989586621679277081"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-85"></span><span id="mkCtxVar"><span class="annot"><span class="annottext">mkCtxVar :: forall w. TyVarBndr w -&gt; (Name, Kind)
+</span><a href="Plutus.Deriving.html#mkCtxVar"><span class="hs-identifier hs-var hs-var">mkCtxVar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">PlainTV</span></span><span> </span><span id="local-6989586621679277217"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277217"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="annot"><span class="annottext">w
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277217"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><a href="#local-6989586621679277218"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277217"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">KindedTV</span></span><span> </span><span id="local-6989586621679277219"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277219"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="annot"><span class="annottext">w
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277219"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><a href="#local-6989586621679277218"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277219"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="#local-6989586621679277218"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-90"></span><span>    </span><span id="local-6989586621679277218"><span class="annot"><span class="annottext">go :: Name -&gt; Kind
+</span><a href="#local-6989586621679277218"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">AppT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">ConT</span></span><span> </span><span class="hs-special">''</span><span class="hs-identifier">PTx.Eq</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Kind -&gt; Kind) -&gt; (Name -&gt; Kind) -&gt; Name -&gt; Kind
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">VarT</span></span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="Plutus.Deriving.html#mkInstanceType"><span class="hs-identifier hs-type">mkInstanceType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-93"></span><span id="mkInstanceType"><span class="annot"><span class="annottext">mkInstanceType :: Name -&gt; [Name] -&gt; Kind
+</span><a href="Plutus.Deriving.html#mkInstanceType"><span class="hs-identifier hs-var hs-var">mkInstanceType</span></a></span></span><span> </span><span id="local-6989586621679277221"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277221"><span class="hs-identifier hs-var">typeName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">AppT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">ConT</span></span><span> </span><span class="hs-special">''</span><span class="hs-identifier">PTx.Eq</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Kind -&gt; Kind) -&gt; ([Name] -&gt; Kind) -&gt; [Name] -&gt; Kind
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Kind -&gt; Kind) -&gt; Kind -&gt; [Name] -&gt; Kind
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Kind -&gt; Kind
+</span><a href="#local-6989586621679277223"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">ConT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277221"><span class="hs-identifier hs-var">typeName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>    </span><span class="annot"><a href="#local-6989586621679277223"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-96"></span><span>    </span><span id="local-6989586621679277223"><span class="annot"><span class="annottext">go :: Name -&gt; Kind -&gt; Kind
+</span><a href="#local-6989586621679277223"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679277224"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277224"><span class="hs-identifier hs-var">varName</span></a></span></span><span> </span><span id="local-6989586621679277225"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679277225"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">AppT</span></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679277225"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">VarT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277224"><span class="hs-identifier hs-var">varName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Plutus.Deriving.html#mkEqMethod"><span class="hs-identifier hs-type">mkEqMethod</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Dec</span></span><span class="hs-special">]</span><span>
+</span><span id="line-99"></span><span id="mkEqMethod"><span class="annot"><span class="annottext">mkEqMethod :: [Con] -&gt; Q [Dec]
+</span><a href="Plutus.Deriving.html#mkEqMethod"><span class="hs-identifier hs-var hs-var">mkEqMethod</span></a></span></span><span> </span><span id="local-6989586621679277226"><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277226"><span class="hs-identifier hs-var">constructors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277227"><span class="annot"><span class="annottext">methodInlineable :: Dec
+</span><a href="#local-6989586621679277227"><span class="hs-identifier hs-var hs-var">methodInlineable</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pragma -&gt; Dec
+</span><span class="hs-identifier hs-var">PragmaD</span></span><span> </span><span class="annot"><span class="annottext">(Pragma -&gt; Dec) -&gt; (Phases -&gt; Pragma) -&gt; Phases -&gt; Dec
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Inline -&gt; RuleMatch -&gt; Phases -&gt; Pragma
+</span><span class="hs-identifier hs-var">InlineP</span></span><span> </span><span class="hs-special">'</span><span class="hs-special">(</span><span class="hs-operator">PTx.==</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Inline
+</span><span class="hs-identifier hs-var">Inlinable</span></span><span> </span><span class="annot"><span class="annottext">RuleMatch
+</span><span class="hs-identifier hs-var">FunLike</span></span><span> </span><span class="annot"><span class="annottext">(Phases -&gt; Dec) -&gt; Phases -&gt; Dec
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Phases
+</span><span class="hs-identifier hs-var">AllPhases</span></span><span>
+</span><span id="line-101"></span><span>  </span><span id="local-6989586621679277228"><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679277228"><span class="hs-identifier hs-var">funDef</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-102"></span><span>    </span><span class="annot"><span class="annottext">Name -&gt; [Clause] -&gt; Dec
+</span><span class="hs-identifier hs-var">FunD</span></span><span> </span><span class="hs-special">'</span><span class="hs-special">(</span><span class="hs-operator">PTx.==</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Clause] -&gt; Dec) -&gt; Q [Clause] -&gt; Q Dec
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277226"><span class="hs-identifier hs-var">constructors</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-103"></span><span>      </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Q [Clause]
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Cannot generate Eq for a type with no constructors.&quot;</span></span><span>
+</span><span id="line-104"></span><span>      </span><span class="annot"><span class="annottext">[Con]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-105"></span><span>        </span><span id="local-6989586621679277229"><span class="annot"><span class="annottext">[Clause]
+</span><a href="#local-6989586621679277229"><span class="hs-identifier hs-var">activeClauses</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Con -&gt; Q Clause) -&gt; [Con] -&gt; Q [Clause]
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; [a] -&gt; f [b]
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="annot"><span class="annottext">Con -&gt; Q Clause
+</span><a href="Plutus.Deriving.html#mkConstructorMatch"><span class="hs-identifier hs-var">mkConstructorMatch</span></a></span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679277226"><span class="hs-identifier hs-var">constructors</span></a></span><span>
+</span><span id="line-106"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277232"><span class="annot"><span class="annottext">catchAllClause :: Clause
+</span><a href="#local-6989586621679277232"><span class="hs-identifier hs-var hs-var">catchAllClause</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-107"></span><span>              </span><span class="annot"><span class="annottext">[Pat] -&gt; Body -&gt; [Dec] -&gt; Clause
+</span><span class="hs-identifier hs-var">Clause</span></span><span>
+</span><span id="line-108"></span><span>                </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Pat
+</span><span class="hs-identifier hs-var">WildP</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pat
+</span><span class="hs-identifier hs-var">WildP</span></span><span class="hs-special">]</span><span>
+</span><span id="line-109"></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Body
+</span><span class="hs-identifier hs-var">NormalB</span></span><span> </span><span class="annot"><span class="annottext">(Exp -&gt; Body) -&gt; (Name -&gt; Exp) -&gt; Name -&gt; Body
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">ConE</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Body) -&gt; Name -&gt; Body
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">'</span><span class="hs-identifier">PTx.False</span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>                </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-111"></span><span>        </span><span class="annot"><span class="annottext">[Clause] -&gt; Q [Clause]
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">([Clause] -&gt; Q [Clause]) -&gt; [Clause] -&gt; Q [Clause]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Clause]
+</span><a href="#local-6989586621679277229"><span class="hs-identifier hs-var">activeClauses</span></a></span><span> </span><span class="annot"><span class="annottext">[Clause] -&gt; [Clause] -&gt; [Clause]
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Clause
+</span><a href="#local-6989586621679277232"><span class="hs-identifier hs-var">catchAllClause</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-112"></span><span>  </span><span class="annot"><span class="annottext">[Dec] -&gt; Q [Dec]
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679277227"><span class="hs-identifier hs-var">methodInlineable</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679277228"><span class="hs-identifier hs-var">funDef</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Plutus.Deriving.html#mkConstructorMatch"><span class="hs-identifier hs-type">mkConstructorMatch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Clause</span></span><span>
+</span><span id="line-115"></span><span id="mkConstructorMatch"><span class="annot"><span class="annottext">mkConstructorMatch :: Con -&gt; Q Clause
+</span><a href="Plutus.Deriving.html#mkConstructorMatch"><span class="hs-identifier hs-var hs-var">mkConstructorMatch</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-116"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">NormalC</span></span><span> </span><span id="local-6989586621679277233"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277233"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679277234"><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679277234"><span class="hs-identifier hs-var">vars</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Int -&gt; Q Clause
+</span><a href="#local-6989586621679277235"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277233"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Q Clause) -&gt; ([BangType] -&gt; Int) -&gt; [BangType] -&gt; Q Clause
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[BangType] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">([BangType] -&gt; Q Clause) -&gt; [BangType] -&gt; Q Clause
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679277234"><span class="hs-identifier hs-var">vars</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">RecC</span></span><span> </span><span id="local-6989586621679277237"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277237"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679277238"><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679277238"><span class="hs-identifier hs-var">vars</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Int -&gt; Q Clause
+</span><a href="#local-6989586621679277235"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277237"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Q Clause)
+-&gt; ([VarBangType] -&gt; Int) -&gt; [VarBangType] -&gt; Q Clause
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[VarBangType] -&gt; Int
+forall a. [a] -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">([VarBangType] -&gt; Q Clause) -&gt; [VarBangType] -&gt; Q Clause
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679277238"><span class="hs-identifier hs-var">vars</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">InfixC</span></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-119"></span><span>    </span><span class="annot"><span class="annottext">[Char] -&gt; Q Clause
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Cannot generate Eq for types with infix constructors.&quot;</span></span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">ForallC</span></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-121"></span><span>    </span><span class="annot"><span class="annottext">[Char] -&gt; Q Clause
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Cannot generate Eq for types with existentials.&quot;</span></span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">GadtC</span></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-123"></span><span>    </span><span class="annot"><span class="annottext">[Char] -&gt; Q Clause
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Cannot generate Eq for GADTs.&quot;</span></span><span>
+</span><span id="line-124"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">RecGadtC</span></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-125"></span><span>    </span><span class="annot"><span class="annottext">[Char] -&gt; Q Clause
+forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Cannot generate Eq for GADTs.&quot;</span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><a href="#local-6989586621679277235"><span class="hs-identifier hs-type">go</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Clause</span></span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621679277235"><span class="annot"><span class="annottext">go :: Name -&gt; Int -&gt; Q Clause
+</span><a href="#local-6989586621679277235"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679277239"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277239"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679277240"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679277240"><span class="hs-identifier hs-var">count</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>      </span><span id="local-6989586621679277241"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277241"><span class="hs-identifier hs-var">namesLeft</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Q Name -&gt; Q [Name]
+forall (m :: * -&gt; *) a. Applicative m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679277240"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Q Name
+forall (m :: * -&gt; *). Quote m =&gt; [Char] -&gt; m Name
+</span><span class="hs-identifier hs-var">newName</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;x&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>      </span><span id="local-6989586621679277242"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277242"><span class="hs-identifier hs-var">namesRight</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Q Name -&gt; Q [Name]
+forall (m :: * -&gt; *) a. Applicative m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679277240"><span class="hs-identifier hs-var">count</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Q Name
+forall (m :: * -&gt; *). Quote m =&gt; [Char] -&gt; m Name
+</span><span class="hs-identifier hs-var">newName</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;y&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277243"><span class="annot"><span class="annottext">leftPat :: Pat
+</span><a href="#local-6989586621679277243"><span class="hs-identifier hs-var hs-var">leftPat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Cxt -&gt; [Pat] -&gt; Pat
+</span><span class="hs-identifier hs-var">ConP</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277239"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">([Pat] -&gt; Pat) -&gt; [Pat] -&gt; Pat
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Pat
+</span><span class="hs-identifier hs-var">VarP</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Pat) -&gt; [Name] -&gt; [Pat]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277241"><span class="hs-identifier hs-var">namesLeft</span></a></span><span>
+</span><span id="line-132"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277244"><span class="annot"><span class="annottext">rightPat :: Pat
+</span><a href="#local-6989586621679277244"><span class="hs-identifier hs-var hs-var">rightPat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Cxt -&gt; [Pat] -&gt; Pat
+</span><span class="hs-identifier hs-var">ConP</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277239"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">([Pat] -&gt; Pat) -&gt; [Pat] -&gt; Pat
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; Pat
+</span><span class="hs-identifier hs-var">VarP</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Pat) -&gt; [Name] -&gt; [Pat]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277242"><span class="hs-identifier hs-var">namesRight</span></a></span><span>
+</span><span id="line-133"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679277245"><span class="annot"><span class="annottext">bod :: Body
+</span><a href="#local-6989586621679277245"><span class="hs-identifier hs-var hs-var">bod</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Exp -&gt; Body
+</span><span class="hs-identifier hs-var">NormalB</span></span><span> </span><span class="annot"><span class="annottext">(Exp -&gt; Body) -&gt; Exp -&gt; Body
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [Name] -&gt; [(Name, Name)]
+forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277241"><span class="hs-identifier hs-var">namesLeft</span></a></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679277242"><span class="hs-identifier hs-var">namesRight</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-134"></span><span>            </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">ConE</span></span><span> </span><span class="hs-special">'</span><span class="hs-identifier">PTx.True</span><span>
+</span><span id="line-135"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621679277246"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277246"><span class="hs-identifier hs-var">lName</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679277247"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277247"><span class="hs-identifier hs-var">rName</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679277248"><span class="annot"><span class="annottext">[(Name, Name)]
+</span><a href="#local-6989586621679277248"><span class="hs-identifier hs-var">names</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-136"></span><span>              </span><span class="annot"><span class="annottext">((Name, Name) -&gt; Exp -&gt; Exp) -&gt; Exp -&gt; [(Name, Name)] -&gt; Exp
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span>
+</span><span id="line-137"></span><span>                </span><span class="annot"><span class="annottext">(Name, Name) -&gt; Exp -&gt; Exp
+</span><a href="Plutus.Deriving.html#andEq"><span class="hs-identifier hs-var">andEq</span></a></span><span>
+</span><span id="line-138"></span><span>                </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Exp -&gt; Exp
+</span><span class="hs-identifier hs-var">UInfixE</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277246"><span class="hs-identifier hs-var">lName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="hs-special">'</span><span class="hs-special">(</span><span class="hs-operator">PTx.==</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277247"><span class="hs-identifier hs-var">rName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span>                </span><span class="annot"><span class="annottext">[(Name, Name)]
+</span><a href="#local-6989586621679277248"><span class="hs-identifier hs-var">names</span></a></span><span>
+</span><span id="line-140"></span><span>      </span><span class="annot"><span class="annottext">Clause -&gt; Q Clause
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">(Clause -&gt; Q Clause) -&gt; ([Dec] -&gt; Clause) -&gt; [Dec] -&gt; Q Clause
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Pat] -&gt; Body -&gt; [Dec] -&gt; Clause
+</span><span class="hs-identifier hs-var">Clause</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621679277243"><span class="hs-identifier hs-var">leftPat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Pat
+</span><a href="#local-6989586621679277244"><span class="hs-identifier hs-var">rightPat</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Body
+</span><a href="#local-6989586621679277245"><span class="hs-identifier hs-var">bod</span></a></span><span> </span><span class="annot"><span class="annottext">([Dec] -&gt; Q Clause) -&gt; [Dec] -&gt; Q Clause
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Plutus.Deriving.html#andEq"><span class="hs-identifier hs-type">andEq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Exp</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Exp</span></span><span>
+</span><span id="line-143"></span><span id="andEq"><span class="annot"><span class="annottext">andEq :: (Name, Name) -&gt; Exp -&gt; Exp
+</span><a href="Plutus.Deriving.html#andEq"><span class="hs-identifier hs-var hs-var">andEq</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679277250"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277250"><span class="hs-identifier hs-var">lName</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679277251"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277251"><span class="hs-identifier hs-var">rName</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-144"></span><span>  </span><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Exp -&gt; Exp
+</span><span class="hs-identifier hs-var">UInfixE</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Exp -&gt; Exp -&gt; Exp
+</span><span class="hs-identifier hs-var">UInfixE</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277250"><span class="hs-identifier hs-var">lName</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="hs-special">'</span><span class="hs-special">(</span><span class="hs-operator">PTx.==</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679277251"><span class="hs-identifier hs-var">rName</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">VarE</span></span><span> </span><span class="hs-special">'</span><span class="hs-special">(</span><span class="hs-operator">PTx.&amp;&amp;</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span></pre></body></html>

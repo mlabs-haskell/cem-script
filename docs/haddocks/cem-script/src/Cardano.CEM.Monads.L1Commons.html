@@ -1,0 +1,484 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE RecordWildCards #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Code common for resolving Tx of backends which use `cardano-api`</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Monads.L1Commons</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ExceptT</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runExceptT</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">nub</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Cardano imports</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-9ce61ed6f4f6a48753883a4b458503c397451c80e8ace4b49db7a1ba5822eb9f/share/doc/html/src/Cardano.Api.html"><span class="hs-identifier">Cardano.Api</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.Expr.html#queryUtxo"><span class="hs-identifier">queryUtxo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-9ce61ed6f4f6a48753883a4b458503c397451c80e8ace4b49db7a1ba5822eb9f/share/doc/html/src/Cardano.Api.Shelley.html"><span class="hs-identifier">Cardano.Api.Shelley</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.ProtocolParameters.html#LedgerProtocolParameters"><span class="hs-identifier">LedgerProtocolParameters</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- Project imports</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html"><span class="hs-identifier">Cardano.CEM.Monads</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.OffChain.html"><span class="hs-identifier">Cardano.CEM.OffChain</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html"><span class="hs-identifier">Cardano.Extras</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Main function</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span id="local-6989586621679557756"><span class="annot"><a href="Cardano.CEM.Monads.L1Commons.html#cardanoTxBodyFromResolvedTx"><span class="hs-identifier hs-type">cardanoTxBodyFromResolvedTx</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadQueryUtxo"><span class="hs-identifier hs-type">MonadQueryUtxo</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679557756"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadBlockchainParams"><span class="hs-identifier hs-type">MonadBlockchainParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679557756"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#ResolvedTx"><span class="hs-identifier hs-type">ResolvedTx</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="#local-6989586621679557756"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Fees.html#TxBodyErrorAutoBalance"><span class="hs-identifier hs-type">TxBodyErrorAutoBalance</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#TxBody"><span class="hs-identifier hs-type">TxBody</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxInMode"><span class="hs-identifier hs-type">TxInMode</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
+</span><span id="line-27"></span><span id="cardanoTxBodyFromResolvedTx"><span class="annot"><span class="annottext">cardanoTxBodyFromResolvedTx :: forall (m :: * -&gt; *).
+(MonadQueryUtxo m, MonadBlockchainParams m) =&gt;
+ResolvedTx
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+</span><a href="Cardano.CEM.Monads.L1Commons.html#cardanoTxBodyFromResolvedTx"><span class="hs-identifier hs-var hs-var">cardanoTxBodyFromResolvedTx</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.html#MkResolvedTx"><span class="hs-identifier hs-type">MkResolvedTx</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679557945"><span id="local-6989586621679557946"><span id="local-6989586621679557947"><span id="local-6989586621679557948"><span id="local-6989586621679557949"><span id="local-6989586621679557950"><span id="local-6989586621679557951"><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+[TxIn]
+[TxOut CtxTx Era]
+[PubKeyHash]
+SigningKey PaymentKey
+TxMintValue BuildTx Era
+Interval POSIXTime
+txIns :: [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+txInsReference :: [TxIn]
+txOuts :: [TxOut CtxTx Era]
+toMint :: TxMintValue BuildTx Era
+interval :: Interval POSIXTime
+additionalSigners :: [PubKeyHash]
+signer :: SigningKey PaymentKey
+$sel:txIns:MkResolvedTx :: ResolvedTx
+-&gt; [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+$sel:txInsReference:MkResolvedTx :: ResolvedTx -&gt; [TxIn]
+$sel:txOuts:MkResolvedTx :: ResolvedTx -&gt; [TxOut CtxTx Era]
+$sel:toMint:MkResolvedTx :: ResolvedTx -&gt; TxMintValue BuildTx Era
+$sel:interval:MkResolvedTx :: ResolvedTx -&gt; Interval POSIXTime
+$sel:additionalSigners:MkResolvedTx :: ResolvedTx -&gt; [PubKeyHash]
+$sel:signer:MkResolvedTx :: ResolvedTx -&gt; SigningKey PaymentKey
+</span><a href="#local-6989586621679557945"><span class="hs-glyph hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">..</span></a></span></span></span></span></span></span></span></span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-comment">-- (lowerBound, upperBound) &lt;- convertValidityBound validityBound</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">-- FIXME</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679557959"><span class="annot"><span class="annottext">keyWitnessedTxIns :: [TxIn]
+</span><a href="#local-6989586621679557959"><span class="hs-identifier hs-var hs-var">keyWitnessedTxIns</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era)) -&gt; TxIn
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">((TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era)) -&gt; TxIn)
+-&gt; (TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era)) -&gt; TxIn
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+-&gt; (TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))
+forall a. HasCallStack =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">last</span></span><span> </span><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+</span><a href="#local-6989586621679557945"><span class="hs-identifier hs-var">txIns</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Monads.html#MkBlockchainParams"><span class="hs-identifier hs-type">MkBlockchainParams</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679557963"><span class="annot"><span class="annottext">PParams LedgerEra
+protocolParameters :: PParams LedgerEra
+$sel:protocolParameters:MkBlockchainParams :: BlockchainParams -&gt; PParams LedgerEra
+</span><a href="#local-6989586621679557963"><span class="hs-identifier hs-var hs-var">protocolParameters</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">m BlockchainParams
+forall (m :: * -&gt; *). MonadBlockchainParams m =&gt; m BlockchainParams
+</span><a href="Cardano.CEM.Monads.html#queryBlockchainParams"><span class="hs-identifier hs-var">queryBlockchainParams</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679557966"><span class="annot"><span class="annottext">additionalSignersKeys :: [SigningKey PaymentKey]
+</span><a href="#local-6989586621679557966"><span class="hs-identifier hs-var hs-var">additionalSignersKeys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-34"></span><span>        </span><span class="annot"><span class="annottext">(SigningKey PaymentKey -&gt; Bool)
+-&gt; [SigningKey PaymentKey] -&gt; [SigningKey PaymentKey]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679557967"><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679557967"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; PubKeyHash
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#signingKeyToPKH"><span class="hs-identifier hs-var">signingKeyToPKH</span></a></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679557967"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; [PubKeyHash] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[PubKeyHash]
+</span><a href="#local-6989586621679557950"><span class="hs-identifier hs-var">additionalSigners</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679557951"><span class="hs-identifier hs-var">signer</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679557970"><span class="annot"><span class="annottext">preBody :: TxBodyContent BuildTx Era
+</span><a href="#local-6989586621679557970"><span class="hs-identifier hs-var hs-var">preBody</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-37"></span><span>        </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxBodyContent"><span class="hs-identifier hs-type">TxBodyContent</span></a></span><span>
+</span><span id="line-38"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="hs-comment">-- FIXME: duplicate TxIn for coin-selection redeemer bug</span><span>
+</span><span id="line-39"></span><span>            </span><span class="annot"><span class="annottext">txIns :: [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#txIns"><span class="hs-identifier hs-var">txIns</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+-&gt; [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+forall a. Eq a =&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">nub</span></span><span> </span><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+</span><a href="#local-6989586621679557945"><span class="hs-identifier hs-var">txIns</span></a></span><span>
+</span><span id="line-40"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txInsCollateral :: TxInsCollateral Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#txInsCollateral"><span class="hs-identifier hs-var">txInsCollateral</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-41"></span><span>              </span><span class="annot"><span class="annottext">AlonzoEraOnwards Era -&gt; [TxIn] -&gt; TxInsCollateral Era
+forall era. AlonzoEraOnwards era -&gt; [TxIn] -&gt; TxInsCollateral era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxInsCollateral"><span class="hs-identifier hs-var">TxInsCollateral</span></a></span><span> </span><span class="annot"><span class="annottext">AlonzoEraOnwards Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.AlonzoEraOnwards.html#AlonzoEraOnwardsBabbage"><span class="hs-identifier hs-var">AlonzoEraOnwardsBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679557959"><span class="hs-identifier hs-var">keyWitnessedTxIns</span></a></span><span>
+</span><span id="line-42"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txInsReference :: TxInsReference BuildTx Era
+</span><a href="#local-6989586621679557976"><span class="hs-identifier hs-var">txInsReference</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-43"></span><span>              </span><span class="annot"><span class="annottext">BabbageEraOnwards Era -&gt; [TxIn] -&gt; TxInsReference BuildTx Era
+forall era build.
+BabbageEraOnwards era -&gt; [TxIn] -&gt; TxInsReference build era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxInsReference"><span class="hs-identifier hs-var">TxInsReference</span></a></span><span> </span><span class="annot"><span class="annottext">BabbageEraOnwards Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.BabbageEraOnwards.html#BabbageEraOnwardsBabbage"><span class="hs-identifier hs-var">BabbageEraOnwardsBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">[TxIn]
+</span><a href="#local-6989586621679557946"><span class="hs-identifier hs-var">txInsReference</span></a></span><span>
+</span><span id="line-44"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[TxOut CtxTx Era]
+txOuts :: [TxOut CtxTx Era]
+txOuts :: [TxOut CtxTx Era]
+</span><a href="#local-6989586621679557947"><span class="hs-identifier hs-var hs-var">txOuts</span></a></span><span>
+</span><span id="line-45"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txMintValue :: TxMintValue BuildTx Era
+</span><a href="#local-6989586621679557980"><span class="hs-identifier hs-var">txMintValue</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxMintValue BuildTx Era
+</span><a href="#local-6989586621679557948"><span class="hs-identifier hs-var">toMint</span></a></span><span>
+</span><span id="line-46"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- Adding all keys here, cuz other way `txSignedBy` does not see those</span><span>
+</span><span id="line-47"></span><span>            </span><span class="hs-comment">-- signatures</span><span>
+</span><span id="line-48"></span><span>            </span><span class="annot"><span class="annottext">txExtraKeyWits :: TxExtraKeyWitnesses Era
+</span><a href="#local-6989586621679557981"><span class="hs-identifier hs-var">txExtraKeyWits</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-49"></span><span>              </span><span class="annot"><span class="annottext">AlonzoEraOnwards Era
+-&gt; [Hash PaymentKey] -&gt; TxExtraKeyWitnesses Era
+forall era.
+AlonzoEraOnwards era
+-&gt; [Hash PaymentKey] -&gt; TxExtraKeyWitnesses era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxExtraKeyWitnesses"><span class="hs-identifier hs-var">TxExtraKeyWitnesses</span></a></span><span> </span><span class="annot"><span class="annottext">AlonzoEraOnwards Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.AlonzoEraOnwards.html#AlonzoEraOnwardsBabbage"><span class="hs-identifier hs-var">AlonzoEraOnwardsBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">([Hash PaymentKey] -&gt; TxExtraKeyWitnesses Era)
+-&gt; [Hash PaymentKey] -&gt; TxExtraKeyWitnesses Era
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-50"></span><span>                </span><span class="annot"><span class="annottext">(SigningKey PaymentKey -&gt; Hash PaymentKey)
+-&gt; [SigningKey PaymentKey] -&gt; [Hash PaymentKey]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VerificationKey PaymentKey -&gt; Hash PaymentKey
+forall keyrole.
+Key keyrole =&gt;
+VerificationKey keyrole -&gt; Hash keyrole
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#verificationKeyHash"><span class="hs-identifier hs-var">verificationKeyHash</span></a></span><span> </span><span class="annot"><span class="annottext">(VerificationKey PaymentKey -&gt; Hash PaymentKey)
+-&gt; (SigningKey PaymentKey -&gt; VerificationKey PaymentKey)
+-&gt; SigningKey PaymentKey
+-&gt; Hash PaymentKey
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; VerificationKey PaymentKey
+forall keyrole.
+(Key keyrole, HasTypeProxy keyrole) =&gt;
+SigningKey keyrole -&gt; VerificationKey keyrole
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#getVerificationKey"><span class="hs-identifier hs-var">getVerificationKey</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([SigningKey PaymentKey] -&gt; [Hash PaymentKey])
+-&gt; [SigningKey PaymentKey] -&gt; [Hash PaymentKey]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-51"></span><span>                  </span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679557966"><span class="hs-identifier hs-var">additionalSignersKeys</span></a></span><span>
+</span><span id="line-52"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txProtocolParams :: BuildTxWith BuildTx (Maybe (LedgerProtocolParameters Era))
+</span><a href="#local-6989586621679557986"><span class="hs-identifier hs-var">txProtocolParams</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-53"></span><span>              </span><span class="annot"><span class="annottext">Maybe (LedgerProtocolParameters Era)
+-&gt; BuildTxWith BuildTx (Maybe (LedgerProtocolParameters Era))
+forall a. a -&gt; BuildTxWith BuildTx a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#BuildTxWith"><span class="hs-identifier hs-var">BuildTxWith</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe (LedgerProtocolParameters Era)
+ -&gt; BuildTxWith BuildTx (Maybe (LedgerProtocolParameters Era)))
+-&gt; Maybe (LedgerProtocolParameters Era)
+-&gt; BuildTxWith BuildTx (Maybe (LedgerProtocolParameters Era))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-54"></span><span>                </span><span class="annot"><span class="annottext">LedgerProtocolParameters Era
+-&gt; Maybe (LedgerProtocolParameters Era)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">(LedgerProtocolParameters Era
+ -&gt; Maybe (LedgerProtocolParameters Era))
+-&gt; LedgerProtocolParameters Era
+-&gt; Maybe (LedgerProtocolParameters Era)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-55"></span><span>                  </span><span class="annot"><span class="annottext">PParams (ShelleyLedgerEra Era) -&gt; LedgerProtocolParameters Era
+forall era.
+PParams (ShelleyLedgerEra era) -&gt; LedgerProtocolParameters era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.ProtocolParameters.html#LedgerProtocolParameters"><span class="hs-identifier hs-var">LedgerProtocolParameters</span></a></span><span> </span><span class="annot"><span class="annottext">PParams (ShelleyLedgerEra Era)
+PParams LedgerEra
+</span><a href="#local-6989586621679557963"><span class="hs-identifier hs-var">protocolParameters</span></a></span><span>
+</span><span id="line-56"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txValidityLowerBound :: TxValidityLowerBound Era
+</span><a href="#local-6989586621679557989"><span class="hs-identifier hs-var">txValidityLowerBound</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-57"></span><span>              </span><span class="annot"><span class="annottext">TxValidityLowerBound Era
+forall era. TxValidityLowerBound era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxValidityNoLowerBound"><span class="hs-identifier hs-var">TxValidityNoLowerBound</span></a></span><span>
+</span><span id="line-58"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txValidityUpperBound :: TxValidityUpperBound Era
+</span><a href="#local-6989586621679557991"><span class="hs-identifier hs-var">txValidityUpperBound</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>              </span><span class="annot"><span class="annottext">ShelleyBasedEra Era -&gt; Maybe SlotNo -&gt; TxValidityUpperBound Era
+forall era.
+ShelleyBasedEra era -&gt; Maybe SlotNo -&gt; TxValidityUpperBound era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxValidityUpperBound"><span class="hs-identifier hs-var">TxValidityUpperBound</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#ShelleyBasedEraBabbage"><span class="hs-identifier hs-var">ShelleyBasedEraBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe SlotNo
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-60"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- Fee stubs</span><span>
+</span><span id="line-61"></span><span>            </span><span class="annot"><span class="annottext">txTotalCollateral :: TxTotalCollateral Era
+</span><a href="#local-6989586621679557994"><span class="hs-identifier hs-var">txTotalCollateral</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxTotalCollateral Era
+forall era. TxTotalCollateral era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxTotalCollateralNone"><span class="hs-identifier hs-var">TxTotalCollateralNone</span></a></span><span>
+</span><span id="line-62"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txReturnCollateral :: TxReturnCollateral CtxTx Era
+</span><a href="#local-6989586621679557996"><span class="hs-identifier hs-var">txReturnCollateral</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxReturnCollateral CtxTx Era
+forall ctx era. TxReturnCollateral ctx era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxReturnCollateralNone"><span class="hs-identifier hs-var">TxReturnCollateralNone</span></a></span><span>
+</span><span id="line-63"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txFee :: TxFee Era
+</span><a href="#local-6989586621679557998"><span class="hs-identifier hs-var">txFee</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era -&gt; Lovelace -&gt; TxFee Era
+forall era. ShelleyBasedEra era -&gt; Lovelace -&gt; TxFee era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxFeeExplicit"><span class="hs-identifier hs-var">TxFeeExplicit</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#ShelleyBasedEraBabbage"><span class="hs-identifier hs-var">ShelleyBasedEraBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">Lovelace
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-64"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- Not supported features</span><span>
+</span><span id="line-65"></span><span>            </span><span class="annot"><span class="annottext">txMetadata :: TxMetadataInEra Era
+</span><a href="#local-6989586621679558000"><span class="hs-identifier hs-var">txMetadata</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxMetadataInEra Era
+forall era. TxMetadataInEra era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxMetadataNone"><span class="hs-identifier hs-var">TxMetadataNone</span></a></span><span>
+</span><span id="line-66"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txAuxScripts :: TxAuxScripts Era
+</span><a href="#local-6989586621679558002"><span class="hs-identifier hs-var">txAuxScripts</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxAuxScripts Era
+forall era. TxAuxScripts era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxAuxScriptsNone"><span class="hs-identifier hs-var">TxAuxScriptsNone</span></a></span><span>
+</span><span id="line-67"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txWithdrawals :: TxWithdrawals BuildTx Era
+</span><a href="#local-6989586621679558004"><span class="hs-identifier hs-var">txWithdrawals</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxWithdrawals BuildTx Era
+forall build era. TxWithdrawals build era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxWithdrawalsNone"><span class="hs-identifier hs-var">TxWithdrawalsNone</span></a></span><span>
+</span><span id="line-68"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txCertificates :: TxCertificates BuildTx Era
+</span><a href="#local-6989586621679558006"><span class="hs-identifier hs-var">txCertificates</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxCertificates BuildTx Era
+forall build era. TxCertificates build era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxCertificatesNone"><span class="hs-identifier hs-var">TxCertificatesNone</span></a></span><span>
+</span><span id="line-69"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txUpdateProposal :: TxUpdateProposal Era
+</span><a href="#local-6989586621679558008"><span class="hs-identifier hs-var">txUpdateProposal</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxUpdateProposal Era
+forall era. TxUpdateProposal era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxUpdateProposalNone"><span class="hs-identifier hs-var">TxUpdateProposalNone</span></a></span><span>
+</span><span id="line-70"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txScriptValidity :: TxScriptValidity Era
+</span><a href="#local-6989586621679558010"><span class="hs-identifier hs-var">txScriptValidity</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxScriptValidity Era
+forall era. TxScriptValidity era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#TxScriptValidityNone"><span class="hs-identifier hs-var">TxScriptValidityNone</span></a></span><span>
+</span><span id="line-71"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txProposalProcedures :: Maybe
+  (Featured ConwayEraOnwards Era (TxProposalProcedures BuildTx Era))
+</span><a href="#local-6989586621679558012"><span class="hs-identifier hs-var">txProposalProcedures</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe
+  (Featured ConwayEraOnwards Era (TxProposalProcedures BuildTx Era))
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-72"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">txVotingProcedures :: Maybe
+  (Featured ConwayEraOnwards Era (TxVotingProcedures BuildTx Era))
+</span><a href="#local-6989586621679558013"><span class="hs-identifier hs-var">txVotingProcedures</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe
+  (Featured ConwayEraOnwards Era (TxVotingProcedures BuildTx Era))
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-73"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621679558014"><span class="annot"><span class="annottext">AddressInEra Era
+</span><a href="#local-6989586621679558014"><span class="hs-identifier hs-var">signerAddress</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Address -&gt; m (AddressInEra Era)
+forall (m :: * -&gt; *).
+MonadBlockchainParams m =&gt;
+Address -&gt; m (AddressInEra Era)
+</span><a href="Cardano.CEM.OffChain.html#fromPlutusAddressInMonad"><span class="hs-identifier hs-var">fromPlutusAddressInMonad</span></a></span><span> </span><span class="annot"><span class="annottext">(Address -&gt; m (AddressInEra Era))
+-&gt; Address -&gt; m (AddressInEra Era)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; Address
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#signingKeyToAddress"><span class="hs-identifier hs-var">signingKeyToAddress</span></a></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679557951"><span class="hs-identifier hs-var">signer</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621679558017"><span class="annot"><span class="annottext">UTxO Era
+</span><a href="#local-6989586621679558017"><span class="hs-identifier hs-var">txInsUtxo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">UtxoQuery -&gt; m (UTxO Era)
+forall (m :: * -&gt; *). MonadQueryUtxo m =&gt; UtxoQuery -&gt; m (UTxO Era)
+</span><a href="Cardano.CEM.Monads.html#queryUtxo"><span class="hs-identifier hs-var">queryUtxo</span></a></span><span> </span><span class="annot"><span class="annottext">(UtxoQuery -&gt; m (UTxO Era)) -&gt; UtxoQuery -&gt; m (UTxO Era)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[TxIn] -&gt; UtxoQuery
+</span><a href="Cardano.CEM.Monads.html#ByTxIns"><span class="hs-identifier hs-var">ByTxIns</span></a></span><span> </span><span class="annot"><span class="annottext">([TxIn] -&gt; UtxoQuery) -&gt; [TxIn] -&gt; UtxoQuery
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era)) -&gt; TxIn)
+-&gt; [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))] -&gt; [TxIn]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era)) -&gt; TxIn
+forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">[(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn Era))]
+</span><a href="#local-6989586621679557945"><span class="hs-identifier hs-var">txIns</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="annottext">ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era, TxInMode)
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">(ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era, TxInMode)
+ -&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode)))
+-&gt; ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era, TxInMode)
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-79"></span><span>    </span><span id="local-6989586621679558020"><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558020"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-80"></span><span>      </span><span class="annot"><span class="annottext">m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+-&gt; ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era)
+forall e (m :: * -&gt; *) a. m (Either e a) -&gt; ExceptT e m a
+</span><span class="hs-identifier hs-var">ExceptT</span></span><span> </span><span class="annot"><span class="annottext">(m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+ -&gt; ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era))
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+-&gt; ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-81"></span><span>        </span><span class="annot"><span class="annottext">TxBodyContent BuildTx Era
+-&gt; UTxO Era
+-&gt; AddressInEra Era
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+forall (m :: * -&gt; *).
+MonadBlockchainParams m =&gt;
+TxBodyContent BuildTx Era
+-&gt; UTxO Era
+-&gt; AddressInEra Era
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+</span><a href="Cardano.CEM.Monads.L1Commons.html#callBodyAutoBalance"><span class="hs-identifier hs-var">callBodyAutoBalance</span></a></span><span>
+</span><span id="line-82"></span><span>          </span><span class="annot"><span class="annottext">TxBodyContent BuildTx Era
+</span><a href="#local-6989586621679557970"><span class="hs-identifier hs-var">preBody</span></a></span><span>
+</span><span id="line-83"></span><span>          </span><span class="annot"><span class="annottext">UTxO Era
+</span><a href="#local-6989586621679558017"><span class="hs-identifier hs-var">txInsUtxo</span></a></span><span>
+</span><span id="line-84"></span><span>          </span><span class="annot"><span class="annottext">AddressInEra Era
+</span><a href="#local-6989586621679558014"><span class="hs-identifier hs-var">signerAddress</span></a></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-keyword">let</span><span>
+</span><span id="line-86"></span><span>      </span><span id="local-6989586621679558023"><span class="annot"><span class="annottext">tx :: Tx Era
+</span><a href="#local-6989586621679558023"><span class="hs-identifier hs-var hs-var">tx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey] -&gt; TxBody Era -&gt; Tx Era
+</span><a href="Cardano.CEM.Monads.L1Commons.html#makeSignedTransactionWithKeys"><span class="hs-identifier hs-var">makeSignedTransactionWithKeys</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679557951"><span class="hs-identifier hs-var">signer</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558020"><span class="hs-identifier hs-var">body</span></a></span><span>
+</span><span id="line-87"></span><span>      </span><span id="local-6989586621679558025"><span class="annot"><span class="annottext">txInMode :: TxInMode
+</span><a href="#local-6989586621679558025"><span class="hs-identifier hs-var hs-var">txInMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era -&gt; Tx Era -&gt; TxInMode
+forall era. ShelleyBasedEra era -&gt; Tx era -&gt; TxInMode
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.InMode.html#TxInMode"><span class="hs-identifier hs-var">TxInMode</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#ShelleyBasedEraBabbage"><span class="hs-identifier hs-var">ShelleyBasedEraBabbage</span></a></span><span> </span><span class="annot"><span class="annottext">Tx Era
+</span><a href="#local-6989586621679558023"><span class="hs-identifier hs-var">tx</span></a></span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><span class="annottext">(TxBody Era, TxInMode)
+-&gt; ExceptT (TxBodyErrorAutoBalance Era) m (TxBody Era, TxInMode)
+forall a. a -&gt; ExceptT (TxBodyErrorAutoBalance Era) m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558020"><span class="hs-identifier hs-var">body</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TxInMode
+</span><a href="#local-6989586621679558025"><span class="hs-identifier hs-var">txInMode</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- Utils</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="Cardano.CEM.Monads.L1Commons.html#makeSignedTransactionWithKeys"><span class="hs-identifier hs-type">makeSignedTransactionWithKeys</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#TxBody"><span class="hs-identifier hs-type">TxBody</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-95"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#Tx"><span class="hs-identifier hs-type">Tx</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span>
+</span><span id="line-96"></span><span id="makeSignedTransactionWithKeys"><span class="annot"><span class="annottext">makeSignedTransactionWithKeys :: [SigningKey PaymentKey] -&gt; TxBody Era -&gt; Tx Era
+</span><a href="Cardano.CEM.Monads.L1Commons.html#makeSignedTransactionWithKeys"><span class="hs-identifier hs-var hs-var">makeSignedTransactionWithKeys</span></a></span></span><span> </span><span id="local-6989586621679558027"><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679558027"><span class="hs-identifier hs-var">keys</span></a></span></span><span> </span><span id="local-6989586621679558028"><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558028"><span class="hs-identifier hs-var">txBody</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-97"></span><span>  </span><span class="annot"><span class="annottext">[KeyWitness Era] -&gt; TxBody Era -&gt; Tx Era
+forall era. [KeyWitness era] -&gt; TxBody era -&gt; Tx era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#makeSignedTransaction"><span class="hs-identifier hs-var">makeSignedTransaction</span></a></span><span> </span><span class="annot"><span class="annottext">[KeyWitness Era]
+</span><a href="#local-6989586621679558030"><span class="hs-identifier hs-var">keyWitnesses</span></a></span><span> </span><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558028"><span class="hs-identifier hs-var">txBody</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>    </span><span id="local-6989586621679558031"><span class="annot"><span class="annottext">createWitness :: SigningKey PaymentKey -&gt; KeyWitness Era
+</span><a href="#local-6989586621679558031"><span class="hs-identifier hs-var hs-var">createWitness</span></a></span></span><span> </span><span id="local-6989586621679558032"><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679558032"><span class="hs-identifier hs-var">key</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+-&gt; TxBody Era -&gt; ShelleyWitnessSigningKey -&gt; KeyWitness Era
+forall era.
+ShelleyBasedEra era
+-&gt; TxBody era -&gt; ShelleyWitnessSigningKey -&gt; KeyWitness era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#makeShelleyKeyWitness"><span class="hs-identifier hs-var">makeShelleyKeyWitness</span></a></span><span> </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+forall era. IsShelleyBasedEra era =&gt; ShelleyBasedEra era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#shelleyBasedEra"><span class="hs-identifier hs-var">shelleyBasedEra</span></a></span><span> </span><span class="annot"><span class="annottext">TxBody Era
+</span><a href="#local-6989586621679558028"><span class="hs-identifier hs-var">txBody</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; ShelleyWitnessSigningKey
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#WitnessPaymentKey"><span class="hs-identifier hs-var">WitnessPaymentKey</span></a></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679558032"><span class="hs-identifier hs-var">key</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>    </span><span id="local-6989586621679558030"><span class="annot"><span class="annottext">keyWitnesses :: [KeyWitness Era]
+</span><a href="#local-6989586621679558030"><span class="hs-identifier hs-var hs-var">keyWitnesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(SigningKey PaymentKey -&gt; KeyWitness Era)
+-&gt; [SigningKey PaymentKey] -&gt; [KeyWitness Era]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; KeyWitness Era
+</span><a href="#local-6989586621679558031"><span class="hs-identifier hs-var">createWitness</span></a></span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679558027"><span class="hs-identifier hs-var">keys</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span id="local-6989586621679557872"><span class="annot"><a href="Cardano.CEM.Monads.L1Commons.html#callBodyAutoBalance"><span class="hs-identifier hs-type">callBodyAutoBalance</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadBlockchainParams"><span class="hs-identifier hs-type">MonadBlockchainParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679557872"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-104"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#TxBodyContent"><span class="hs-identifier hs-type">TxBodyContent</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Body.html#BuildTx"><span class="hs-identifier hs-type">BuildTx</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Query.html#UTxO"><span class="hs-identifier hs-type">UTxO</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-106"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Address.html#AddressInEra"><span class="hs-identifier hs-type">AddressInEra</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-107"></span><span>  </span><span class="annot"><a href="#local-6989586621679557872"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Fees.html#TxBodyErrorAutoBalance"><span class="hs-identifier hs-type">TxBodyErrorAutoBalance</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Tx.Sign.html#TxBody"><span class="hs-identifier hs-type">TxBody</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span><span>
+</span><span id="line-108"></span><span id="callBodyAutoBalance"><span class="annot"><span class="annottext">callBodyAutoBalance :: forall (m :: * -&gt; *).
+MonadBlockchainParams m =&gt;
+TxBodyContent BuildTx Era
+-&gt; UTxO Era
+-&gt; AddressInEra Era
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+</span><a href="Cardano.CEM.Monads.L1Commons.html#callBodyAutoBalance"><span class="hs-identifier hs-var hs-var">callBodyAutoBalance</span></a></span></span><span>
+</span><span id="line-109"></span><span>  </span><span id="local-6989586621679558045"><span class="annot"><span class="annottext">TxBodyContent BuildTx Era
+</span><a href="#local-6989586621679558045"><span class="hs-identifier hs-var">preBody</span></a></span></span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621679558046"><span class="annot"><span class="annottext">UTxO Era
+</span><a href="#local-6989586621679558046"><span class="hs-identifier hs-var">utxo</span></a></span></span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621679558047"><span class="annot"><span class="annottext">AddressInEra Era
+</span><a href="#local-6989586621679558047"><span class="hs-identifier hs-var">changeAddress</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Monads.html#MkBlockchainParams"><span class="hs-identifier hs-type">MkBlockchainParams</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679558048"><span class="annot"><span class="annottext">PParams LedgerEra
+$sel:protocolParameters:MkBlockchainParams :: BlockchainParams -&gt; PParams LedgerEra
+protocolParameters :: PParams LedgerEra
+</span><a href="Cardano.CEM.Monads.html#%24sel%3AprotocolParameters%3AMkBlockchainParams"><span class="hs-identifier hs-var hs-var">protocolParameters</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558049"><span class="annot"><span class="annottext">SystemStart
+systemStart :: SystemStart
+$sel:systemStart:MkBlockchainParams :: BlockchainParams -&gt; SystemStart
+</span><a href="#local-6989586621679558049"><span class="hs-identifier hs-var hs-var">systemStart</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558051"><span class="annot"><span class="annottext">LedgerEpochInfo
+eraHistory :: LedgerEpochInfo
+$sel:eraHistory:MkBlockchainParams :: BlockchainParams -&gt; LedgerEpochInfo
+</span><a href="#local-6989586621679558051"><span class="hs-identifier hs-var hs-var">eraHistory</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679558053"><span class="annot"><span class="annottext">Set PoolId
+stakePools :: Set PoolId
+$sel:stakePools:MkBlockchainParams :: BlockchainParams -&gt; Set PoolId
+</span><a href="#local-6989586621679558053"><span class="hs-identifier hs-var hs-var">stakePools</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-113"></span><span>      </span><span class="annot"><span class="annottext">m BlockchainParams
+forall (m :: * -&gt; *). MonadBlockchainParams m =&gt; m BlockchainParams
+</span><a href="Cardano.CEM.Monads.html#queryBlockchainParams"><span class="hs-identifier hs-var">queryBlockchainParams</span></a></span><span>
+</span><span id="line-114"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679558055"><span class="annot"><span class="annottext">result :: Either (TxBodyErrorAutoBalance Era) (BalancedTxBody Era)
+</span><a href="#local-6989586621679558055"><span class="hs-identifier hs-var hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-115"></span><span>          </span><span class="annot"><span class="annottext">forall era.
+ShelleyBasedEra era
+-&gt; SystemStart
+-&gt; LedgerEpochInfo
+-&gt; LedgerProtocolParameters era
+-&gt; Set PoolId
+-&gt; Map StakeCredential Lovelace
+-&gt; Map (Credential 'DRepRole StandardCrypto) Lovelace
+-&gt; UTxO era
+-&gt; TxBodyContent BuildTx era
+-&gt; AddressInEra era
+-&gt; Maybe Word
+-&gt; Either (TxBodyErrorAutoBalance era) (BalancedTxBody era)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Fees.html#makeTransactionBodyAutoBalance"><span class="hs-identifier hs-var">makeTransactionBodyAutoBalance</span></a></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#Era"><span class="hs-identifier hs-type">Era</span></a></span><span>
+</span><span id="line-116"></span><span>            </span><span class="annot"><span class="annottext">ShelleyBasedEra Era
+forall era. IsShelleyBasedEra era =&gt; ShelleyBasedEra era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Eon.ShelleyBasedEra.html#shelleyBasedEra"><span class="hs-identifier hs-var">shelleyBasedEra</span></a></span><span>
+</span><span id="line-117"></span><span>            </span><span class="annot"><span class="annottext">SystemStart
+</span><a href="#local-6989586621679558049"><span class="hs-identifier hs-var">systemStart</span></a></span><span>
+</span><span id="line-118"></span><span>            </span><span class="annot"><span class="annottext">LedgerEpochInfo
+</span><a href="#local-6989586621679558051"><span class="hs-identifier hs-var">eraHistory</span></a></span><span>
+</span><span id="line-119"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PParams (ShelleyLedgerEra Era) -&gt; LedgerProtocolParameters Era
+forall era.
+PParams (ShelleyLedgerEra era) -&gt; LedgerProtocolParameters era
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.ProtocolParameters.html#LedgerProtocolParameters"><span class="hs-identifier hs-var">LedgerProtocolParameters</span></a></span><span> </span><span class="annot"><span class="annottext">PParams (ShelleyLedgerEra Era)
+PParams LedgerEra
+</span><a href="#local-6989586621679558048"><span class="hs-identifier hs-var">protocolParameters</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>            </span><span class="annot"><span class="annottext">Set PoolId
+</span><a href="#local-6989586621679558053"><span class="hs-identifier hs-var">stakePools</span></a></span><span>
+</span><span id="line-121"></span><span>            </span><span class="annot"><span class="annottext">Map StakeCredential Lovelace
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span> </span><span class="hs-comment">-- Stake credentials</span><span>
+</span><span id="line-122"></span><span>            </span><span class="annot"><span class="annottext">Map (Credential 'DRepRole StandardCrypto) Lovelace
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span> </span><span class="hs-comment">-- Some other DRep stuff</span><span>
+</span><span id="line-123"></span><span>            </span><span class="annot"><span class="annottext">UTxO Era
+</span><a href="#local-6989586621679558046"><span class="hs-identifier hs-var">utxo</span></a></span><span>
+</span><span id="line-124"></span><span>            </span><span class="annot"><span class="annottext">TxBodyContent BuildTx Era
+</span><a href="#local-6989586621679558045"><span class="hs-identifier hs-var">preBody</span></a></span><span>
+</span><span id="line-125"></span><span>            </span><span class="annot"><span class="annottext">AddressInEra Era
+</span><a href="#local-6989586621679558047"><span class="hs-identifier hs-var">changeAddress</span></a></span><span>
+</span><span id="line-126"></span><span>            </span><span class="annot"><span class="annottext">Maybe Word
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><span class="annottext">Either (TxBodyErrorAutoBalance Era) (TxBody Era)
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either (TxBodyErrorAutoBalance Era) (TxBody Era)
+ -&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era)))
+-&gt; Either (TxBodyErrorAutoBalance Era) (TxBody Era)
+-&gt; m (Either (TxBodyErrorAutoBalance Era) (TxBody Era))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(BalancedTxBody Era -&gt; TxBody Era)
+-&gt; Either (TxBodyErrorAutoBalance Era) (BalancedTxBody Era)
+-&gt; Either (TxBodyErrorAutoBalance Era) (TxBody Era)
+forall a b.
+(a -&gt; b)
+-&gt; Either (TxBodyErrorAutoBalance Era) a
+-&gt; Either (TxBodyErrorAutoBalance Era) b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">BalancedTxBody Era -&gt; TxBody Era
+forall {era}. BalancedTxBody era -&gt; TxBody era
+</span><a href="#local-6989586621679558058"><span class="hs-identifier hs-var">balancedTxBody</span></a></span><span> </span><span class="annot"><span class="annottext">Either (TxBodyErrorAutoBalance Era) (BalancedTxBody Era)
+</span><a href="#local-6989586621679558055"><span class="hs-identifier hs-var">result</span></a></span><span>
+</span><span id="line-128"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-129"></span><span>      </span><span id="local-6989586621679558058"><span class="annot"><span class="annottext">balancedTxBody :: BalancedTxBody era -&gt; TxBody era
+</span><a href="#local-6989586621679558058"><span class="hs-identifier hs-var hs-var">balancedTxBody</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Fees.html#BalancedTxBody"><span class="hs-identifier hs-type">BalancedTxBody</span></a></span><span> </span><span class="annot"><span class="annottext">TxBodyContent BuildTx era
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679558060"><span class="annot"><span class="annottext">TxBody era
+</span><a href="#local-6989586621679558060"><span class="hs-identifier hs-var">txBody</span></a></span></span><span> </span><span class="annot"><span class="annottext">TxOut CtxTx era
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Lovelace
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TxBody era
+</span><a href="#local-6989586621679558060"><span class="hs-identifier hs-var">txBody</span></a></span><span>
+</span><span id="line-130"></span></pre></body></html>

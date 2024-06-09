@@ -1,0 +1,618 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679559800"><span id="local-6989586621679559801"><span id="local-6989586621679559802"><span id="local-6989586621679559803"></span></span></span></span><span class="hs-pragma">{-# LANGUAGE NoPolyKinds #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Examples.Auction</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Prelude.html"><span class="hs-identifier">PlutusTx.Prelude</span></a></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Data</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html"><span class="hs-identifier">PlutusLedgerApi.V1.Crypto</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier">PubKeyHash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html"><span class="hs-identifier">PlutusLedgerApi.V1.Interval</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Interval</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html"><span class="hs-identifier">PlutusLedgerApi.V1.Time</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html#POSIXTime"><span class="hs-identifier">POSIXTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html"><span class="hs-identifier">PlutusLedgerApi.V1.Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#CurrencySymbol"><span class="hs-identifier">CurrencySymbol</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#TokenName"><span class="hs-identifier">TokenName</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#singleton"><span class="hs-identifier">singleton</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V2.html"><span class="hs-identifier">PlutusLedgerApi.V2</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier">Value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.html"><span class="hs-identifier">PlutusTx</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html"><span class="hs-identifier">PlutusTx.Show.TH</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html#deriveShow"><span class="hs-identifier">deriveShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.html"><span class="hs-identifier">Cardano.CEM</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html"><span class="hs-identifier">Cardano.CEM.Stages</span></a></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html"><span class="hs-identifier">Data.Spine</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- Simple no-deposit auction</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuction"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-var">SimpleAuction</span></a></span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="Bid"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Bid"><span class="hs-identifier hs-var">Bid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkBet"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#MkBet"><span class="hs-identifier hs-var">MkBet</span></a></span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Abetter%3AMkBet"><span class="annot"><span class="annottext">Bid -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Abetter%3AMkBet"><span class="hs-identifier hs-var hs-var">better</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AbetAmount%3AMkBet"><span class="annot"><span class="annottext">Bid -&gt; Integer
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3AbetAmount%3AMkBet"><span class="hs-identifier hs-var hs-var">betAmount</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559810"><span id="local-6989586621679559816"><span class="annot"><span class="annottext">Bid -&gt; Bid -&gt; Bool
+(Bid -&gt; Bid -&gt; Bool) -&gt; (Bid -&gt; Bid -&gt; Bool) -&gt; Eq Bid
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Bid -&gt; Bid -&gt; Bool
+== :: Bid -&gt; Bid -&gt; Bool
+$c/= :: Bid -&gt; Bid -&gt; Bool
+/= :: Bid -&gt; Bid -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559821"><span id="local-6989586621679559829"><span id="local-6989586621679559833"><span class="annot"><span class="annottext">Int -&gt; Bid -&gt; ShowS
+[Bid] -&gt; ShowS
+Bid -&gt; String
+(Int -&gt; Bid -&gt; ShowS)
+-&gt; (Bid -&gt; String) -&gt; ([Bid] -&gt; ShowS) -&gt; Show Bid
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Bid -&gt; ShowS
+showsPrec :: Int -&gt; Bid -&gt; ShowS
+$cshow :: Bid -&gt; String
+show :: Bid -&gt; String
+$cshowList :: [Bid] -&gt; ShowS
+showList :: [Bid] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuctionStage"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStage"><span class="hs-identifier hs-var">SimpleAuctionStage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Open"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Open"><span class="hs-identifier hs-var">Open</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Closed"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Closed"><span class="hs-identifier hs-var">Closed</span></a></span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559839"><span id="local-6989586621679559841"><span class="annot"><span class="annottext">SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool
+(SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool)
+-&gt; (SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool)
+-&gt; Eq SimpleAuctionStage
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool
+== :: SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool
+$c/= :: SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool
+/= :: SimpleAuctionStage -&gt; SimpleAuctionStage -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559845"><span id="local-6989586621679559847"><span id="local-6989586621679559851"><span class="annot"><span class="annottext">Int -&gt; SimpleAuctionStage -&gt; ShowS
+[SimpleAuctionStage] -&gt; ShowS
+SimpleAuctionStage -&gt; String
+(Int -&gt; SimpleAuctionStage -&gt; ShowS)
+-&gt; (SimpleAuctionStage -&gt; String)
+-&gt; ([SimpleAuctionStage] -&gt; ShowS)
+-&gt; Show SimpleAuctionStage
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleAuctionStage -&gt; ShowS
+showsPrec :: Int -&gt; SimpleAuctionStage -&gt; ShowS
+$cshow :: SimpleAuctionStage -&gt; String
+show :: SimpleAuctionStage -&gt; String
+$cshowList :: [SimpleAuctionStage] -&gt; ShowS
+showList :: [SimpleAuctionStage] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuctionStageParams"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStageParams"><span class="hs-identifier hs-var">SimpleAuctionStageParams</span></a></span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NoControl"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#NoControl"><span class="hs-identifier hs-var">NoControl</span></a></span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CanCloseAt"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CanCloseAt"><span class="hs-identifier hs-var">CanCloseAt</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Time.html#POSIXTime"><span class="hs-identifier hs-type">POSIXTime</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559856"><span id="local-6989586621679559860"><span class="annot"><span class="annottext">SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool
+(SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool)
+-&gt; (SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool)
+-&gt; Eq SimpleAuctionStageParams
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool
+== :: SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool
+$c/= :: SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool
+/= :: SimpleAuctionStageParams -&gt; SimpleAuctionStageParams -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559864"><span id="local-6989586621679559869"><span id="local-6989586621679559873"><span class="annot"><span class="annottext">Int -&gt; SimpleAuctionStageParams -&gt; ShowS
+[SimpleAuctionStageParams] -&gt; ShowS
+SimpleAuctionStageParams -&gt; String
+(Int -&gt; SimpleAuctionStageParams -&gt; ShowS)
+-&gt; (SimpleAuctionStageParams -&gt; String)
+-&gt; ([SimpleAuctionStageParams] -&gt; ShowS)
+-&gt; Show SimpleAuctionStageParams
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleAuctionStageParams -&gt; ShowS
+showsPrec :: Int -&gt; SimpleAuctionStageParams -&gt; ShowS
+$cshow :: SimpleAuctionStageParams -&gt; String
+show :: SimpleAuctionStageParams -&gt; String
+$cshowList :: [SimpleAuctionStageParams] -&gt; ShowS
+showList :: [SimpleAuctionStageParams] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#Stages"><span class="hs-identifier hs-type">Stages</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStage"><span class="hs-identifier hs-type">SimpleAuctionStage</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="StageParams"><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-var">StageParams</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStage"><span class="hs-identifier hs-type">SimpleAuctionStage</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStageParams"><span class="hs-identifier hs-type">SimpleAuctionStageParams</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span id="local-6989586621679559878"><span class="annot"><span class="annottext">stageToOnChainInterval :: StageParams SimpleAuctionStage
+-&gt; SimpleAuctionStage -&gt; Interval POSIXTime
+</span><a href="#local-6989586621679559878"><span class="hs-identifier hs-var hs-var hs-var hs-var">stageToOnChainInterval</span></a></span></span><span> </span><span class="annot"><span class="annottext">StageParams SimpleAuctionStage
+SimpleAuctionStageParams
+</span><a href="Cardano.CEM.Examples.Auction.html#NoControl"><span class="hs-identifier hs-var">NoControl</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Interval POSIXTime
+forall a. Interval a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#always"><span class="hs-identifier hs-var">Interval.always</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-comment">-- Example: logical error</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Stages.html#stageToOnChainInterval"><span class="hs-identifier hs-var">stageToOnChainInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CanCloseAt"><span class="hs-identifier hs-type">CanCloseAt</span></a></span><span> </span><span id="local-6989586621679559881"><span class="annot"><span class="annottext">POSIXTime
+</span><a href="#local-6989586621679559881"><span class="hs-identifier hs-var">time</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Open"><span class="hs-identifier hs-var">Open</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">POSIXTime -&gt; Interval POSIXTime
+forall a. a -&gt; Interval a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#to"><span class="hs-identifier hs-var">Interval.to</span></a></span><span> </span><span class="annot"><span class="annottext">POSIXTime
+</span><a href="#local-6989586621679559881"><span class="hs-identifier hs-var">time</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><a href="Cardano.CEM.Stages.html#stageToOnChainInterval"><span class="hs-identifier hs-var">stageToOnChainInterval</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CanCloseAt"><span class="hs-identifier hs-type">CanCloseAt</span></a></span><span> </span><span id="local-6989586621679559883"><span class="annot"><span class="annottext">POSIXTime
+</span><a href="#local-6989586621679559883"><span class="hs-identifier hs-var">time</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Closed"><span class="hs-identifier hs-var">Closed</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">POSIXTime -&gt; Interval POSIXTime
+forall a. a -&gt; Interval a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Interval.html#from"><span class="hs-identifier hs-var">Interval.from</span></a></span><span> </span><span class="annot"><span class="annottext">POSIXTime
+</span><a href="#local-6989586621679559883"><span class="hs-identifier hs-var">time</span></a></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuctionState"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionState"><span class="hs-identifier hs-var">SimpleAuctionState</span></a></span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NotStarted"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CurrentBid"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CurrentBid"><span class="hs-identifier hs-var">CurrentBid</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Bid"><span class="hs-identifier hs-type">Bid</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Winner"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Winner"><span class="hs-identifier hs-var">Winner</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Bid"><span class="hs-identifier hs-type">Bid</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559889"><span id="local-6989586621679559893"><span class="annot"><span class="annottext">SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool
+(SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool)
+-&gt; (SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool)
+-&gt; Eq SimpleAuctionState
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool
+== :: SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool
+$c/= :: SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool
+/= :: SimpleAuctionState -&gt; SimpleAuctionState -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559897"><span id="local-6989586621679559903"><span id="local-6989586621679559907"><span class="annot"><span class="annottext">Int -&gt; SimpleAuctionState -&gt; ShowS
+[SimpleAuctionState] -&gt; ShowS
+SimpleAuctionState -&gt; String
+(Int -&gt; SimpleAuctionState -&gt; ShowS)
+-&gt; (SimpleAuctionState -&gt; String)
+-&gt; ([SimpleAuctionState] -&gt; ShowS)
+-&gt; Show SimpleAuctionState
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleAuctionState -&gt; ShowS
+showsPrec :: Int -&gt; SimpleAuctionState -&gt; ShowS
+$cshow :: SimpleAuctionState -&gt; String
+show :: SimpleAuctionState -&gt; String
+$cshowList :: [SimpleAuctionState] -&gt; ShowS
+showList :: [SimpleAuctionState] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuctionParams"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionParams"><span class="hs-identifier hs-var">SimpleAuctionParams</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkAuctionParams"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#MkAuctionParams"><span class="hs-identifier hs-var">MkAuctionParams</span></a></span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aseller%3AMkAuctionParams"><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var hs-var">seller</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Alot%3AMkAuctionParams"><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; Value
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Alot%3AMkAuctionParams"><span class="hs-identifier hs-var hs-var">lot</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559913"><span id="local-6989586621679559918"><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool
+(SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool)
+-&gt; (SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool)
+-&gt; Eq SimpleAuctionParams
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool
+== :: SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool
+$c/= :: SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool
+/= :: SimpleAuctionParams -&gt; SimpleAuctionParams -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559922"><span id="local-6989586621679559928"><span id="local-6989586621679559932"><span class="annot"><span class="annottext">Int -&gt; SimpleAuctionParams -&gt; ShowS
+[SimpleAuctionParams] -&gt; ShowS
+SimpleAuctionParams -&gt; String
+(Int -&gt; SimpleAuctionParams -&gt; ShowS)
+-&gt; (SimpleAuctionParams -&gt; String)
+-&gt; ([SimpleAuctionParams] -&gt; ShowS)
+-&gt; Show SimpleAuctionParams
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleAuctionParams -&gt; ShowS
+showsPrec :: Int -&gt; SimpleAuctionParams -&gt; ShowS
+$cshow :: SimpleAuctionParams -&gt; String
+show :: SimpleAuctionParams -&gt; String
+$cshowList :: [SimpleAuctionParams] -&gt; ShowS
+showList :: [SimpleAuctionParams] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleAuctionTransition"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionTransition"><span class="hs-identifier hs-var">SimpleAuctionTransition</span></a></span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Create"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Create"><span class="hs-identifier hs-var">Create</span></a></span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Start"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Start"><span class="hs-identifier hs-var">Start</span></a></span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="MakeBid"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#MakeBid"><span class="hs-identifier hs-var">MakeBid</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Bid"><span class="hs-identifier hs-type">Bid</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Close"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Close"><span class="hs-identifier hs-var">Close</span></a></span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Buyout"><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Buyout"><span class="hs-identifier hs-var">Buyout</span></a></span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559940"><span id="local-6989586621679559943"><span class="annot"><span class="annottext">SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool
+(SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool)
+-&gt; (SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool)
+-&gt; Eq SimpleAuctionTransition
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool
+== :: SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool
+$c/= :: SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool
+/= :: SimpleAuctionTransition -&gt; SimpleAuctionTransition -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559947"><span id="local-6989586621679559951"><span id="local-6989586621679559955"><span class="annot"><span class="annottext">Int -&gt; SimpleAuctionTransition -&gt; ShowS
+[SimpleAuctionTransition] -&gt; ShowS
+SimpleAuctionTransition -&gt; String
+(Int -&gt; SimpleAuctionTransition -&gt; ShowS)
+-&gt; (SimpleAuctionTransition -&gt; String)
+-&gt; ([SimpleAuctionTransition] -&gt; ShowS)
+-&gt; Show SimpleAuctionTransition
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleAuctionTransition -&gt; ShowS
+showsPrec :: Int -&gt; SimpleAuctionTransition -&gt; ShowS
+$cshow :: SimpleAuctionTransition -&gt; String
+show :: SimpleAuctionTransition -&gt; String
+$cshowList :: [SimpleAuctionTransition] -&gt; ShowS
+showList :: [SimpleAuctionTransition] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span id="local-6989586621679559958"><span id="local-6989586621679559966"><span id="local-6989586621679559968"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Bid</span></span></span></span><span>
+</span><span id="line-69"></span><span id="local-6989586621679560018"><span id="local-6989586621679560024"><span id="local-6989586621679560026"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">'</span><span class="hs-identifier">MkAuctionParams</span></span></span></span><span>
+</span><span id="line-70"></span><span id="local-6989586621679560052"><span id="local-6989586621679560059"><span id="local-6989586621679560061"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">'</span><span class="hs-identifier">NotStarted</span></span></span></span><span>
+</span><span id="line-71"></span><span id="local-6989586621679560087"><span id="local-6989586621679560095"><span id="local-6989586621679560097"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">'</span><span class="hs-identifier">MakeBid</span></span></span></span><span>
+</span><span id="line-72"></span><span id="local-6989586621679560120"><span id="local-6989586621679560124"><span id="local-6989586621679560126"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleAuctionStage</span></span></span></span><span>
+</span><span id="line-73"></span><span id="local-6989586621679560141"><span id="local-6989586621679560147"><span id="local-6989586621679560149"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleAuctionStageParams</span></span></span></span><span>
+</span><span id="line-74"></span><span id="local-6989586621679560171"><span id="local-6989586621679560173"><span class="hs-identifier">deriveShow</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleAuction</span></span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span id="SimpleAuctionTransitionSpine"><span id="Spine"><span id="local-6989586621679560181"><span id="local-6989586621679560183"><span id="local-6989586621679560189"><span id="local-6989586621679560191"><span id="local-6989586621679560193"><span id="local-6989586621679560197"><span id="local-6989586621679560200"><span id="local-6989586621679560203"><span id="local-6989586621679560206"><span id="local-6989586621679560209"><span id="local-6989586621679560217"><span id="local-6989586621679560223"><span id="local-6989586621679560236"><span id="local-6989586621679560238"><span id="local-6989586621679560242"><span id="local-6989586621679560246"><span id="local-6989586621679560250"><span id="local-6989586621679560253"><span id="local-6989586621679560255"><span id="local-6989586621679560259"><span id="local-6989586621679560268"><span id="CreateSpine"><span id="StartSpine"><span id="MakeBidSpine"><span id="CloseSpine"><span id="BuyoutSpine"><span class="hs-identifier">deriveSpine</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleAuctionTransition</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-77"></span><span id="SimpleAuctionStateSpine"><span id="Spine"><span id="local-6989586621679560280"><span id="local-6989586621679560282"><span id="local-6989586621679560288"><span id="local-6989586621679560290"><span id="local-6989586621679560292"><span id="local-6989586621679560296"><span id="local-6989586621679560299"><span id="local-6989586621679560302"><span id="local-6989586621679560305"><span id="local-6989586621679560308"><span id="local-6989586621679560314"><span id="local-6989586621679560320"><span id="local-6989586621679560331"><span id="local-6989586621679560333"><span id="local-6989586621679560336"><span id="local-6989586621679560340"><span id="local-6989586621679560344"><span id="local-6989586621679560347"><span id="local-6989586621679560349"><span id="local-6989586621679560353"><span id="local-6989586621679560362"><span id="NotStartedSpine"><span id="CurrentBidSpine"><span id="WinnerSpine"><span class="hs-identifier">deriveSpine</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleAuctionState</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.html#CEMScript"><span class="hs-identifier hs-type">CEMScript</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-type">SimpleAuction</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Stage"><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-var">Stage</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-type">SimpleAuction</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionStage"><span class="hs-identifier hs-type">SimpleAuctionStage</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Params"><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-var">Params</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-type">SimpleAuction</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionParams"><span class="hs-identifier hs-type">SimpleAuctionParams</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="State"><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-type">SimpleAuction</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionState"><span class="hs-identifier hs-type">SimpleAuctionState</span></a></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Transition"><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-var">Transition</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuction"><span class="hs-identifier hs-type">SimpleAuction</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#SimpleAuctionTransition"><span class="hs-identifier hs-type">SimpleAuctionTransition</span></a></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621679560384"><span class="annot"><span class="annottext">transitionStage :: Proxy SimpleAuction
+-&gt; Map
+     (Spine (Transition SimpleAuction))
+     (Stage SimpleAuction, Maybe (Spine (State SimpleAuction)),
+      Maybe (Spine (State SimpleAuction)))
+</span><a href="#local-6989586621679560384"><span class="hs-identifier hs-var hs-var hs-var hs-var">transitionStage</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy SimpleAuction
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-88"></span><span>    </span><span class="annot"><span class="annottext">[(SimpleAuctionTransitionSpine,
+  (SimpleAuctionStage, Maybe SimpleAuctionStateSpine,
+   Maybe SimpleAuctionStateSpine))]
+-&gt; Map
+     SimpleAuctionTransitionSpine
+     (SimpleAuctionStage, Maybe SimpleAuctionStateSpine,
+      Maybe SimpleAuctionStateSpine)
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span>
+</span><span id="line-89"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionTransitionSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CreateSpine"><span class="hs-identifier hs-var">CreateSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Open"><span class="hs-identifier hs-var">Open</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe SimpleAuctionStateSpine
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#NotStartedSpine"><span class="hs-identifier hs-var">NotStartedSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionTransitionSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#StartSpine"><span class="hs-identifier hs-var">StartSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Open"><span class="hs-identifier hs-var">Open</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#NotStartedSpine"><span class="hs-identifier hs-var">NotStartedSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBidSpine"><span class="hs-identifier hs-var">CurrentBidSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionTransitionSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#MakeBidSpine"><span class="hs-identifier hs-var">MakeBidSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Open"><span class="hs-identifier hs-var">Open</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBidSpine"><span class="hs-identifier hs-var">CurrentBidSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBidSpine"><span class="hs-identifier hs-var">CurrentBidSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionTransitionSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CloseSpine"><span class="hs-identifier hs-var">CloseSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Closed"><span class="hs-identifier hs-var">Closed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBidSpine"><span class="hs-identifier hs-var">CurrentBidSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#WinnerSpine"><span class="hs-identifier hs-var">WinnerSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionTransitionSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#BuyoutSpine"><span class="hs-identifier hs-var">BuyoutSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionStage
+</span><a href="Cardano.CEM.Examples.Auction.html#Closed"><span class="hs-identifier hs-var">Closed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine -&gt; Maybe SimpleAuctionStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionStateSpine
+</span><a href="Cardano.CEM.Examples.Auction.html#WinnerSpine"><span class="hs-identifier hs-var">WinnerSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe SimpleAuctionStateSpine
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Cardano.CEM.html#transitionSpec"><span class="hs-pragma hs-type">transitionSpec</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-97"></span><span>  </span><span id="local-6989586621679560397"><span class="annot"><span class="annottext">transitionSpec :: Params SimpleAuction
+-&gt; Maybe (State SimpleAuction)
+-&gt; Transition SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+</span><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-var hs-var hs-var hs-var">transitionSpec</span></a></span></span><span> </span><span id="local-6989586621679560398"><span class="annot"><span class="annottext">Params SimpleAuction
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span></span><span> </span><span id="local-6989586621679560399"><span class="annot"><span class="annottext">Maybe (State SimpleAuction)
+</span><a href="#local-6989586621679560399"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span id="local-6989586621679560400"><span class="annot"><span class="annottext">Transition SimpleAuction
+</span><a href="#local-6989586621679560400"><span class="hs-identifier hs-var">transition</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (State SimpleAuction)
+Maybe SimpleAuctionState
+</span><a href="#local-6989586621679560399"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Transition SimpleAuction
+SimpleAuctionTransition
+</span><a href="#local-6989586621679560400"><span class="hs-identifier hs-var">transition</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-98"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe SimpleAuctionState
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionTransition
+</span><a href="Cardano.CEM.Examples.Auction.html#Create"><span class="hs-identifier hs-var">Create</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-99"></span><span>      </span><span class="annot"><span class="annottext">TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-100"></span><span>        </span><span class="annot"><span class="annottext">(TransitionSpec SimpleAuction
+ -&gt; Either BuiltinString (TransitionSpec SimpleAuction))
+-&gt; TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-101"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleAuction]
+</span><a href="#local-6989586621679560403"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-102"></span><span>              </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleAuction
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleAuction
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-103"></span><span>                  </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#In"><span class="hs-identifier hs-var">In</span></a></span><span>
+</span><span id="line-104"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleAuction -&gt; TxFanFilter SimpleAuction
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PubKeyHash -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span><span> </span><span class="annot"><span class="annottext">(PubKeyHash -&gt; AddressSpec) -&gt; PubKeyHash -&gt; AddressSpec
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var">seller</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TxFanFilter' SimpleAuction
+forall script. TxFanFilter' script
+</span><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Quantor) -&gt; Value -&gt; Quantor
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; Value
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Alot%3AMkAuctionParams"><span class="hs-identifier hs-var">lot</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionState -&gt; TxFanConstraint SimpleAuction
+</span><a href="#local-6989586621679560410"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionState
+</span><a href="Cardano.CEM.Examples.Auction.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span><span>
+</span><span id="line-107"></span><span>              </span><span class="hs-special">]</span><span>
+</span><span id="line-108"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679560411"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-109"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionState
+</span><a href="Cardano.CEM.Examples.Auction.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionTransition
+</span><a href="Cardano.CEM.Examples.Auction.html#Start"><span class="hs-identifier hs-var">Start</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-111"></span><span>      </span><span class="annot"><span class="annottext">TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-112"></span><span>        </span><span class="annot"><span class="annottext">(TransitionSpec SimpleAuction
+ -&gt; Either BuiltinString (TransitionSpec SimpleAuction))
+-&gt; TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-113"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleAuction]
+</span><a href="#local-6989586621679560403"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleAuctionState -&gt; TxFanConstraint SimpleAuction
+</span><a href="#local-6989586621679560410"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bid -&gt; SimpleAuctionState
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBid"><span class="hs-identifier hs-var">CurrentBid</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560412"><span class="hs-identifier hs-var">initialBid</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-114"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679560411"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var">seller</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-115"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CurrentBid"><span class="hs-identifier hs-type">CurrentBid</span></a></span><span> </span><span id="local-6989586621679560413"><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560413"><span class="hs-identifier hs-var">currentBet</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#MakeBid"><span class="hs-identifier hs-type">MakeBid</span></a></span><span> </span><span id="local-6989586621679560414"><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560414"><span class="hs-identifier hs-var">newBet</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-117"></span><span>      </span><span class="hs-comment">-- Example: could be parametrized with param or typeclass</span><span>
+</span><span id="line-118"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bid -&gt; Integer
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3AbetAmount%3AMkBet"><span class="hs-identifier hs-var">betAmount</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560414"><span class="hs-identifier hs-var">newBet</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Ord.html#%3E"><span class="hs-operator hs-var">&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Bid -&gt; Integer
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3AbetAmount%3AMkBet"><span class="hs-identifier hs-var">betAmount</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560413"><span class="hs-identifier hs-var">currentBet</span></a></span><span>
+</span><span id="line-119"></span><span>        </span><span class="hs-keyword">then</span><span>
+</span><span id="line-120"></span><span>          </span><span class="annot"><span class="annottext">TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-121"></span><span>            </span><span class="annot"><span class="annottext">(TransitionSpec SimpleAuction
+ -&gt; Either BuiltinString (TransitionSpec SimpleAuction))
+-&gt; TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-122"></span><span>              </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleAuction]
+</span><a href="#local-6989586621679560403"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleAuctionState -&gt; TxFanConstraint SimpleAuction
+</span><a href="#local-6989586621679560410"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bid -&gt; SimpleAuctionState
+</span><a href="Cardano.CEM.Examples.Auction.html#CurrentBid"><span class="hs-identifier hs-var">CurrentBid</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560414"><span class="hs-identifier hs-var">newBet</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-123"></span><span>              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679560411"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Bid -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Abetter%3AMkBet"><span class="hs-identifier hs-var">better</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560414"><span class="hs-identifier hs-var">newBet</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-124"></span><span>              </span><span class="hs-special">}</span><span>
+</span><span id="line-125"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">BuiltinString
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;Wrong Bid amount&quot;</span></span><span>
+</span><span id="line-126"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#CurrentBid"><span class="hs-identifier hs-type">CurrentBid</span></a></span><span> </span><span id="local-6989586621679560416"><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560416"><span class="hs-identifier hs-var">currentBet</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleAuctionTransition
+</span><a href="Cardano.CEM.Examples.Auction.html#Close"><span class="hs-identifier hs-var">Close</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-127"></span><span>      </span><span class="annot"><span class="annottext">TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-128"></span><span>        </span><span class="annot"><span class="annottext">(TransitionSpec SimpleAuction
+ -&gt; Either BuiltinString (TransitionSpec SimpleAuction))
+-&gt; TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-129"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleAuction]
+</span><a href="#local-6989586621679560403"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleAuctionState -&gt; TxFanConstraint SimpleAuction
+</span><a href="#local-6989586621679560410"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bid -&gt; SimpleAuctionState
+</span><a href="Cardano.CEM.Examples.Auction.html#Winner"><span class="hs-identifier hs-var">Winner</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560416"><span class="hs-identifier hs-var">currentBet</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-130"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679560411"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var">seller</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-131"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-132"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Winner"><span class="hs-identifier hs-type">Winner</span></a></span><span> </span><span id="local-6989586621679560417"><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560417"><span class="hs-identifier hs-var">winnerBet</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Auction.html#Buyout"><span class="hs-identifier hs-type">Buyout</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-133"></span><span>      </span><span class="annot"><span class="annottext">TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-134"></span><span>        </span><span class="annot"><span class="annottext">(TransitionSpec SimpleAuction
+ -&gt; Either BuiltinString (TransitionSpec SimpleAuction))
+-&gt; TransitionSpec SimpleAuction
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-135"></span><span>          </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleAuction]
+</span><a href="#local-6989586621679560403"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-136"></span><span>              </span><span class="hs-special">[</span><span> </span><span class="hs-comment">-- Example: In constraints redundant for on-chain</span><span>
+</span><span id="line-137"></span><span>                </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleAuction
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleAuction
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-138"></span><span>                  </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#In"><span class="hs-identifier hs-var">In</span></a></span><span>
+</span><span id="line-139"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleAuction -&gt; TxFanFilter SimpleAuction
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PubKeyHash -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bid -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Abetter%3AMkBet"><span class="hs-identifier hs-var">better</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560417"><span class="hs-identifier hs-var">winnerBet</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TxFanFilter' SimpleAuction
+forall script. TxFanFilter' script
+</span><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Quantor) -&gt; Value -&gt; Quantor
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">Bid -&gt; Value
+</span><a href="#local-6989586621679560418"><span class="hs-identifier hs-var">betAdaValue</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560417"><span class="hs-identifier hs-var">winnerBet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleAuction
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleAuction
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-142"></span><span>                  </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#Out"><span class="hs-identifier hs-var">Out</span></a></span><span>
+</span><span id="line-143"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleAuction -&gt; TxFanFilter SimpleAuction
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PubKeyHash -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bid -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Abetter%3AMkBet"><span class="hs-identifier hs-var">better</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560417"><span class="hs-identifier hs-var">winnerBet</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TxFanFilter' SimpleAuction
+forall script. TxFanFilter' script
+</span><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Quantor) -&gt; Value -&gt; Quantor
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; Value
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Alot%3AMkAuctionParams"><span class="hs-identifier hs-var">lot</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleAuction
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleAuction
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-146"></span><span>                  </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#Out"><span class="hs-identifier hs-var">Out</span></a></span><span>
+</span><span id="line-147"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleAuction -&gt; TxFanFilter SimpleAuction
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PubKeyHash -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var">seller</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TxFanFilter' SimpleAuction
+forall script. TxFanFilter' script
+</span><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Quantor) -&gt; Value -&gt; Quantor
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">Bid -&gt; Value
+</span><a href="#local-6989586621679560418"><span class="hs-identifier hs-var">betAdaValue</span></a></span><span> </span><span class="annot"><span class="annottext">Bid
+</span><a href="#local-6989586621679560417"><span class="hs-identifier hs-var">winnerBet</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>              </span><span class="hs-special">]</span><span>
+</span><span id="line-150"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679560411"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-151"></span><span>          </span><span class="hs-special">}</span><span>
+</span><span id="line-152"></span><span>    </span><span class="annot"><span class="annottext">(Maybe SimpleAuctionState, SimpleAuctionTransition)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BuiltinString
+-&gt; Either BuiltinString (TransitionSpec SimpleAuction)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;Incorrect state for transition&quot;</span></span><span>
+</span><span id="line-153"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-154"></span><span>      </span><span id="local-6989586621679560412"><span class="annot"><span class="annottext">initialBid :: Bid
+</span><a href="#local-6989586621679560412"><span class="hs-identifier hs-var hs-var">initialBid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; Integer -&gt; Bid
+</span><a href="Cardano.CEM.Examples.Auction.html#MkBet"><span class="hs-identifier hs-var">MkBet</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Aseller%3AMkAuctionParams"><span class="hs-identifier hs-var">seller</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-155"></span><span>      </span><span id="local-6989586621679560410"><span class="annot"><span class="annottext">nextState :: SimpleAuctionState -&gt; TxFanConstraint SimpleAuction
+</span><a href="#local-6989586621679560410"><span class="hs-identifier hs-var hs-var">nextState</span></a></span></span><span> </span><span id="local-6989586621679560420"><span class="annot"><span class="annottext">SimpleAuctionState
+</span><a href="#local-6989586621679560420"><span class="hs-identifier hs-var">state'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-156"></span><span>        </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleAuction
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleAuction
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-157"></span><span>          </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#Out"><span class="hs-identifier hs-var">Out</span></a></span><span>
+</span><span id="line-158"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleAuction -&gt; TxFanFilter SimpleAuction
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="annot"><span class="annottext">AddressSpec
+</span><a href="Cardano.CEM.html#BySameScript"><span class="hs-identifier hs-var">BySameScript</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State SimpleAuction -&gt; TxFanFilter' SimpleAuction
+forall script.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#bySameCEM"><span class="hs-identifier hs-var">bySameCEM</span></a></span><span> </span><span class="annot"><span class="annottext">State SimpleAuction
+SimpleAuctionState
+</span><a href="#local-6989586621679560420"><span class="hs-identifier hs-var">state'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">(Value -&gt; Quantor) -&gt; Value -&gt; Quantor
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleAuctionParams -&gt; Value
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3Alot%3AMkAuctionParams"><span class="hs-identifier hs-var">lot</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleAuction
+SimpleAuctionParams
+</span><a href="#local-6989586621679560398"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>      </span><span id="local-6989586621679560418"><span class="annot"><span class="annottext">betAdaValue :: Bid -&gt; Value
+</span><a href="#local-6989586621679560418"><span class="hs-identifier hs-var hs-var">betAdaValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Value
+</span><a href="#local-6989586621679560423"><span class="hs-identifier hs-var">adaValue</span></a></span><span> </span><span class="annot"><span class="annottext">(Integer -&gt; Value) -&gt; (Bid -&gt; Integer) -&gt; Bid -&gt; Value
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#."><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">Bid -&gt; Integer
+</span><a href="Cardano.CEM.Examples.Auction.html#%24sel%3AbetAmount%3AMkBet"><span class="hs-identifier hs-var">betAmount</span></a></span><span>
+</span><span id="line-161"></span><span>      </span><span id="local-6989586621679560423"><span class="annot"><span class="annottext">adaValue :: Integer -&gt; Value
+</span><a href="#local-6989586621679560423"><span class="hs-identifier hs-var hs-var">adaValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-162"></span><span>        </span><span class="annot"><span class="annottext">CurrencySymbol -&gt; TokenName -&gt; Integer -&gt; Value
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#singleton"><span class="hs-identifier hs-var">singleton</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BuiltinByteString -&gt; CurrencySymbol
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#CurrencySymbol"><span class="hs-identifier hs-var">CurrencySymbol</span></a></span><span> </span><span class="annot"><span class="annottext">BuiltinByteString
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.html#emptyByteString"><span class="hs-identifier hs-var">emptyByteString</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BuiltinByteString -&gt; TokenName
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#TokenName"><span class="hs-identifier hs-var">TokenName</span></a></span><span> </span><span class="annot"><span class="annottext">BuiltinByteString
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.html#emptyByteString"><span class="hs-identifier hs-var">emptyByteString</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-163"></span></pre></body></html>

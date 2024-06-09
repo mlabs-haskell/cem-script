@@ -1,0 +1,398 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE RecordWildCards #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE NoPolyKinds #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Prelude.html"><span class="hs-identifier">PlutusTx.Prelude</span></a></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Show</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Data</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Plutus imports</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html"><span class="hs-identifier">PlutusLedgerApi.V1.Address</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#Address"><span class="hs-identifier">Address</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#pubKeyHashAddress"><span class="hs-identifier">pubKeyHashAddress</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html"><span class="hs-identifier">PlutusLedgerApi.V1.Crypto</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier">PubKeyHash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V2.html"><span class="hs-identifier">PlutusLedgerApi.V2</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.Class.html#ToData"><span class="hs-identifier">ToData</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier">Value</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-19"></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html"><span class="hs-identifier">PlutusTx.Show.TH</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html#deriveShow"><span class="hs-identifier">deriveShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Project imports</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html"><span class="hs-identifier">Cardano.CEM.Stages</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html"><span class="hs-identifier">Data.Spine</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><span class="hs-comment">-- | This is different ways to specify address</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="AddressSpec"><span class="annot"><a href="Cardano.CEM.html#AddressSpec"><span class="hs-identifier hs-var">AddressSpec</span></a></span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="ByAddress"><span class="annot"><a href="Cardano.CEM.html#ByAddress"><span class="hs-identifier hs-var">ByAddress</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#Address"><span class="hs-identifier hs-type">Address</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ByPubKey"><span class="annot"><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="BySameScript"><span class="annot"><a href="Cardano.CEM.html#BySameScript"><span class="hs-identifier hs-var">BySameScript</span></a></span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556589"><span id="local-6989586621679556598"><span id="local-6989586621679556602"><span class="annot"><span class="annottext">Int -&gt; AddressSpec -&gt; ShowS
+[AddressSpec] -&gt; ShowS
+AddressSpec -&gt; String
+(Int -&gt; AddressSpec -&gt; ShowS)
+-&gt; (AddressSpec -&gt; String)
+-&gt; ([AddressSpec] -&gt; ShowS)
+-&gt; Show AddressSpec
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; AddressSpec -&gt; ShowS
+showsPrec :: Int -&gt; AddressSpec -&gt; ShowS
+$cshow :: AddressSpec -&gt; String
+show :: AddressSpec -&gt; String
+$cshowList :: [AddressSpec] -&gt; ShowS
+showList :: [AddressSpec] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556606"><span id="local-6989586621679556612"><span class="annot"><span class="annottext">AddressSpec -&gt; AddressSpec -&gt; Bool
+(AddressSpec -&gt; AddressSpec -&gt; Bool)
+-&gt; (AddressSpec -&gt; AddressSpec -&gt; Bool) -&gt; Eq AddressSpec
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: AddressSpec -&gt; AddressSpec -&gt; Bool
+== :: AddressSpec -&gt; AddressSpec -&gt; Bool
+$c/= :: AddressSpec -&gt; AddressSpec -&gt; Bool
+/= :: AddressSpec -&gt; AddressSpec -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Cardano.CEM.html#addressSpecToAddress"><span class="hs-pragma hs-type">addressSpecToAddress</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Cardano.CEM.html#addressSpecToAddress"><span class="hs-identifier hs-type">addressSpecToAddress</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#Address"><span class="hs-identifier hs-type">Address</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.html#AddressSpec"><span class="hs-identifier hs-type">AddressSpec</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#Address"><span class="hs-identifier hs-type">Address</span></a></span><span>
+</span><span id="line-35"></span><span id="addressSpecToAddress"><span class="annot"><span class="annottext">addressSpecToAddress :: Address -&gt; AddressSpec -&gt; Address
+</span><a href="Cardano.CEM.html#addressSpecToAddress"><span class="hs-identifier hs-var hs-var">addressSpecToAddress</span></a></span></span><span> </span><span id="local-6989586621679556617"><span class="annot"><span class="annottext">Address
+</span><a href="#local-6989586621679556617"><span class="hs-identifier hs-var">ownAddress</span></a></span></span><span> </span><span id="local-6989586621679556618"><span class="annot"><span class="annottext">AddressSpec
+</span><a href="#local-6989586621679556618"><span class="hs-identifier hs-var">addressSpec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AddressSpec
+</span><a href="#local-6989586621679556618"><span class="hs-identifier hs-var">addressSpec</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><a href="Cardano.CEM.html#ByAddress"><span class="hs-identifier hs-type">ByAddress</span></a></span><span> </span><span id="local-6989586621679556619"><span class="annot"><span class="annottext">Address
+</span><a href="#local-6989586621679556619"><span class="hs-identifier hs-var">address</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Address
+</span><a href="#local-6989586621679556619"><span class="hs-identifier hs-var">address</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-type">ByPubKey</span></a></span><span> </span><span id="local-6989586621679556620"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679556620"><span class="hs-identifier hs-var">pubKey</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; Address
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Address.html#pubKeyHashAddress"><span class="hs-identifier hs-var">pubKeyHashAddress</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679556620"><span class="hs-identifier hs-var">pubKey</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">AddressSpec
+</span><a href="Cardano.CEM.html#BySameScript"><span class="hs-identifier hs-var">BySameScript</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Address
+</span><a href="#local-6989586621679556617"><span class="hs-identifier hs-var">ownAddress</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">data</span><span> </span><span id="TxFanFilter"><span class="annot"><a href="Cardano.CEM.html#TxFanFilter"><span class="hs-identifier hs-var">TxFanFilter</span></a></span></span><span> </span><span id="local-6989586621679556512"><span class="annot"><a href="#local-6989586621679556512"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkTxFanFilter"><span class="annot"><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aaddress%3AMkTxFanFilter"><span class="annot"><span class="annottext">forall script. TxFanFilter script -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#%24sel%3Aaddress%3AMkTxFanFilter"><span class="hs-identifier hs-var hs-var">address</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#AddressSpec"><span class="hs-identifier hs-type">AddressSpec</span></a></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Arest%3AMkTxFanFilter"><span class="annot"><span class="annottext">forall script. TxFanFilter script -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#%24sel%3Arest%3AMkTxFanFilter"><span class="hs-identifier hs-var hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#TxFanFilter%27"><span class="hs-identifier hs-type">TxFanFilter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556512"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556625"><span id="local-6989586621679556631"><span id="local-6989586621679556635"><span class="annot"><span class="annottext">Int -&gt; TxFanFilter script -&gt; ShowS
+[TxFanFilter script] -&gt; ShowS
+TxFanFilter script -&gt; String
+(Int -&gt; TxFanFilter script -&gt; ShowS)
+-&gt; (TxFanFilter script -&gt; String)
+-&gt; ([TxFanFilter script] -&gt; ShowS)
+-&gt; Show (TxFanFilter script)
+forall script. Int -&gt; TxFanFilter script -&gt; ShowS
+forall script. [TxFanFilter script] -&gt; ShowS
+forall script. TxFanFilter script -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall script. Int -&gt; TxFanFilter script -&gt; ShowS
+showsPrec :: Int -&gt; TxFanFilter script -&gt; ShowS
+$cshow :: forall script. TxFanFilter script -&gt; String
+show :: TxFanFilter script -&gt; String
+$cshowList :: forall script. [TxFanFilter script] -&gt; ShowS
+showList :: [TxFanFilter script] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556638"><span id="local-6989586621679556643"><span class="annot"><span class="annottext">TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+(TxFanFilter script -&gt; TxFanFilter script -&gt; Bool)
+-&gt; (TxFanFilter script -&gt; TxFanFilter script -&gt; Bool)
+-&gt; Eq (TxFanFilter script)
+forall script. TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall script. TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+== :: TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+$c/= :: forall script. TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+/= :: TxFanFilter script -&gt; TxFanFilter script -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="TxFanFilter%27"><span class="annot"><a href="Cardano.CEM.html#TxFanFilter%27"><span class="hs-identifier hs-var">TxFanFilter'</span></a></span></span><span> </span><span id="local-6989586621679556531"><span class="annot"><a href="#local-6989586621679556531"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Anything"><span class="annot"><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="hs-comment">-- | To be used via `bySameCem`</span></span><span>
+</span><span id="line-49"></span><span>    </span><span id="UnsafeBySameCEM"><span class="annot"><a href="Cardano.CEM.html#UnsafeBySameCEM"><span class="hs-identifier hs-var">UnsafeBySameCEM</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.Internal.html#BuiltinData"><span class="hs-identifier hs-type">BuiltinData</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ByDatum"><span class="annot"><a href="Cardano.CEM.html#ByDatum"><span class="hs-identifier hs-var">ByDatum</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.Internal.html#BuiltinData"><span class="hs-identifier hs-type">BuiltinData</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556650"><span id="local-6989586621679556657"><span id="local-6989586621679556660"><span class="annot"><span class="annottext">Int -&gt; TxFanFilter' script -&gt; ShowS
+[TxFanFilter' script] -&gt; ShowS
+TxFanFilter' script -&gt; String
+(Int -&gt; TxFanFilter' script -&gt; ShowS)
+-&gt; (TxFanFilter' script -&gt; String)
+-&gt; ([TxFanFilter' script] -&gt; ShowS)
+-&gt; Show (TxFanFilter' script)
+forall script. Int -&gt; TxFanFilter' script -&gt; ShowS
+forall script. [TxFanFilter' script] -&gt; ShowS
+forall script. TxFanFilter' script -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall script. Int -&gt; TxFanFilter' script -&gt; ShowS
+showsPrec :: Int -&gt; TxFanFilter' script -&gt; ShowS
+$cshow :: forall script. TxFanFilter' script -&gt; String
+show :: TxFanFilter' script -&gt; String
+$cshowList :: forall script. [TxFanFilter' script] -&gt; ShowS
+showList :: [TxFanFilter' script] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556663"><span id="local-6989586621679556668"><span class="annot"><span class="annottext">TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+(TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool)
+-&gt; (TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool)
+-&gt; Eq (TxFanFilter' script)
+forall script. TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: forall script. TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+== :: TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+$c/= :: forall script. TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+/= :: TxFanFilter' script -&gt; TxFanFilter' script -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Cardano.CEM.html#bySameCEM"><span class="hs-pragma hs-type">bySameCEM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><span class="hs-comment">-- | Constraint enforcing state of script mentioning this constraint</span></span><span>
+</span><span id="line-56"></span><span id="local-6989586621679556526"><span class="annot"><a href="Cardano.CEM.html#bySameCEM"><span class="hs-identifier hs-type">bySameCEM</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.Class.html#ToData"><span class="hs-identifier hs-type">ToData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556526"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.html#CEMScript"><span class="hs-identifier hs-type">CEMScript</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556526"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556526"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><a href="Cardano.CEM.html#TxFanFilter%27"><span class="hs-identifier hs-type">TxFanFilter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556526"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-60"></span><span id="bySameCEM"><span class="annot"><span class="annottext">bySameCEM :: forall script.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#bySameCEM"><span class="hs-identifier hs-var hs-var">bySameCEM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BuiltinData -&gt; TxFanFilter' script
+forall script. BuiltinData -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#UnsafeBySameCEM"><span class="hs-identifier hs-var">UnsafeBySameCEM</span></a></span><span> </span><span class="annot"><span class="annottext">(BuiltinData -&gt; TxFanFilter' script)
+-&gt; (State script -&gt; BuiltinData)
+-&gt; State script
+-&gt; TxFanFilter' script
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#."><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">State script -&gt; BuiltinData
+forall a. ToData a =&gt; a -&gt; BuiltinData
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.Class.html#toBuiltinData"><span class="hs-identifier hs-var">toBuiltinData</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- TODO: use natural numbers</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">data</span><span> </span><span id="Quantor"><span class="annot"><a href="Cardano.CEM.html#Quantor"><span class="hs-identifier hs-var">Quantor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Exist"><span class="annot"><a href="Cardano.CEM.html#Exist"><span class="hs-identifier hs-var">Exist</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="SumValueEq"><span class="annot"><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556679"><span id="local-6989586621679556687"><span id="local-6989586621679556691"><span class="annot"><span class="annottext">Int -&gt; Quantor -&gt; ShowS
+[Quantor] -&gt; ShowS
+Quantor -&gt; String
+(Int -&gt; Quantor -&gt; ShowS)
+-&gt; (Quantor -&gt; String) -&gt; ([Quantor] -&gt; ShowS) -&gt; Show Quantor
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Quantor -&gt; ShowS
+showsPrec :: Int -&gt; Quantor -&gt; ShowS
+$cshow :: Quantor -&gt; String
+show :: Quantor -&gt; String
+$cshowList :: [Quantor] -&gt; ShowS
+showList :: [Quantor] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-keyword">data</span><span> </span><span id="TxFanKind"><span class="annot"><a href="Cardano.CEM.html#TxFanKind"><span class="hs-identifier hs-var">TxFanKind</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="In"><span class="annot"><a href="Cardano.CEM.html#In"><span class="hs-identifier hs-var">In</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="InRef"><span class="annot"><a href="Cardano.CEM.html#InRef"><span class="hs-identifier hs-var">InRef</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Out"><span class="annot"><a href="Cardano.CEM.html#Out"><span class="hs-identifier hs-var">Out</span></a></span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556697"><span id="local-6989586621679556699"><span class="annot"><span class="annottext">TxFanKind -&gt; TxFanKind -&gt; Bool
+(TxFanKind -&gt; TxFanKind -&gt; Bool)
+-&gt; (TxFanKind -&gt; TxFanKind -&gt; Bool) -&gt; Eq TxFanKind
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: TxFanKind -&gt; TxFanKind -&gt; Bool
+== :: TxFanKind -&gt; TxFanKind -&gt; Bool
+$c/= :: TxFanKind -&gt; TxFanKind -&gt; Bool
+/= :: TxFanKind -&gt; TxFanKind -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679556703"><span id="local-6989586621679556705"><span id="local-6989586621679556709"><span class="annot"><span class="annottext">Int -&gt; TxFanKind -&gt; ShowS
+[TxFanKind] -&gt; ShowS
+TxFanKind -&gt; String
+(Int -&gt; TxFanKind -&gt; ShowS)
+-&gt; (TxFanKind -&gt; String)
+-&gt; ([TxFanKind] -&gt; ShowS)
+-&gt; Show TxFanKind
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; TxFanKind -&gt; ShowS
+showsPrec :: Int -&gt; TxFanKind -&gt; ShowS
+$cshow :: TxFanKind -&gt; String
+show :: TxFanKind -&gt; String
+$cshowList :: [TxFanKind] -&gt; ShowS
+showList :: [TxFanKind] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">data</span><span> </span><span id="TxFanConstraint"><span class="annot"><a href="Cardano.CEM.html#TxFanConstraint"><span class="hs-identifier hs-var">TxFanConstraint</span></a></span></span><span> </span><span id="local-6989586621679556539"><span class="annot"><a href="#local-6989586621679556539"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkTxFanC"><span class="annot"><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AtxFanCKind%3AMkTxFanC"><span class="annot"><span class="annottext">forall script. TxFanConstraint script -&gt; TxFanKind
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCKind%3AMkTxFanC"><span class="hs-identifier hs-var hs-var">txFanCKind</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#TxFanKind"><span class="hs-identifier hs-type">TxFanKind</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AtxFanCFilter%3AMkTxFanC"><span class="annot"><span class="annottext">forall script. TxFanConstraint script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCFilter%3AMkTxFanC"><span class="hs-identifier hs-var hs-var">txFanCFilter</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#TxFanFilter"><span class="hs-identifier hs-type">TxFanFilter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556539"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AtxFanCQuantor%3AMkTxFanC"><span class="annot"><span class="annottext">forall script. TxFanConstraint script -&gt; Quantor
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCQuantor%3AMkTxFanC"><span class="hs-identifier hs-var hs-var">txFanCQuantor</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#Quantor"><span class="hs-identifier hs-type">Quantor</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556716"><span id="local-6989586621679556722"><span id="local-6989586621679556726"><span class="annot"><span class="annottext">Int -&gt; TxFanConstraint script -&gt; ShowS
+[TxFanConstraint script] -&gt; ShowS
+TxFanConstraint script -&gt; String
+(Int -&gt; TxFanConstraint script -&gt; ShowS)
+-&gt; (TxFanConstraint script -&gt; String)
+-&gt; ([TxFanConstraint script] -&gt; ShowS)
+-&gt; Show (TxFanConstraint script)
+forall script. Int -&gt; TxFanConstraint script -&gt; ShowS
+forall script. [TxFanConstraint script] -&gt; ShowS
+forall script. TxFanConstraint script -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall script. Int -&gt; TxFanConstraint script -&gt; ShowS
+showsPrec :: Int -&gt; TxFanConstraint script -&gt; ShowS
+$cshow :: forall script. TxFanConstraint script -&gt; String
+show :: TxFanConstraint script -&gt; String
+$cshowList :: forall script. [TxFanConstraint script] -&gt; ShowS
+showList :: [TxFanConstraint script] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- Main API</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">class</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#Stages"><span class="hs-identifier hs-type">Stages</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-84"></span><span>  </span><span id="CEMScript"><span class="annot"><a href="Cardano.CEM.html#CEMScript"><span class="hs-identifier hs-var">CEMScript</span></a></span></span><span> </span><span id="local-6989586621679556546"><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- | `Params` is immutable part of script Datum,</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-comment">-- | it should be used to encode all</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Params"><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-var">Params</span></a></span></span><span> </span><span id="local-6989586621679556546"><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679556732"><span class="annot"><a href="#local-6989586621679556732"><span class="hs-identifier hs-type">params</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621679556732"><span class="hs-identifier hs-type">params</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-comment">-- | `Stage` is datatype encoding all `Interval`s specified by script.</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-comment">-- | `Stage` logic is encoded by separate `Stages` type class.</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-comment">-- | It have separate `StageParams` datatype,</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-comment">-- | which is stored immutable in script Datum as well.</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Stage"><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-var">Stage</span></a></span></span><span> </span><span id="local-6989586621679556546"><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-comment">-- | `State` is changing part of script Datum.</span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-comment">-- | It is in</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="State"><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span id="local-6989586621679556546"><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679556733"><span class="annot"><a href="#local-6989586621679556733"><span class="hs-identifier hs-type">params</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621679556733"><span class="hs-identifier hs-type">params</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-comment">-- | Transitions for deterministic CEM-machine</span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Transition"><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-var">Transition</span></a></span></span><span> </span><span id="local-6989586621679556546"><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679556734"><span class="annot"><a href="#local-6989586621679556734"><span class="hs-identifier hs-type">transition</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><a href="#local-6989586621679556734"><span class="hs-identifier hs-type">transition</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-comment">-- | Each kind of Transition has statically associated Stage</span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-comment">-- from/to `State`s spines</span><span>
+</span><span id="line-105"></span><span>  </span><span id="transitionStage"><span class="annot"><a href="Cardano.CEM.html#transitionStage"><span class="hs-identifier hs-type">transitionStage</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span>
+</span><span id="line-108"></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-110"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-comment">-- This functions define domain logic</span><span>
+</span><span id="line-115"></span><span>  </span><span id="transitionSpec"><span class="annot"><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-type">transitionSpec</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-118"></span><span>    </span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-119"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.Internal.html#BuiltinString"><span class="hs-identifier hs-type">BuiltinString</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#TransitionSpec"><span class="hs-identifier hs-type">TransitionSpec</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556546"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-keyword">data</span><span> </span><span id="TransitionSpec"><span class="annot"><a href="Cardano.CEM.html#TransitionSpec"><span class="hs-identifier hs-var">TransitionSpec</span></a></span></span><span> </span><span id="local-6989586621679556551"><span class="annot"><a href="#local-6989586621679556551"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkTransitionSpec"><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-var">MkTransitionSpec</span></a></span></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aconstraints%3AMkTransitionSpec"><span class="annot"><span class="annottext">forall script. TransitionSpec script -&gt; [TxFanConstraint script]
+</span><a href="Cardano.CEM.html#%24sel%3Aconstraints%3AMkTransitionSpec"><span class="hs-identifier hs-var hs-var">constraints</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Cardano.CEM.html#TxFanConstraint"><span class="hs-identifier hs-type">TxFanConstraint</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556551"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-123"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-comment">-- List of additional signers (in addition to one required by TxIns)</span><span>
+</span><span id="line-124"></span><span>    </span><span id="%24sel%3Asigners%3AMkTransitionSpec"><span class="annot"><span class="annottext">forall script. TransitionSpec script -&gt; [PubKeyHash]
+</span><a href="Cardano.CEM.html#%24sel%3Asigners%3AMkTransitionSpec"><span class="hs-identifier hs-var hs-var">signers</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-125"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679556743"><span id="local-6989586621679556751"><span id="local-6989586621679556755"><span class="annot"><span class="annottext">Int -&gt; TransitionSpec script -&gt; ShowS
+[TransitionSpec script] -&gt; ShowS
+TransitionSpec script -&gt; String
+(Int -&gt; TransitionSpec script -&gt; ShowS)
+-&gt; (TransitionSpec script -&gt; String)
+-&gt; ([TransitionSpec script] -&gt; ShowS)
+-&gt; Show (TransitionSpec script)
+forall script. Int -&gt; TransitionSpec script -&gt; ShowS
+forall script. [TransitionSpec script] -&gt; ShowS
+forall script. TransitionSpec script -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall script. Int -&gt; TransitionSpec script -&gt; ShowS
+showsPrec :: Int -&gt; TransitionSpec script -&gt; ShowS
+$cshow :: forall script. TransitionSpec script -&gt; String
+show :: TransitionSpec script -&gt; String
+$cshowList :: forall script. [TransitionSpec script] -&gt; ShowS
+showList :: [TransitionSpec script] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><span class="hs-comment">-- | List of all signing keys required for transition spec</span></span><span>
+</span><span id="line-129"></span><span id="local-6989586621679556757"><span class="annot"><a href="Cardano.CEM.html#getAllSpecSigners"><span class="hs-identifier hs-type">getAllSpecSigners</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#TransitionSpec"><span class="hs-identifier hs-type">TransitionSpec</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556757"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-130"></span><span id="getAllSpecSigners"><span class="annot"><span class="annottext">getAllSpecSigners :: forall script. TransitionSpec script -&gt; [PubKeyHash]
+</span><a href="Cardano.CEM.html#getAllSpecSigners"><span class="hs-identifier hs-var hs-var">getAllSpecSigners</span></a></span></span><span> </span><span id="local-6989586621679556760"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679556760"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; [PubKeyHash]
+forall script. TransitionSpec script -&gt; [PubKeyHash]
+</span><a href="Cardano.CEM.html#%24sel%3Asigners%3AMkTransitionSpec"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679556760"><span class="hs-identifier hs-var">spec</span></a></span><span> </span><span class="annot"><span class="annottext">[PubKeyHash] -&gt; [PubKeyHash] -&gt; [PubKeyHash]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.List.html#%2B%2B"><span class="hs-operator hs-var">++</span></a></span><span> </span><span class="annot"><span class="annottext">[PubKeyHash]
+</span><a href="#local-6989586621679556762"><span class="hs-identifier hs-var">txInPKHs</span></a></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>    </span><span id="local-6989586621679556762"><span class="annot"><span class="annottext">txInPKHs :: [PubKeyHash]
+</span><a href="#local-6989586621679556762"><span class="hs-identifier hs-var hs-var">txInPKHs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TxFanConstraint script -&gt; Maybe PubKeyHash)
+-&gt; [TxFanConstraint script] -&gt; [PubKeyHash]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Maybe.html#mapMaybe"><span class="hs-identifier hs-var">mapMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">TxFanConstraint script -&gt; Maybe PubKeyHash
+forall {script}. TxFanConstraint script -&gt; Maybe PubKeyHash
+</span><a href="#local-6989586621679556764"><span class="hs-identifier hs-var">getPubKey</span></a></span><span> </span><span class="annot"><span class="annottext">([TxFanConstraint script] -&gt; [PubKeyHash])
+-&gt; [TxFanConstraint script] -&gt; [PubKeyHash]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">(TxFanConstraint script -&gt; Bool)
+-&gt; [TxFanConstraint script] -&gt; [TxFanConstraint script]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.List.html#filter"><span class="hs-identifier hs-var">filter</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">TxFanKind -&gt; TxFanKind -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">Prelude.==</span></span><span> </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#In"><span class="hs-identifier hs-var">In</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(TxFanKind -&gt; Bool)
+-&gt; (TxFanConstraint script -&gt; TxFanKind)
+-&gt; TxFanConstraint script
+-&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#."><span class="hs-operator hs-var">.</span></a></span><span> </span><span class="annot"><span class="annottext">TxFanConstraint script -&gt; TxFanKind
+forall script. TxFanConstraint script -&gt; TxFanKind
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCKind%3AMkTxFanC"><span class="hs-identifier hs-var">txFanCKind</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([TxFanConstraint script] -&gt; [TxFanConstraint script])
+-&gt; [TxFanConstraint script] -&gt; [TxFanConstraint script]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; [TxFanConstraint script]
+forall script. TransitionSpec script -&gt; [TxFanConstraint script]
+</span><a href="Cardano.CEM.html#%24sel%3Aconstraints%3AMkTransitionSpec"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679556760"><span class="hs-identifier hs-var">spec</span></a></span><span>
+</span><span id="line-133"></span><span>    </span><span id="local-6989586621679556764"><span class="annot"><span class="annottext">getPubKey :: TxFanConstraint script -&gt; Maybe PubKeyHash
+</span><a href="#local-6989586621679556764"><span class="hs-identifier hs-var hs-var">getPubKey</span></a></span></span><span> </span><span id="local-6989586621679556767"><span class="annot"><span class="annottext">TxFanConstraint script
+</span><a href="#local-6989586621679556767"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TxFanFilter script -&gt; AddressSpec
+forall script. TxFanFilter script -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#%24sel%3Aaddress%3AMkTxFanFilter"><span class="hs-identifier hs-var">address</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TxFanConstraint script -&gt; TxFanFilter script
+forall script. TxFanConstraint script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCFilter%3AMkTxFanC"><span class="hs-identifier hs-var">txFanCFilter</span></a></span><span> </span><span class="annot"><span class="annottext">TxFanConstraint script
+</span><a href="#local-6989586621679556767"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-134"></span><span>      </span><span class="annot"><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-type">ByPubKey</span></a></span><span> </span><span id="local-6989586621679556768"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679556768"><span class="hs-identifier hs-var">key</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; Maybe PubKeyHash
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679556768"><span class="hs-identifier hs-var">key</span></a></span><span>
+</span><span id="line-135"></span><span>      </span><span class="annot"><span class="annottext">AddressSpec
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe PubKeyHash
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">{- | Static part of CEMScript datum.
+Datatype is actually used only by off-chain code due to Plutus limitations.
+-}</span></span><span>
+</span><span id="line-140"></span><span class="hs-keyword">data</span><span> </span><span id="CEMParams"><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-var">CEMParams</span></a></span></span><span> </span><span id="local-6989586621679556567"><span class="annot"><a href="#local-6989586621679556567"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkCEMParams"><span class="annot"><a href="Cardano.CEM.html#MkCEMParams"><span class="hs-identifier hs-var">MkCEMParams</span></a></span></span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AscriptParams%3AMkCEMParams"><span class="annot"><span class="annottext">forall script. CEMParams script -&gt; Params script
+</span><a href="Cardano.CEM.html#%24sel%3AscriptParams%3AMkCEMParams"><span class="hs-identifier hs-var hs-var">scriptParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556567"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AstagesParams%3AMkCEMParams"><span class="annot"><span class="annottext">forall script. CEMParams script -&gt; StageParams (Stage script)
+</span><a href="Cardano.CEM.html#%24sel%3AstagesParams%3AMkCEMParams"><span class="hs-identifier hs-var hs-var">stagesParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-type">StageParams</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556567"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span id="local-6989586621679556775"><span id="local-6989586621679556780"><span id="local-6989586621679556784"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679556574"><span class="annot"><a href="#local-6989586621679556574"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556574"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-type">StageParams</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556574"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556574"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span id="local-6989586621679556789"><span id="local-6989586621679556793"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679556576"><span class="annot"><a href="#local-6989586621679556576"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prelude.Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556576"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Prelude.Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-type">StageParams</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556576"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Prelude.Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556576"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- TODO: doc</span><span>
+</span><span id="line-158"></span><span class="hs-keyword">type</span><span> </span><span id="CEMScriptDatum"><span class="annot"><a href="Cardano.CEM.html#CEMScriptDatum"><span class="hs-identifier hs-var">CEMScriptDatum</span></a></span></span><span> </span><span id="local-6989586621679556797"><span class="annot"><a href="#local-6989586621679556797"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-159"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Stages.html#StageParams"><span class="hs-identifier hs-type">StageParams</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-type">Stage</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556797"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556797"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679556797"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- TH deriving done at end of file for GHC staging reasons</span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span id="local-6989586621679556799"><span id="local-6989586621679556805"><span class="hs-identifier">deriveShow</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">TxFanKind</span></span></span><span>
+</span><span id="line-164"></span><span id="local-6989586621679556531"><span id="local-6989586621679556815"><span id="local-6989586621679556823"><span class="hs-identifier">deriveShow</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">TxFanFilter'</span></span></span></span><span>
+</span><span id="line-165"></span></pre></body></html>
