@@ -4,6 +4,7 @@ on:
   - push
   # Does not seem to work
   - merge_group
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -44,6 +45,10 @@ jobs:
         cabal install --overwrite-policy=always fourmolu
         /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
         /home/runner/.cabal-devx/bin/fourmolu --mode check .
+    - name: Build haddock
+      shell: devx {0}
+      run: |
+        cabal haddock-project --hackage --internal
     - name: Save cabal cache
       uses: actions/cache/save@v3
       if: always()
