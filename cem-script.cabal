@@ -67,7 +67,8 @@ common common-onchain
     , template-haskell   >=2.20
     , th-abstraction     >=0.6.0.0
 
-  ghc-options:   -fplugin-opt PlutusTx.Plugin:defer-errors
+  if !flag(dev)
+    ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
 
   -- Options for Plutus Tx compilations
   -- (some are enabled additionaly in individual modules)
