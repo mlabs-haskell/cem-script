@@ -4,7 +4,7 @@ import Prelude hiding (readFile)
 
 import Control.Monad.IO.Class (MonadIO (..))
 
-import Test.Hspec (describe, it, shouldBe)
+import Test.Hspec (describe, shouldBe)
 
 import Cardano.CEM
 import Cardano.CEM.Examples.Compilation ()

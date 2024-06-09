@@ -11,7 +11,7 @@ import Data.Set qualified as Set
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.InMode (TxValidationError (..), fromConsensusApplyTxErr)
+import Cardano.Api.InMode (TxValidationError (..))
 import Ouroboros.Network.Protocol.LocalStateQuery.Type (Target (..))
 
 -- Project imports
