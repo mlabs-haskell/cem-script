@@ -5,6 +5,12 @@ on:
   # Does not seem to work
   - merge_group
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -69,3 +75,40 @@ jobs:
           ~/.cabal-devx
           dist-newstyle
         key: ${{ runner.os }}-ghc964-
+
+  build-docs:
+    runs-on: ubuntu-latest
+    needs: tests
+    # if: ${{ vars.GITHUB_REF_NAME == 'master' }}
+    steps:
+    - name: Move Haddock (fixing wrong internal lib build)
+      run: |
+        ls
+        pwd
+        mkdir -p docs/_site/haddocks/cem-script/src
+        mv --backup=numbered haddocks/cem-script-*/src/* docs/_site/haddocks/cem-script/src
+        rm -r haddocks/cem-script-*/src
+        mv --backup=numbered haddocks/cem-script-*/* docs/_site/haddocks/cem-script
+        rm -r haddocks/cem-script-*
+        mv haddocks/* docs/_site/haddocks
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+    - name: Build with Jekyll
+      uses: actions/jekyll-build-pages@v1
+      with:
+        source: ./
+        destination: ./_site
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+
+  deploy-docs-to-github-pages:
+    # if: ${{ vars.GITHUB_REF_NAME == 'master' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build-docs
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
