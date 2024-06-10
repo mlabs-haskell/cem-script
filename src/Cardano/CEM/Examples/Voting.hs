@@ -1,6 +1,6 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 {-# HLINT ignore "Use when" #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.CEM.Examples.Voting where
 
@@ -9,21 +9,24 @@ import Prelude qualified
 
 import Data.Map qualified as Map
 
-import PlutusLedgerApi.V1.Crypto (PubKeyHash)
+import PlutusLedgerApi.V1.Crypto (PubKeyHash (..))
 import PlutusLedgerApi.V2 (Value)
-import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
 
 import Cardano.CEM
 import Cardano.CEM.Stages
-import Cardano.CEM.TH (deriveCEMAssociatedTypes)
+import Cardano.CEM.TH
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
+import PlutusLedgerApi.V1.Value (CurrencySymbol, TokenName)
+import PlutusTx.Blueprint
 
 -- Voting
 
 data SimpleVoting
 
 data VoteValue = Yes | No | Abstain
-  deriving stock (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq, Generic)
 
 instance Eq VoteValue where
   Yes == Yes = True
@@ -31,9 +34,9 @@ instance Eq VoteValue where
   Abstain == Abstain = True
   _ == _ = False
 
--- | Policy determinig who can vote
+-- | Policy determining who can vote
 data JuryPolicy = Anyone | FixedJuryList [PubKeyHash] | WithToken Value
-  deriving stock (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq, Generic)
 
 -- Votes storage
 
@@ -70,30 +73,95 @@ data SimpleVotingParams = MkVotingParams
   , abstainAllowed :: Bool
   , drawDecision :: VoteValue
   }
-  deriving stock (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq, Generic)
 
 data SimpleVotingState
   = NotStarted
   | InProgress VoteStorage
   | Finalized VoteValue
-  deriving stock (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq, Generic)
 
 data SimpleVotingTransition
   = Create
   | Start
   | Vote PubKeyHash VoteValue
   | Finalize
-  deriving stock (Prelude.Show, Prelude.Eq)
+  deriving stock (Prelude.Show, Prelude.Eq, Generic)
 
-PlutusTx.unstableMakeIsData ''VoteValue
-PlutusTx.unstableMakeIsData ''JuryPolicy
+-- Orphans
+
+unstableMakeHasSchemaInstance ''PubKeyHash
+
+deriving anyclass instance (AsDefinitionId PubKeyHash)
+deriving anyclass instance (AsDefinitionId [PubKeyHash])
+
+unstableMakeHasSchemaInstance ''CurrencySymbol
+unstableMakeHasSchemaInstance ''TokenName
+deriving anyclass instance (AsDefinitionId CurrencySymbol)
+deriving anyclass instance (AsDefinitionId TokenName)
+
+-- deriving anyclass instance (AsDefinitionId [CurrencySymbol])
+
+deriving anyclass instance (Typeable k, Typeable v) => AsDefinitionId [(k, v)]
+deriving anyclass instance (Typeable k, Typeable v) => AsDefinitionId (PMap.Map k v)
+
+instance
+  ( Typeable k
+  , Typeable v
+  , HasSchemaDefinition [(k, v)] referencedTypes
+  ) =>
+  HasSchema (PMap.Map k v) referencedTypes
+  where
+  {-# INLINEABLE schema #-}
+  schema =
+    SchemaConstructor
+      (MkSchemaInfo Nothing Nothing Nothing)
+      ( MkConstructorSchema
+          0
+          [definitionRef @[(k, v)] @referencedTypes]
+      )
+
+{-
+instance
+  ( Typeable k
+  , Typeable v
+  , AsDefinitionId k
+  , AsDefinitionId v
+  , HasSchemaDefinition k referencedTypes
+  , HasSchemaDefinition v referencedTypes
+  ) =>
+  HasSchema (PMap.Map k v) referencedTypes
+  where
+  {-# INLINEABLE schema #-}
+  schema =
+    SchemaConstructor
+      (MkSchemaInfo Nothing Nothing Nothing)
+      ( MkConstructorSchema
+          0
+          [definitionRef @k @referencedTypes,
+          definitionRef @v @referencedTypes]
+      )
+-}
+
+unstableMakeHasSchemaInstance ''Value
+deriving anyclass instance (AsDefinitionId Value)
+
+--
+
+unstableMakeIsDataSchema ''VoteValue
+deriving anyclass instance (AsDefinitionId VoteValue)
+
+unstableMakeIsDataSchema ''JuryPolicy
+deriving anyclass instance (AsDefinitionId JuryPolicy)
+deriving anyclass instance (AsDefinitionId SimpleVotingParams)
+deriving anyclass instance (AsDefinitionId SimpleVotingState)
 
 instance CEMScriptTypes SimpleVoting where
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
 
-$(deriveCEMAssociatedTypes ''SimpleVoting)
+$(deriveCEMAssociatedTypes True ''SimpleVoting)
 
 instance CEMScript SimpleVoting where
   transitionStage _ =

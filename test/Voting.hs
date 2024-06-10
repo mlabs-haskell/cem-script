@@ -4,10 +4,12 @@ import Prelude hiding (readFile)
 
 import Control.Monad.IO.Class (MonadIO (..))
 
+import PlutusTx.Blueprint
+
 import Test.Hspec (describe, it, shouldBe)
 
 import Cardano.CEM
-import Cardano.CEM.Examples.Compilation ()
+import Cardano.CEM.Examples.Compilation (votingBlueprint)
 import Cardano.CEM.Examples.Voting
 import Cardano.CEM.Monads (MonadTest (..))
 import Cardano.CEM.OffChain
@@ -19,6 +21,8 @@ import Utils
 votingSpec = describe "Voting" $ do
   let ignoreTest (_name :: String) = const (return ())
 
+  it "Compile blueprint" $
+    writeBlueprint "/tmp/blueprint.json" votingBlueprint
   -- FIXME: fix Voting budget
   ignoreTest "Successfull flow" $
     execClb $ do
