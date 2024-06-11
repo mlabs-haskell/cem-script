@@ -32,12 +32,11 @@ jobs:
           dist-newstyle
         key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
         restore-keys: ${{ runner.os }}-ghc964-
-    - name: Cabal build and test
+    - name: Cabal setup
       shell: devx {0}
       run: |
+        cabal configure -f-dev
         cabal update
-        cabal build
-        cabal test
     - name: Install and run linters
       shell: devx {0}
       run: |
@@ -45,6 +44,11 @@ jobs:
         cabal install --overwrite-policy=always fourmolu
         /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
         /home/runner/.cabal-devx/bin/fourmolu --mode check .
+    - name: Cabal build and test
+      shell: devx {0}
+      run: |
+        cabal build
+        cabal test
     - name: Build haddock
       shell: devx {0}
       run: |
