@@ -5,7 +5,6 @@ module Cardano.CEM.Monads.L1Commons where
 
 import Prelude
 
-import Control.Monad.Except (ExceptT (..), runExceptT)
 import Data.List (nub)
 import Data.Map qualified as Map
 

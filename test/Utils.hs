@@ -2,7 +2,6 @@ module Utils where
 
 import Prelude
 
-import Control.Monad.Trans (MonadIO (..))
 import Data.Map (keys)
 
 import PlutusLedgerApi.V1.Interval (always)

@@ -7,8 +7,6 @@ import Prelude
 
 -- Haskell imports
 import Control.Concurrent (threadDelay)
-import Control.Monad.Except (ExceptT (..), MonadError (..), runExceptT)
-import Control.Monad.Trans (MonadIO (..), MonadTrans (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Proxy (..))
 import Data.List (find)
