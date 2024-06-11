@@ -13,10 +13,7 @@ import Data.Map qualified as Map
 -- Plutus imports
 import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
-import PlutusLedgerApi.V2 (
-  ToData (..),
-  Value,
- )
+import PlutusLedgerApi.V2 (ToData (..), Value)
 import PlutusTx.Show.TH (deriveShow)
 
 -- Project imports
@@ -81,6 +78,29 @@ type DefaultConstraints datatype =
   , Prelude.Show datatype
   )
 
+{- | All associated types for `CEMScript`
+They are separated to simplify TH deriving
+-}
+class CEMScriptTypes script where
+  -- \| `Params` is immutable part of script Datum,
+  -- \| it should be used to encode all
+  type Params script = params | params -> script
+
+  -- | `Stage` is datatype encoding all `Interval`s specified by script.
+  -- | `Stage` logic is encoded by separate `Stages` type class.
+  -- | It have separate `StageParams` datatype,
+  -- | which is stored immutable in script Datum as well.
+  type Stage script
+
+  type Stage script = SingleStage
+
+  -- | `State` is changing part of script Datum.
+  -- | It is in
+  type State script = params | params -> script
+
+  -- | Transitions for deterministic CEM-machine
+  type Transition script = transition | transition -> script
+
 class
   ( HasSpine (Transition script)
   , HasSpine (State script)
@@ -90,26 +110,10 @@ class
   , DefaultConstraints (State script)
   , DefaultConstraints (Params script)
   , DefaultConstraints (StageParams (Stage script))
+  , CEMScriptTypes script
   ) =>
   CEMScript script
   where
-  -- | `Params` is immutable part of script Datum,
-  -- | it should be used to encode all
-  type Params script = params | params -> script
-
-  -- | `Stage` is datatype encoding all `Interval`s specified by script.
-  -- | `Stage` logic is encoded by separate `Stages` type class.
-  -- | It have separate `StageParams` datatype,
-  -- | which is stored immutable in script Datum as well.
-  type Stage script
-
-  -- | `State` is changing part of script Datum.
-  -- | It is in
-  type State script = params | params -> script
-
-  -- | Transitions for deterministic CEM-machine
-  type Transition script = transition | transition -> script
-
   -- | Each kind of Transition has statically associated Stage
   -- from/to `State`s spines
   transitionStage ::
