@@ -30,8 +30,9 @@ jobs:
         path: |
           ~/.cabal-devx
           dist-newstyle
-        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
-        restore-keys: ${{ runner.os }}-ghc964-
+        restore-keys: |
+          ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+          ${{ runner.os }}-ghc964-
     - name: Cabal setup
       shell: devx {0}
       run: |
