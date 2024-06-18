@@ -60,12 +60,15 @@ common common-lang
 common common-onchain
   import:        common-lang
   build-depends:
+    , plutarch
+    , plutarch-extra
+    , plutarch-ledger-api
     , plutus-core
-    , plutus-ledger-api
-    , plutus-tx          >=1.24
+    , plutus-ledger-api    ^>=1.23.0.0
+    , plutus-tx
     , plutus-tx-plugin
-    , template-haskell   >=2.20
-    , th-abstraction     >=0.6.0.0
+    , template-haskell
+    , th-abstraction       >=0.6.0.0
 
   if !flag(dev)
     ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors

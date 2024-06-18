@@ -141,8 +141,9 @@ genericCEMScript script scriptStage =
                 && let
                     expectedInterval =
                       always
-                      -- stageToOnChainInterval' stageParams (traceError "TODO")
                     in
+                    -- stageToOnChainInterval' stageParams (traceError "TODO")
+
                     traceIfFalse "Wrong interval for transition stage"
                       $ expectedInterval
                       `contains` txInfoValidRange info
