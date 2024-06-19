@@ -74,8 +74,7 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
         dl
         (runActionsInClb @SimpleAuction genesisValue)
     quickCheckDLScript dl = do
-      -- FIXME: CLB bug
-      actors <- execClb $ take 9 <$> getTestWalletSks
+      actors <- execClb getTestWalletSks
       result <- quickCheckResult $ runDLScript $ do
         _ <-
           action $
