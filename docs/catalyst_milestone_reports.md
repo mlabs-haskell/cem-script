@@ -5,11 +5,16 @@
 Changes:
 
 * Running in emulated environment by CLB
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Monads/CLB.hs), usage examples are all unit tests)
+* Running Quickcheck Dynamic tests, including mutation support
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Testing/StateMachine.hs),
+  [usage example](https://github.com/mlabs-haskell/cem-script/blob/master/test/Dynamic.hs))
 * Rendering CEMScript state graphs
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Documentation.hs), rendered example below)
 
 ## State graph examples
 
-![](./auction-state-graph.png)
+![](./auction-state-graph.svg)
 
 
 Source code:
