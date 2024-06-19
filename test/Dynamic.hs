@@ -49,14 +49,16 @@ instance CEMScriptArbitrary SimpleAuction where
         ]
     Just (Winner {}) -> return Buyout
     where
-      genBidder = elements (map signingKeyToPKH $ actors dappParams)
+      genBidder = elements (map signingKeyToPKH $ actors $ config dappParams)
       genBid bid = (betAmount bid +) <$> chooseInteger (0, 100_500)
 
 instance CEMScriptRunModel SimpleAuction where
-  performHook (ActorsKnown actors) (SetupCEMParams cemParams) = do
-    let s = seller $ scriptParams cemParams
-    mintTestTokens (findSkForPKH actors s) 1
-    return ()
+  performHook
+    (ConfigSet (MkTestConfig {actors}))
+    (SetupCEMParams cemParams) = do
+      let s = seller $ scriptParams cemParams
+      mintTestTokens (findSkForPKH actors s) 1
+      return ()
   performHook _ _ = return ()
 
 -- Run tests
@@ -75,6 +77,12 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
       -- FIXME: CLB bug
       actors <- execClb $ take 9 <$> getTestWalletSks
       result <- quickCheckResult $ runDLScript $ do
-        _ <- action $ SetupActors actors
+        _ <-
+          action $
+            SetupConfig $
+              MkTestConfig
+                { actors
+                , doMutationTesting = True
+                }
         dl
       isSuccess result `shouldBe` True
