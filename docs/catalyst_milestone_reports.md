@@ -14,7 +14,7 @@ Changes:
 
 ## State graph examples
 
-![](./auction-state-graph.png)
+![](./auction-state-graph.svg)
 
 
 Source code:
