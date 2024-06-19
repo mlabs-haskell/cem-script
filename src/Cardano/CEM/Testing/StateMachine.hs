@@ -1,14 +1,18 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
--- | Generic utils for using `quickcheck-dynamic`
+{- | Generic utils for using `quickcheck-dynamic`
+FIXME: refactor and add documentation
+-}
 module Cardano.CEM.Testing.StateMachine where
 
 import Prelude
 
 import Control.Monad (void)
+import Control.Monad.Except (ExceptT (..), runExceptT)
 import Control.Monad.Trans (MonadIO (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Typeable)
+import Data.List (permutations)
 import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
@@ -36,15 +40,51 @@ import Text.Show.Pretty (ppShow)
 
 import Cardano.CEM (CEMParams (..))
 import Cardano.CEM hiding (scriptParams)
-import Cardano.CEM.Monads (MonadSubmitTx)
-import Cardano.CEM.Monads.CLB
+import Cardano.CEM.Monads (MonadSubmitTx (..), ResolvedTx (..))
+import Cardano.CEM.Monads.CLB (execOnIsolatedClb)
 import Cardano.CEM.OffChain
 import Cardano.CEM.OnChain (CEMScriptCompiled)
-import Cardano.Extras
-import Data.Spine (HasSpine (..))
+import Cardano.Extras (signingKeyToPKH)
+import Data.Spine (HasSpine (..), deriveSpine)
+
+-- FIXME: add more mutations and documentation
+data TxMutation = RemoveTxFan TxFanKind | ShuffleTxFan TxFanKind Int
+  deriving stock (Eq, Show)
+
+deriveSpine ''TxMutation
+
+isNegativeMutation :: Maybe TxMutation -> Bool
+isNegativeMutation Nothing = False
+isNegativeMutation (Just (RemoveTxFan _)) = True
+isNegativeMutation (Just (ShuffleTxFan {})) = False
+
+permute :: Int -> [a] -> [a]
+permute num arr =
+  pms !! (num `mod` length pms)
+  where
+    pms = permutations arr
+
+applyMutation :: Maybe TxMutation -> ResolvedTx -> ResolvedTx
+applyMutation Nothing tx = tx
+applyMutation (Just (RemoveTxFan In)) tx = tx {txIns = tail $ txIns tx}
+applyMutation (Just (RemoveTxFan Out)) tx = tx {txOuts = tail $ txOuts tx}
+applyMutation (Just (RemoveTxFan InRef)) tx =
+  tx {txInsReference = tail $ txInsReference tx}
+applyMutation (Just (ShuffleTxFan In num)) tx =
+  tx {txIns = permute num $ txIns tx}
+applyMutation (Just (ShuffleTxFan Out num)) tx =
+  tx {txOuts = permute num $ txOuts tx}
+applyMutation (Just (ShuffleTxFan InRef num)) tx =
+  tx {txInsReference = permute num $ txInsReference tx}
+
+data TestConfig = MkTestConfig
+  { actors :: [SigningKey PaymentKey]
+  , doMutationTesting :: Bool
+  }
+  deriving stock (Generic, Eq, Show)
 
 data ScriptStateParams a = MkScriptStateParams
-  { actors :: [SigningKey PaymentKey]
+  { config :: TestConfig
   , cemParams :: CEMParams a
   }
   deriving stock (Generic)
@@ -57,7 +97,7 @@ deriving stock instance (CEMScript a) => Show (ScriptStateParams a)
 
 data ScriptState a
   = Void
-  | ActorsKnown [SigningKey PaymentKey]
+  | ConfigSet TestConfig
   | ScriptState
       { dappParams :: ScriptStateParams a
       , state :: Maybe (State a)
@@ -85,49 +125,78 @@ class
 
 instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   data Action (ScriptState script) output where
-    SetupActors :: [SigningKey PaymentKey] -> Action (ScriptState script) ()
+    SetupConfig :: TestConfig -> Action (ScriptState script) ()
     SetupCEMParams :: CEMParams script -> Action (ScriptState script) ()
     ScriptTransition ::
-      Transition script -> Action (ScriptState script) ()
+      Transition script ->
+      Maybe TxMutation ->
+      Action (ScriptState script) ()
     deriving stock (Typeable)
 
   type Error (ScriptState script) = String
 
   initialState = Void
 
-  actionName (ScriptTransition transition) = head . words . show $ transition
-  actionName SetupActors {} = "SetupActors"
+  actionName (ScriptTransition transition _) = head . words . show $ transition
+  actionName SetupConfig {} = "SetupConfig"
   actionName SetupCEMParams {} = "SetupCEMParams"
 
   arbitraryAction _varCtx modelState = case modelState of
-    Void {} -> Gen.oneof [] -- SetupActors should be done manually
-    ActorsKnown actors ->
-      Some . SetupCEMParams <$> arbitraryCEMParams actors
+    -- SetupConfig action should be called manually
+    Void {} -> Gen.oneof []
+    ConfigSet config ->
+      Some . SetupCEMParams <$> arbitraryCEMParams (actors config)
     ScriptState {dappParams, state} ->
-      Some . ScriptTransition <$> arbitraryTransition dappParams state
+      do
+        transition <- arbitraryTransition dappParams state
+        Some <$> (ScriptTransition transition <$> genMutation transition)
+      where
+        genTxKind = Gen.elements [In, Out]
+        genMutation transition =
+          if not $ doMutationTesting $ config dappParams
+            then return Nothing
+            else case transitionSpec @script (params dappParams) state transition of
+              Left _ -> return Nothing
+              Right _spec ->
+                Gen.oneof
+                  [ return Nothing
+                  , Just . RemoveTxFan <$> genTxKind
+                  , Just
+                      <$> ( ShuffleTxFan
+                              <$> genTxKind
+                              <*> Gen.chooseInt (1, 10)
+                          )
+                  ]
 
-  precondition Void (SetupActors {}) = True
-  precondition (ActorsKnown {}) (SetupCEMParams {}) = True
+  precondition Void (SetupConfig {}) = True
+  precondition (ConfigSet {}) (SetupCEMParams {}) = True
   precondition
     (ScriptState {dappParams, state, finished})
-    (ScriptTransition transition) =
+    (ScriptTransition transition mutation) =
       case transitionSpec @script (params dappParams) state transition of
-        Right _ -> not finished
+        Right _ ->
+          not finished && not (isNegativeMutation mutation)
         Left _ -> False
   -- Unreachable
   precondition _ _ = False
 
-  nextState Void (SetupActors actors) _var = ActorsKnown actors
-  nextState (ActorsKnown actors) (SetupCEMParams cemParams) _var =
+  -- XXX: Check on ScriptState and it fields is required for shrinking
+  -- FIXME: docs on QD generation hacks
+  validFailingAction (ScriptState {finished, state}) (ScriptTransition _ mutation) =
+    isNegativeMutation mutation && state /= Nothing && not finished
+  validFailingAction _ _ = False
+
+  nextState Void (SetupConfig config) _var = ConfigSet config
+  nextState (ConfigSet config) (SetupCEMParams cemParams) _var =
     ScriptState
-      { dappParams = MkScriptStateParams {actors, cemParams}
+      { dappParams = MkScriptStateParams {config, cemParams}
       , state = Nothing
       , involvedActors = Set.empty
       , finished = False
       }
   nextState
     as@ScriptState {dappParams, state}
-    (ScriptTransition transition)
+    (ScriptTransition transition _mutation)
     _var =
       case transitionSpec (params dappParams) state transition of
         Right spec ->
@@ -154,8 +223,8 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   nextState _ _ _ = error "Unreachable"
 
 instance (CEMScriptArbitrary script) => Show (Action (ScriptState script) a) where
-  show (ScriptTransition t) = "ScriptTransition " <> show t
-  show (SetupActors {}) = "SetupActors"
+  show (ScriptTransition t m) = "ScriptTransition " <> show t <> " mutated as " <> show m
+  show (SetupConfig {}) = "SetupConfig"
   show (SetupCEMParams {}) = "SetupCEMParams"
 
 deriving stock instance
@@ -188,34 +257,44 @@ instance
   where
   perform modelState action _lookup = do
     case (modelState, action) of
-      (Void, SetupActors {}) -> do
+      (Void, SetupConfig {}) -> do
         _ <- performHook modelState action
         return $ Right ()
-      (ActorsKnown {}, SetupCEMParams {}) -> do
+      (ConfigSet {}, SetupCEMParams {}) -> do
         _ <- performHook modelState action
         return $ Right ()
-      (ScriptState {dappParams, state}, ScriptTransition transition) -> do
-        _ <- performHook modelState action
-        case transitionSpec (params dappParams) state transition of
-          Right spec -> do
-            r <-
-              resolveTxAndSubmit $
-                MkTxSpec
-                  { actions =
-                      [ MkSomeCEMAction $ MkCEMAction (cemParams dappParams) transition
-                      ]
-                  , specSigner = findSkForPKH (actors dappParams) $ signerPKH spec
-                  }
-            return $ bimap show (const ()) r
-          Left err -> return $ Left $ show err
-        where
-          signerPKH spec = case getAllSpecSigners spec of
-            [singleSigner] -> singleSigner
-            _ -> error "Transition should have exactly one signer"
-      (_, _) -> error "Unreachable"
+      ( ScriptState {dappParams, state}
+        , ScriptTransition transition mutation
+        ) -> do
+          _ <- performHook modelState action
+          case transitionSpec (params dappParams) state transition of
+            Right spec -> do
+              r <- runExceptT $ do
+                resolved <-
+                  ExceptT $
+                    first show
+                      <$> ( resolveTx $
+                              MkTxSpec
+                                { actions =
+                                    [ MkSomeCEMAction $ MkCEMAction (cemParams dappParams) transition
+                                    ]
+                                , specSigner =
+                                    findSkForPKH (actors $ config dappParams) $ signerPKH spec
+                                }
+                          )
+                ExceptT $
+                  first show
+                    <$> submitResolvedTx (applyMutation mutation resolved)
+              return $ second (const ()) r
+            Left err -> return $ Left $ show err
+          where
+            signerPKH spec = case getAllSpecSigners spec of
+              [singleSigner] -> singleSigner
+              _ -> error "Transition should have exactly one signer"
+      (_, _) -> error $ "Unreachable"
 
-  monitoring (stateFrom, stateTo) _ _ _ prop = do
-    tabStateFrom $ labelIfFinished prop
+  monitoring (stateFrom, stateTo) action _ _ prop = do
+    tabMutations $ tabStateFrom $ labelIfFinished prop
     where
       isFinished (ScriptState {finished}) = finished
       isFinished _ = False
@@ -231,6 +310,12 @@ instance
         case stateFrom of
           ScriptState {state} ->
             tabulate "States (from)" [show $ getSpine state] prop'
+          _ -> prop'
+      tabMutations prop' =
+        case (stateFrom, action) of
+          (ScriptState {dappParams}, ScriptTransition _ mutation)
+            | doMutationTesting $ config dappParams ->
+                tabulate "Mutations" [show $ getSpine mutation] prop'
           _ -> prop'
 
   monitoringFailure state _ _ err prop =
