@@ -51,6 +51,7 @@ jobs:
         cabal build
         cabal test
     - name: Build haddock
+      if: ${{ vars.GITHUB_REF_NAME == 'master' }}
       shell: devx {0}
       run: |
         cabal haddock-project --hackage --internal
