@@ -25,8 +25,14 @@ cardanoTxBodyFromResolvedTx ::
   m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
 cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   -- (lowerBound, upperBound) <- convertValidityBound validityBound
-  -- FIXME
-  let keyWitnessedTxIns = [fst $ last txIns]
+
+  -- FIXME: proper fee coverage selection
+  utxo <- queryUtxo $ ByAddresses [signingKeyToAddress signer]
+  let
+    feeTxIns = Map.keys $ unUTxO utxo
+    allTxIns = txIns ++ map withKeyWitness feeTxIns
+
+  signerAddress <- fromPlutusAddressInMonad $ signingKeyToAddress signer
   MkBlockchainParams {protocolParameters} <- queryBlockchainParams
 
   let additionalSignersKeys =
@@ -35,9 +41,9 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   let preBody =
         TxBodyContent
           { -- FIXME: duplicate TxIn for coin-selection redeemer bug
-            txIns = nub txIns
+            txIns = nub allTxIns
           , txInsCollateral =
-              TxInsCollateral AlonzoEraOnwardsBabbage keyWitnessedTxIns
+              TxInsCollateral AlonzoEraOnwardsBabbage feeTxIns
           , txInsReference =
               TxInsReference BabbageEraOnwardsBabbage txInsReference
           , txOuts
@@ -46,8 +52,8 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
             -- signatures
             txExtraKeyWits =
               TxExtraKeyWitnesses AlonzoEraOnwardsBabbage $
-                fmap (verificationKeyHash . getVerificationKey) $
-                  additionalSignersKeys
+                verificationKeyHash . getVerificationKey
+                  <$> additionalSignersKeys
           , txProtocolParams =
               BuildTxWith $
                 Just $
@@ -71,8 +77,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
           , txVotingProcedures = Nothing
           }
 
-  signerAddress <- fromPlutusAddressInMonad $ signingKeyToAddress signer
-  txInsUtxo <- queryUtxo $ ByTxIns $ map fst txIns
+  txInsUtxo <- queryUtxo $ ByTxIns $ map fst allTxIns
 
   runExceptT $ do
     body <-

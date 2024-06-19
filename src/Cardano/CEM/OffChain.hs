@@ -241,11 +241,11 @@ resolveAction
             convertTxOut x =
               TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
 
-resolveTxAndSubmit ::
+resolveTx ::
   (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
   TxSpec ->
-  m (Either TxResolutionError TxId)
-resolveTxAndSubmit spec = runExceptT $ do
+  m (Either TxResolutionError ResolvedTx)
+resolveTx spec = runExceptT $ do
   -- Get specs
   !actionsSpecs <- mapM (ExceptT . resolveAction) $ actions spec
 
@@ -254,9 +254,13 @@ resolveTxAndSubmit spec = runExceptT $ do
     mergedSpec' = head actionsSpecs
     mergedSpec = mergedSpec' {signer = specSigner spec}
 
-  -- FIXME: more robust fee covering
-  !utxo <-
-    lift $ queryUtxo $ ByAddresses [signingKeyToAddress $ signer mergedSpec]
-  let ins = map withKeyWitness $ Map.keys $ unUTxO utxo
-  let result = submitResolvedTx $ mergedSpec {txIns = txIns mergedSpec ++ ins}
-  ExceptT $ (bimap UnhandledSubmittingError id) <$> result
+  return mergedSpec
+
+resolveTxAndSubmit ::
+  (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
+  TxSpec ->
+  m (Either TxResolutionError TxId)
+resolveTxAndSubmit spec = runExceptT $ do
+  resolved <- ExceptT $ resolveTx spec
+  let result = submitResolvedTx resolved
+  ExceptT $ first UnhandledSubmittingError <$> result
