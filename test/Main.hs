@@ -11,7 +11,7 @@ import Voting (votingSpec)
 
 main :: IO ()
 main = hspec $ do
-  dynamicSpec
   offChainSpec
   auctionSpec
   votingSpec
+  dynamicSpec

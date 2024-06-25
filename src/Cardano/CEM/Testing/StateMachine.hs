@@ -9,7 +9,7 @@ import Prelude
 
 import Control.Monad (void)
 import Control.Monad.Except (ExceptT (..), runExceptT)
-import Control.Monad.Trans (MonadIO (..))
+import Control.Monad.Trans (MonadIO (..), MonadTrans (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Typeable)
 import Data.List (permutations)
@@ -17,9 +17,8 @@ import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
 import PlutusLedgerApi.V1 (PubKeyHash)
-import PlutusTx.IsData (FromData (..))
 
-import Cardano.Api (PaymentKey, SigningKey, Value)
+import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
 
 import Clb (ClbT)
 import Test.QuickCheck
@@ -38,9 +37,18 @@ import Test.QuickCheck.StateModel (
  )
 import Text.Show.Pretty (ppShow)
 
-import Cardano.CEM (CEMParams (..))
-import Cardano.CEM hiding (scriptParams)
-import Cardano.CEM.Monads (CEMAction (..), MonadSubmitTx (..), ResolvedTx (..), SomeCEMAction (..), TxSpec (..))
+import Cardano.CEM
+import Cardano.CEM.DSL (getMainSigner)
+import Cardano.CEM.Monads (
+  BlockchainMonadEvent (..),
+  CEMAction (..),
+  MonadBlockchainParams (..),
+  MonadSubmitTx (..),
+  ResolvedTx (..),
+  SomeCEMAction (..),
+  TxResolutionError (..),
+  TxSpec (..),
+ )
 import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
 import Cardano.CEM.OffChain
 import Cardano.CEM.OnChain (CEMScriptCompiled)
@@ -48,7 +56,10 @@ import Cardano.Extras (signingKeyToPKH)
 import Data.Spine (HasSpine (..), deriveSpine)
 
 -- FIXME: add more mutations and documentation
-data TxMutation = RemoveTxFan TxFanKind | ShuffleTxFan TxFanKind Int
+data TxMutation
+  = RemoveTxFan {fanKind :: TxFanKind}
+  | ShuffleTxFan
+      {fanKind :: TxFanKind, fanNum :: Int}
   deriving stock (Eq, Show)
 
 deriveSpine ''TxMutation
@@ -69,13 +80,13 @@ applyMutation Nothing tx = tx
 applyMutation (Just (RemoveTxFan In)) tx = tx {txIns = tail $ txIns tx}
 applyMutation (Just (RemoveTxFan Out)) tx = tx {txOuts = tail $ txOuts tx}
 applyMutation (Just (RemoveTxFan InRef)) tx =
-  tx {txInsReference = tail $ txInsReference tx}
+  tx {txInRefs = tail $ txInRefs tx}
 applyMutation (Just (ShuffleTxFan In num)) tx =
   tx {txIns = permute num $ txIns tx}
 applyMutation (Just (ShuffleTxFan Out num)) tx =
   tx {txOuts = permute num $ txOuts tx}
 applyMutation (Just (ShuffleTxFan InRef num)) tx =
-  tx {txInsReference = permute num $ txInsReference tx}
+  tx {txInRefs = permute num $ txInRefs tx}
 
 data TestConfig = MkTestConfig
   { actors :: [SigningKey PaymentKey]
@@ -85,12 +96,9 @@ data TestConfig = MkTestConfig
 
 data ScriptStateParams a = MkScriptStateParams
   { config :: TestConfig
-  , cemParams :: CEMParams a
+  , params :: Params a
   }
   deriving stock (Generic)
-
-params :: ScriptStateParams script -> Params script
-params = scriptParams . cemParams
 
 deriving stock instance (CEMScript a) => Eq (ScriptStateParams a)
 deriving stock instance (CEMScript a) => Show (ScriptStateParams a)
@@ -119,14 +127,14 @@ class
   (CEMScriptCompiled script) =>
   CEMScriptArbitrary script
   where
-  arbitraryCEMParams :: [SigningKey PaymentKey] -> Gen (CEMParams script)
+  arbitraryParams :: [SigningKey PaymentKey] -> Gen (Params script)
   arbitraryTransition ::
     ScriptStateParams script -> Maybe (State script) -> Gen (Transition script)
 
 instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   data Action (ScriptState script) output where
     SetupConfig :: TestConfig -> Action (ScriptState script) ()
-    SetupCEMParams :: CEMParams script -> Action (ScriptState script) ()
+    SetupParams :: Params script -> Action (ScriptState script) ()
     ScriptTransition ::
       Transition script ->
       Maybe TxMutation ->
@@ -139,44 +147,32 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
 
   actionName (ScriptTransition transition _) = head . words . show $ transition
   actionName SetupConfig {} = "SetupConfig"
-  actionName SetupCEMParams {} = "SetupCEMParams"
+  actionName SetupParams {} = "SetupParams"
 
   arbitraryAction _varCtx modelState = case modelState of
     -- SetupConfig action should be called manually
     Void {} -> Gen.oneof []
     ConfigSet config ->
-      Some . SetupCEMParams <$> arbitraryCEMParams (actors config)
+      Some . SetupParams <$> arbitraryParams (actors config)
     ScriptState {dappParams, state} ->
       do
         transition <- arbitraryTransition dappParams state
         Some <$> (ScriptTransition transition <$> genMutation transition)
       where
-        genTxKind = Gen.elements [In, Out]
-        genMutation transition =
-          if not $ doMutationTesting $ config dappParams
-            then return Nothing
-            else case transitionSpec @script (params dappParams) state transition of
-              Left _ -> return Nothing
-              Right _spec ->
-                Gen.oneof
-                  [ return Nothing
-                  , Just . RemoveTxFan <$> genTxKind
-                  , Just
-                      <$> ( ShuffleTxFan
-                              <$> genTxKind
-                              <*> Gen.chooseInt (1, 10)
-                          )
-                  ]
-
+        -- FIXME: return mutation support
+        genMutation _transition = return Nothing
   precondition Void (SetupConfig {}) = True
-  precondition (ConfigSet {}) (SetupCEMParams {}) = True
+  precondition (ConfigSet {}) (SetupParams {}) = True
   precondition
     (ScriptState {dappParams, state, finished})
     (ScriptTransition transition mutation) =
-      case transitionSpec @script (params dappParams) state transition of
-        Right _ ->
-          not finished && not (isNegativeMutation mutation)
-        Left _ -> False
+      let
+        cemAction = MkCEMAction (params dappParams) transition
+        compiled = compileActionConstraints state cemAction
+       in
+        case compiled of
+          Right _ -> not finished && not (isNegativeMutation mutation)
+          Left _ -> False
   -- Unreachable
   precondition _ _ = False
 
@@ -187,9 +183,9 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   validFailingAction _ _ = False
 
   nextState Void (SetupConfig config) _var = ConfigSet config
-  nextState (ConfigSet config) (SetupCEMParams cemParams) _var =
+  nextState (ConfigSet config) (SetupParams params) _var =
     ScriptState
-      { dappParams = MkScriptStateParams {config, cemParams}
+      { dappParams = MkScriptStateParams {config, params}
       , state = Nothing
       , involvedActors = Set.empty
       , finished = False
@@ -198,34 +194,34 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
     as@ScriptState {dappParams, state}
     (ScriptTransition transition _mutation)
     _var =
-      case transitionSpec (params dappParams) state transition of
-        Right spec ->
-          as
-            { state = nextCEMState spec
-            , involvedActors =
-                involvedActors as
-                  <> Set.fromList (getAllSpecSigners spec)
-            , finished = nextCEMState spec == Nothing
-            }
-        Left _ -> error "Unreachable"
+      let
+        cemAction = MkCEMAction (params dappParams) transition
+        cs = case compileActionConstraints state cemAction of
+          Right x -> x
+          Left _ -> error "Unreachable: by preconditions"
+       in
+        as
+          { state = nextCEMState cs
+          , involvedActors =
+              involvedActors as
+                <> Set.fromList [getMainSigner cs]
+          , finished = nextCEMState cs == Nothing
+          }
       where
-        nextCEMState spec = case outStates spec of
+        nextCEMState cs = case mapMaybe f cs of
+          [x] -> Just x
           [] -> Nothing
-          [state'] -> Just state'
           _ ->
             error
-              "This StateModel instance support only with single-output scripts"
-        outStates spec = mapMaybe decodeOutState $ constraints spec
-        decodeOutState c = case rest (txFanCFilter c) of
-          UnsafeBySameCEM stateBS ->
-            fromBuiltinData @(State script) stateBS
-          _ -> Nothing
+              "Scripts with >1 SameScript outputs are not supported by QD"
+        f (TxFan Out (SameScript outState) _) = Just outState
+        f _ = Nothing
   nextState _ _ _ = error "Unreachable"
 
 instance (CEMScriptArbitrary script) => Show (Action (ScriptState script) a) where
   show (ScriptTransition t m) = "ScriptTransition " <> show t <> " mutated as " <> show m
   show (SetupConfig {}) = "SetupConfig"
-  show (SetupCEMParams {}) = "SetupCEMParams"
+  show (SetupParams {}) = "SetupParams"
 
 deriving stock instance
   (CEMScriptArbitrary script) => Eq (Action (ScriptState script) a)
@@ -260,38 +256,37 @@ instance
       (Void, SetupConfig {}) -> do
         _ <- performHook modelState action
         return $ Right ()
-      (ConfigSet {}, SetupCEMParams {}) -> do
+      (ConfigSet {}, SetupParams {}) -> do
         _ <- performHook modelState action
         return $ Right ()
       ( ScriptState {dappParams, state}
-        , ScriptTransition transition mutation
+        , ScriptTransition transition _mutation
         ) -> do
           _ <- performHook modelState action
-          case transitionSpec (params dappParams) state transition of
-            Right spec -> do
-              r <- runExceptT $ do
-                resolved <-
-                  ExceptT $
-                    first show
-                      <$> ( resolveTx $
-                              MkTxSpec
-                                { actions =
-                                    [ MkSomeCEMAction $ MkCEMAction (cemParams dappParams) transition
-                                    ]
-                                , specSigner =
-                                    findSkForPKH (actors $ config dappParams) $ signerPKH spec
-                                }
-                          )
-                ExceptT $
-                  first show
-                    <$> submitResolvedTx (applyMutation mutation resolved)
-              return $ second (const ()) r
-            Left err -> return $ Left $ show err
+          bimap show (const ()) <$> mutatedResolveAndSubmit
           where
-            signerPKH spec = case getAllSpecSigners spec of
-              [singleSigner] -> singleSigner
-              _ -> error "Transition should have exactly one signer"
-      (_, _) -> error $ "Unreachable"
+            -- This should emulate `resolveAndSubmit`
+            -- FIXME: DRY it and move Mutations to main implementation
+            mutatedResolveAndSubmit :: m (Either TxResolutionError TxId)
+            mutatedResolveAndSubmit = runExceptT $ do
+              let cemAction = MkCEMAction (params dappParams) transition
+              -- FIXME: refactor all ExceptT mess
+              cs <- ExceptT $ return $ compileActionConstraints state cemAction
+              let
+                signerPKH = getMainSigner cs
+                specSigner =
+                  findSkForPKH (actors $ config dappParams) signerPKH
+              resolutions <- mapM (process cemAction) cs
+              let resolvedTx = (construct resolutions) {signer = specSigner}
+              result <-
+                first UnhandledSubmittingError
+                  <$> lift (submitResolvedTx resolvedTx)
+              let spec = MkTxSpec [MkSomeCEMAction cemAction] specSigner
+              lift $
+                logEvent $
+                  SubmittedTxSpec spec result
+              ExceptT $ return result
+      (_, _) -> error "Unreachable"
 
   monitoring (stateFrom, stateTo) action _ _ prop = do
     tabMutations $ tabStateFrom $ labelIfFinished prop

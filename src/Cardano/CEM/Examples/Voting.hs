@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# HLINT ignore "Use when" #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.CEM.Examples.Voting where
 
@@ -11,12 +12,11 @@ import Data.Map qualified as Map
 
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
-import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
 
 import Cardano.CEM
-import Cardano.CEM.Stages
 import Cardano.CEM.TH (deriveCEMAssociatedTypes)
+import Data.Spine
 
 -- Voting
 
@@ -25,25 +25,43 @@ data SimpleVoting
 data VoteValue = Yes | No | Abstain
   deriving stock (Prelude.Show, Prelude.Eq)
 
+derivePlutusSpine ''VoteValue
+
 instance Eq VoteValue where
   Yes == Yes = True
   No == No = True
   Abstain == Abstain = True
   _ == _ = False
 
--- | Policy determinig who can vote
-data JuryPolicy = Anyone | FixedJuryList [PubKeyHash] | WithToken Value
+-- | Policy determining who can vote
+data JuryPolicy
+  = Anyone
+  | FixedJuryList
+      { juryList :: [PubKeyHash]
+      }
+  | WithToken
+      { juryAuthTokenValue :: Value
+      }
   deriving stock (Prelude.Show, Prelude.Eq)
+
+derivePlutusSpine ''JuryPolicy
 
 -- Votes storage
 
 -- | Map from jury to their decision
 type VoteStorage = PMap.Map PubKeyHash VoteValue
 
-addVote :: PubKeyHash -> VoteValue -> VoteStorage -> Either BuiltinString VoteStorage
+data VoteAddResult
+  = DuplicateVote
+  | Success {newVoteStorage :: VoteStorage}
+  deriving stock (Prelude.Eq, Prelude.Show)
+
+derivePlutusSpine ''VoteAddResult
+
+addVote :: PubKeyHash -> VoteValue -> VoteStorage -> VoteAddResult
 addVote jury vote storage = case PMap.lookup jury storage of
-  Just _ -> traceError "You already casted vote"
-  Nothing -> Right $ PMap.insert jury vote storage
+  Nothing -> Success $ PMap.insert jury vote storage
+  Just {} -> DuplicateVote
 
 {-# INLINEABLE countVotes #-}
 countVotes :: SimpleVotingParams -> VoteStorage -> VoteValue
@@ -74,90 +92,140 @@ data SimpleVotingParams = MkVotingParams
 
 data SimpleVotingState
   = NotStarted
-  | InProgress VoteStorage
-  | Finalized VoteValue
+  | InProgress
+      { votes :: VoteStorage
+      }
+  | Finalized
+      { votingResult :: VoteValue
+      }
   deriving stock (Prelude.Show, Prelude.Eq)
 
 data SimpleVotingTransition
   = Create
   | Start
-  | Vote PubKeyHash VoteValue
+  | Vote
+      { votingJury :: PubKeyHash
+      , voteValue :: VoteValue
+      }
   | Finalize
   deriving stock (Prelude.Show, Prelude.Eq)
 
-PlutusTx.unstableMakeIsData ''VoteValue
-PlutusTx.unstableMakeIsData ''JuryPolicy
+data SimpleVotingCalc
+  = VoteCalc
+      { votingNotAllowed :: Bool
+      , voteAddResult :: VoteAddResult
+      }
+  | FinalizeCalc {result :: VoteValue}
+  | NoCalc
+  deriving stock (Prelude.Eq, Prelude.Show)
 
 instance CEMScriptTypes SimpleVoting where
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
+  type TransitionComp SimpleVoting = SimpleVotingCalc
 
+derivePlutusSpine ''SimpleVotingCalc
 $(deriveCEMAssociatedTypes False ''SimpleVoting)
 
 instance CEMScript SimpleVoting where
-  transitionStage _ =
-    Map.fromList
-      [ (CreateSpine, (Always, Nothing, Just NotStartedSpine))
-      , (StartSpine, (Always, Just NotStartedSpine, Just InProgressSpine))
-      , (VoteSpine, (Always, Just InProgressSpine, Just InProgressSpine))
-      , (FinalizeSpine, (Always, Just InProgressSpine, Nothing))
-      ]
+  compilationConfig = MkCompilationConfig "VOT"
 
-  {-# INLINEABLE transitionSpec #-}
-  transitionSpec params state transition =
-    case (state, transition) of
-      (Nothing, Create) ->
-        Right
-          $ MkTransitionSpec
-            { constraints = [nextScriptState NotStarted]
-            , signers = [creator params]
-            }
-      (Just NotStarted, Start) ->
-        Right
-          $ MkTransitionSpec
-            { constraints = [nextScriptState (InProgress PMap.empty)]
-            , signers = [creator params]
-            }
-      (Just (InProgress votes), Vote jury vote) -> do
-        -- Check if you can vote
-        case juryPolicy params of
-          FixedJuryList allowedJury ->
-            if jury `notElem` allowedJury
-              then Left "You are not allowed to vote, not on list"
-              else return ()
-          _ -> return ()
-        if not (abstainAllowed params) && vote == Abstain
-          then Left "You cannot vote Abstain in this vote"
-          else return ()
-
-        let allowedToVoteConstraints =
-              case juryPolicy params of
-                WithToken value ->
-                  [ MkTxFanC
-                      InRef
-                      (MkTxFanFilter (ByPubKey jury) Anything)
-                      (SumValueEq value)
-                  ]
-                _ -> []
-
-        -- Update state
-        newVoteStorage <- addVote jury vote votes
-        Right
-          $ MkTransitionSpec
-            { constraints =
-                nextScriptState (InProgress newVoteStorage)
-                  : allowedToVoteConstraints
-            , signers = [jury]
-            }
-      (Just (InProgress votes), Finalize) ->
-        Right
-          $ MkTransitionSpec
-            { constraints =
-                [nextScriptState $ Finalized (countVotes params votes)]
-            , signers = [creator params]
-            }
-      _ -> Left "Wrong state transition" where
+  {-# INLINEABLE transitionComp #-}
+  transitionComp = Just go
     where
-      nextScriptState state' =
-        MkTxFanC Out (MkTxFanFilter BySameScript (bySameCEM state')) (Exist 1)
+      go params (InProgress votes) transition =
+        case transition of
+          Vote jury vote ->
+            VoteCalc
+              { votingNotAllowed =
+                  case juryPolicy params of
+                    FixedJuryList allowedJury ->
+                      jury `notElem` allowedJury
+                    _ -> False
+              , voteAddResult = addVote jury vote votes
+              }
+          Finalize -> FinalizeCalc $ countVotes params votes
+          _ -> NoCalc
+      go _ _ _ = NoCalc
+
+  perTransitionScriptSpec =
+    Map.fromList
+      [
+        ( CreateSpine
+        ,
+          [ TxFan Out (SameScript $ Pure NotStarted) cMinLovelace
+          , MainSignerNoValue ctxParams.creator
+          ]
+        )
+      ,
+        ( StartSpine
+        ,
+          [ TxFan In (SameScript $ Pure NotStarted) cMinLovelace
+          , TxFan Out (SameScript $ Pure $ InProgress PMap.empty) cMinLovelace
+          , MainSignerNoValue ctxParams.creator
+          ]
+        )
+      ,
+        ( VoteSpine
+        ,
+          [ sameScriptIncOfSpine InProgressSpine
+          , MatchBySpine ctxComp.voteAddResult
+              $ Map.fromList
+                [ (DuplicateVoteSpine, Error "You already casted vote")
+                ,
+                  ( SuccessSpine
+                  , TxFan
+                      Out
+                      ( SameScript
+                          $ cOfSpine
+                            InProgressSpine
+                            [ #votes
+                                ::= ctxComp.voteAddResult.newVoteStorage
+                            ]
+                      )
+                      cMinLovelace
+                  )
+                ]
+          , MainSignerNoValue ctxTransition.votingJury
+          , MatchBySpine ctxParams.juryPolicy
+              $ Map.fromList
+                [
+                  ( WithTokenSpine
+                  , TxFan
+                      InRef
+                      (UserAddress ctxTransition.votingJury)
+                      ctxParams.juryPolicy.juryAuthTokenValue
+                  )
+                , (FixedJuryListSpine, Noop)
+                , (AnyoneSpine, Noop)
+                ]
+          , byFlagError
+              ctxComp.votingNotAllowed
+              "You are not allowed to vote, not on list"
+          , byFlagError
+              ( cNot ctxParams.abstainAllowed
+                  @&& (ctxTransition.voteValue @== Pure Abstain)
+              )
+              "You cannot vote Abstain in this vote"
+          ]
+        )
+      ,
+        ( FinalizeSpine
+        ,
+          [ sameScriptIncOfSpine InProgressSpine
+          , TxFan
+              Out
+              ( SameScript
+                  $ cOfSpine
+                    FinalizedSpine
+                    [#votingResult ::= ctxComp.result]
+              )
+              cMinLovelace
+          , MainSignerNoValue ctxParams.creator
+          ]
+        )
+      ]
+    where
+      sameScriptIncOfSpine spine =
+        TxFan In (SameScript $ cUpdateOfSpine ctxState spine []) cMinLovelace

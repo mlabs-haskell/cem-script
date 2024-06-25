@@ -73,7 +73,7 @@ mintTestTokens userSk numMint = do
     tx =
       MkResolvedTx
         { txIns = map withKeyWitness user1TxIns
-        , txInsReference = []
+        , txInRefs = []
         , txOuts = [out]
         , toMint =
             mintedTokens
@@ -104,7 +104,6 @@ awaitEitherTx eitherTx =
   case eitherTx of
     Right txId -> do
       awaitTx txId
-    -- liftIO $ putStrLn $ "Awaited " <> show txId
     Left errorMsg -> error $ "Failed to send tx: " <> ppShow errorMsg
 
 submitAndCheck :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m ()

@@ -10,7 +10,7 @@ import Data.Map qualified as Map
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.Shelley (LedgerProtocolParameters (..), Tx (..))
+import Cardano.Api.Shelley (LedgerProtocolParameters (..))
 
 -- Project imports
 import Cardano.CEM.Monads
@@ -46,7 +46,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
           , txInsCollateral =
               TxInsCollateral AlonzoEraOnwardsBabbage feeTxIns
           , txInsReference =
-              TxInsReference BabbageEraOnwardsBabbage txInsReference
+              TxInsReference BabbageEraOnwardsBabbage txInRefs
           , txOuts
           , txMintValue = toMint
           , -- Adding all keys here, cuz other way `txSignedBy` does not see those
