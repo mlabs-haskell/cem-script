@@ -83,12 +83,15 @@ common common-onchain
     -fno-unbox-strict-fields -fno-full-laziness -fno-spec-constr
     -fno-strictness -fno-unbox-small-strict-fields
 
+
 common common-offchain
   import:        common-lang
 
   -- Cardano-api:internal required due to:
   -- https://github.com/IntersectMBO/cardano-api/issues/502
   build-depends:
+    , prettyprinter
+    , singletons-th
     , aeson
     , bytestring
     , cardano-api

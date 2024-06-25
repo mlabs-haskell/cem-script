@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# HLINT ignore "Use when" #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.CEM.Examples.Voting where
 
@@ -15,8 +16,10 @@ import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
 
 import Cardano.CEM
+import Cardano.CEM (ConstraintDSL (Check, OfSpine), ctxParams, minLovelace)
 import Cardano.CEM.Stages
 import Cardano.CEM.TH (deriveCEMAssociatedTypes)
+import Data.Proxy (Proxy (..))
 
 -- Voting
 
@@ -31,8 +34,11 @@ instance Eq VoteValue where
   Abstain == Abstain = True
   _ == _ = False
 
--- | Policy determinig who can vote
-data JuryPolicy = Anyone | FixedJuryList [PubKeyHash] | WithToken Value
+-- | Policy determining who can vote
+data JuryPolicy
+  = Anyone
+  | FixedJuryList [PubKeyHash]
+  | WithToken Value
   deriving stock (Prelude.Show, Prelude.Eq)
 
 -- Votes storage
@@ -74,24 +80,41 @@ data SimpleVotingParams = MkVotingParams
 
 data SimpleVotingState
   = NotStarted
-  | InProgress VoteStorage
-  | Finalized VoteValue
+  | InProgress
+      { votes :: VoteStorage
+      }
+  | Finalized
+      { votingResult :: VoteValue
+      }
   deriving stock (Prelude.Show, Prelude.Eq)
 
 data SimpleVotingTransition
   = Create
   | Start
-  | Vote PubKeyHash VoteValue
+  | Vote
+      { votingJury :: PubKeyHash
+      , voteValue :: VoteValue
+      }
   | Finalize
   deriving stock (Prelude.Show, Prelude.Eq)
 
 PlutusTx.unstableMakeIsData ''VoteValue
 PlutusTx.unstableMakeIsData ''JuryPolicy
 
+data SimpleVotingCalc
+  = VoteCalc
+      { votingNotAllowed :: Bool
+      , abstainVoteError :: Bool
+      , juryRequiredToken :: Maybe Value
+      , newVoteStorage :: VoteStorage
+      }
+  | FinalizeCalc {result :: VoteValue}
+
 instance CEMScriptTypes SimpleVoting where
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
+  type Calc SimpleVoting = SimpleVotingCalc
 
 $(deriveCEMAssociatedTypes False ''SimpleVoting)
 
@@ -102,6 +125,74 @@ instance CEMScript SimpleVoting where
       , (StartSpine, (Always, Just NotStartedSpine, Just InProgressSpine))
       , (VoteSpine, (Always, Just InProgressSpine, Just InProgressSpine))
       , (FinalizeSpine, (Always, Just InProgressSpine, Nothing))
+      ]
+
+  transitionComp = Just go
+    where
+      go params (Just (InProgress votes)) transition =
+        case transition of
+          Vote vote ->
+            VoteCalc
+              { votingNotAllowed =
+                  case juryPolicy params of
+                    FixedJuryList allowedJury -> jury `notElem` allowedJury
+                    _ -> False
+              , abstainVoteError =
+                  not (abstainAllowed params) && vote == Abstain
+              , juryRequiredToken = case juryPolicy params of
+                  WithToken value -> Just value
+                  _ -> Nothing
+              , newVoteStorage = addVote jury vote votes
+              }
+          Finalize -> FinalizeCalc $ countVotes params votes
+
+  transitionSpec' =
+    Map.fromList
+      [
+        ( CreateSpine
+        ,
+          [ TxFan Out $ SameScript $ Pure NotStarted
+          , AdditionalSigner ctxParams.creator
+          ]
+        )
+      ,
+        ( StartSpine
+        ,
+          [ TxFan Out $ SameScript $ Pure $ InProgress PMap.empty
+          , AdditionalSigner ctxParams.creator
+          ]
+        )
+      ,
+        ( VoteSpine
+        ,
+          [ TxFan Out
+              $ SameScript
+              $ OfSpine
+                InProgressSpine
+                [ #votes ::= ctxComp.newVoteStorage
+                ]
+          , AdditionalSigner ctxParams.creator
+          -- TODO: Jury token
+          , byFlagError
+              ctxComp.votingNotAllowed
+              "You are not allowed to vote, not on list"
+          , byFlagError
+              ctxComp.abstainVoteError
+              "You cannot vote Abstain in this vote"
+          ]
+        )
+      ,
+        ( FinalizeSpine
+        ,
+          [ TxFan
+                Out
+                ( SameScript
+                    $ OfSpine FinalizedSpine [#result ::= ctxComp.result]
+                )
+                minLovelace
+          , AdditionalSigner ctxParams.creator
+          ]
+        )
       ]
 
   {-# INLINEABLE transitionSpec #-}

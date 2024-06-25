@@ -1,4 +1,5 @@
-{-# LANGUAGE NoPolyKinds #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module Cardano.CEM.Examples.Auction where
 
@@ -16,8 +17,10 @@ import PlutusLedgerApi.V2 (Value)
 import PlutusTx qualified
 
 import Cardano.CEM
+import Cardano.CEM (ConstraintDSL (OfSpine), TxFanConstraint (MkTxFanC), TxFanConstraint' (AdditionalSigner), TxFanFilterNew (SameScript, UserAddress))
 import Cardano.CEM.Stages (Stages (..))
 import Cardano.CEM.TH (deriveCEMAssociatedTypes, deriveStageAssociatedTypes)
+import Data.Spine
 
 -- Simple no-deposit auction
 
@@ -29,6 +32,8 @@ data Bid = MkBet
   }
   deriving stock (Prelude.Eq, Prelude.Show)
 
+deriveSpine ''Bid
+
 data SimpleAuctionStage = Open | Closed
   deriving stock (Prelude.Eq, Prelude.Show)
 
@@ -37,7 +42,7 @@ data SimpleAuctionStageParams
   | CanCloseAt POSIXTime
   deriving stock (Prelude.Eq, Prelude.Show)
 
-instance Stages SimpleAuctionStage where
+instance Stages SimpleAuctionStage SimpleAuctionStageParams where
   type StageParams SimpleAuctionStage = SimpleAuctionStageParams
   stageToOnChainInterval NoControl _ = Interval.always
   -- Example: logical error
@@ -46,8 +51,12 @@ instance Stages SimpleAuctionStage where
 
 data SimpleAuctionState
   = NotStarted
-  | CurrentBid Bid
-  | Winner Bid
+  | CurrentBid
+      { bid :: Bid
+      }
+  | Winner
+      { bid :: Bid
+      }
   deriving stock (Prelude.Eq, Prelude.Show)
 
 data SimpleAuctionParams = MkAuctionParams
@@ -59,7 +68,9 @@ data SimpleAuctionParams = MkAuctionParams
 data SimpleAuctionTransition
   = Create
   | Start
-  | MakeBid Bid
+  | MakeBid
+      { bid :: Bid
+      }
   | Close
   | Buyout
   deriving stock (Prelude.Eq, Prelude.Show)
@@ -84,6 +95,80 @@ instance CEMScript SimpleAuction where
       , (CloseSpine, (Closed, Just CurrentBidSpine, Just WinnerSpine))
       , (BuyoutSpine, (Closed, Just WinnerSpine, Nothing))
       ]
+
+  transitionSpec' =
+    Map.fromList
+      [
+        ( CreateSpine
+        ,
+          [ TxFan In (UserAddress ctxParams.seller) ctxParams.lot
+          , TxFan Out (SameScript $ Pure NotStarted) minLovelace
+          ]
+        )
+      ,
+        ( StartSpine
+        ,
+          [ TxFan In (SameScript $ Pure NotStarted) minLovelace
+          , TxFan
+              Out
+              ( SameScript
+                  $ OfSpine CurrentBidSpine [#bid ::= initialBid]
+              )
+              minLovelace
+          , AdditionalSigner ctxParams.seller
+          ]
+        )
+      ,
+        ( MakeBidSpine
+        ,
+          [ Embed
+              $ If
+                (ctxState.bid.betAmount @>= ctxTransition.bid.betAmount)
+                (Error "Wrong Bid amount")
+                (Check Noop)
+          , TxFan
+              Out
+              ( SameScript
+                  $ OfSpine
+                    CurrentBidSpine
+                    [#bid ::= ctxTransition.bid]
+              )
+              minLovelace
+          , AdditionalSigner ctxTransition.bid.better
+          ]
+        )
+      ,
+        ( CloseSpine
+        ,
+          [ TxFan
+              Out
+              ( SameScript
+                  $ OfSpine WinnerSpine [#bid ::= ctxState.bid]
+              )
+              minLovelace
+          , AdditionalSigner ctxParams.seller
+          ]
+        )
+      ,
+        ( BuyoutSpine
+        ,
+          [ checkOnchainOnly
+              ( TxFan In (UserAddress buyoutBid.better)
+                  $ AdaValue buyoutBid.betAmount
+              )
+          , TxFan In (UserAddress buyoutBid.better) ctxParams.lot
+          , TxFan Out (UserAddress buyoutBid.better) ctxParams.lot
+          ]
+        )
+      ]
+    where
+      buyoutBid = ctxState.winnerBet
+      initialBid =
+        OfSpine
+          MkBetSpine
+          [ #better ::= ctxParams.seller
+          , #betAmount ::= Pure 0
+          ]
 
   {-# INLINEABLE transitionSpec #-}
   transitionSpec params state transition = case (state, transition) of

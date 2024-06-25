@@ -27,6 +27,8 @@ import Cardano.Api.Shelley (
   toPlutusData,
  )
 
+import Plutarch.Script (serialiseScript)
+
 -- Project imports
 
 import Cardano.CEM
@@ -170,7 +172,7 @@ resolveAction
               let
                 scriptWitness =
                   mkInlinedDatumScriptWitness
-                    (PlutusScriptSerialised @PlutusLang script)
+                    (PlutusScriptSerialised @PlutusLang $ serialiseScript script)
                     transition
                in
                 [(txIn, scriptWitness)]

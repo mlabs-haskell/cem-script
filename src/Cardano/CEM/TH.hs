@@ -1,5 +1,6 @@
 module Cardano.CEM.TH (
   deriveCEMAssociatedTypes,
+  resolveFamily,
   compileCEM,
   unstableMakeIsDataSchema,
   deriveStageAssociatedTypes,
@@ -13,21 +14,26 @@ import Data.Data (Proxy (..))
 import GHC.Num.Natural (Natural)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (sequenceQ)
+import Control.Monad.Trans (MonadIO (..))
+import Debug.Trace (trace)
 
 import PlutusTx qualified
 import PlutusTx.Blueprint.TH
+import PlutusTx.Show (deriveShow)
 
 import Language.Haskell.TH.Datatype (
   ConstructorInfo (..),
   DatatypeInfo (..),
   reifyDatatype,
  )
+import Plutarch (Config (..), LogLevel (..), TracingMode (..), compile, prettyScript)
+import Plutarch.Script (serialiseScript)
+import Prettyprinter (pretty)
 
 import Cardano.CEM (CEMScriptTypes (..))
-import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericCEMScript)
+import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
 import Cardano.CEM.Stages (Stages (..))
 import Data.Spine (deriveSpine)
-import PlutusTx.Show (deriveShow)
 
 defaultIndex :: Name -> Q [(Name, Natural)]
 defaultIndex name = do
@@ -74,6 +80,7 @@ deriveCEMAssociatedTypes deriveBlueprint scriptName = do
       , -- Spines
         deriveFamily deriveSpine ''State
       , deriveFamily deriveSpine ''Transition
+      , deriveFamily deriveSpine ''Params
       , -- Other
         deriveShow scriptName
       ]
@@ -90,9 +97,13 @@ deriveCEMAssociatedTypes deriveBlueprint scriptName = do
 compileCEM :: Name -> Q [Dec]
 compileCEM name = do
   stageName <- resolveFamily ''Stage name
-  let compiled = PlutusTx.compileUntyped $ genericCEMScript name stageName
+  let compiled =
+        [|compile (Tracing LogDebug DoTracing) $(genericPlutarchScript name stageName)|]
+  let script' = [| case $compiled of Right script -> script |]
   [d|
     instance CEMScriptCompiled $(conT name) where
       {-# INLINEABLE cemScriptCompiled #-}
-      cemScriptCompiled Proxy = serialiseCompiledCode $(compiled)
+      cemScriptCompiled Proxy = script
+        where
+          script = $script'
     |]

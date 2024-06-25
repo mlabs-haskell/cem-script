@@ -3,12 +3,18 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Data.Spine (HasSpine (..), deriveSpine, OfSpine (..)) where
+module Data.Spine where
+--  (HasSpine (..), deriveSpine, OfSpine (..))
 
 import Prelude
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+import GHC.Base (Symbol)
+import GHC.Records (HasField)
+import Data.Data (Proxy)
+import GHC.Natural (Natural)
+import Data.Void (Void)
 
 -- | Definitions
 
@@ -24,6 +30,16 @@ class
   where
   type Spine sop
   getSpine :: sop -> Spine sop
+
+class HasField label datatype value => HasFieldNum label datatype value where
+  fieldNum :: Proxy label -> Natural
+
+instance HasField label datatype value => HasFieldNum label datatype value where
+  fieldNum _ = 0 -- TODO
+
+instance HasSpine Void where
+  type Spine Void = Void
+  getSpine = \case
 
 instance (HasSpine sop1, HasSpine sop2) => HasSpine (sop1, sop2) where
   type Spine (sop1, sop2) = (Spine sop1, Spine sop2)
@@ -87,7 +103,7 @@ deriveSpine name = do
   let
     suffix = "Spine"
     spineName = addSuffix name suffix
-  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show]
+  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show, ''Bounded]
   -- TODO: derive Sing
   -- TODO: derive HasField (OfSpine ...)
 
@@ -96,5 +112,6 @@ deriveSpine name = do
       instance HasSpine $(conT name) where
         type Spine $(conT name) = $(conT spineName)
         getSpine = $(deriveMapping name suffix)
+        -- spineFieldNum _ _ = 0 -- TODO
       |]
   return $ spineDec <> decls

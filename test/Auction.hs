@@ -9,15 +9,27 @@ import Cardano.CEM
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Monads
+import Cardano.CEM.OnChain (CEMScriptCompiled (..))
 import Cardano.CEM.OffChain
 import Cardano.Extras
+
+import GHC.IsList
+import Data.Proxy
+
+import Plutarch.Script
 
 import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
 import Utils (execClb, mintTestTokens, submitAndCheck)
+import Plutarch (prettyScript)
 
-auctionSpec = describe "Auction" $ do
+auctionSpec = describe "AuctionSpec" $ do
+  it "Serialise" $ do
+    let script = cemScriptCompiled (Proxy :: Proxy SimpleAuction)
+    writeFile "pretty_plc.txt" $ show $ prettyScript script
+    putStrLn $ show $  length $ toList $ serialiseScript script
+    -- prettyScript $ genericCEMScript
   it "Wrong transition resolution error" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks

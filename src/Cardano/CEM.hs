@@ -1,5 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NoPolyKinds #-}
 
 module Cardano.CEM where
 
@@ -9,16 +9,30 @@ import Prelude qualified
 
 import Data.Data (Proxy)
 import Data.Map qualified as Map
+import Data.Proxy (Proxy (..))
+import GHC.Records (HasField (..))
+import GHC.TypeLits (KnownSymbol, Symbol)
 
 -- Plutus imports
 import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
-import PlutusLedgerApi.V2 (ToData (..), Value)
+import PlutusLedgerApi.V2 (ScriptContext, ToData (..), Value)
+import PlutusTx qualified
 import PlutusTx.Show.TH (deriveShow)
 
+import Data.Singletons.TH
+
 -- Project imports
-import Cardano.CEM.Stages
-import Data.Spine
+import Cardano.CEM.Stages (SingleStage, Stages (..))
+import Data.Spine (HasFieldNum, HasSpine (..))
+import GHC.OverloadedLabels
+
+singletons
+  [d|
+    data CVar = CParams | CState | CTransition | CComp | CContext
+    |]
+
+---
 
 -- | This is different ways to specify address
 data AddressSpec
@@ -70,6 +84,148 @@ data TxFanConstraint script = MkTxFanC
   }
   deriving stock (Show)
 
+--
+
+data TxFanFilterNew f script
+  = UserAddress (f PubKeyHash)
+  | SameScript (f (State script))
+  | OtherScript -- CEMScript CEMParams
+
+deriving stock instance
+  ( Show (State script)
+  , forall x. (Show x) => Show (f x)
+  ) =>
+  (Show (TxFanFilterNew f script))
+
+data TxFanConstraint' (f :: * -> *) script
+  = TxFan
+      { kind :: TxFanKind
+      , cFilter :: TxFanFilterNew f script
+      , value :: f Value
+      }
+  | AdditionalSigner (f PubKeyHash)
+  | -- TODO
+    Embed (f (TxFanConstraint' f script))
+  | Noop
+
+deriving stock instance
+  ( Show (State script)
+  , forall x. (Show x) => Show (f x)
+  ) =>
+  (Show (TxFanConstraint' f script))
+
+type family CVarType (cvar :: CVar) script where
+  CVarType CParams script = Params script
+  CVarType CState script = State script
+  CVarType CTransition script = Transition script
+  CVarType CComp script = TransitionComp script
+  CVarType CContext script = ScriptContext
+
+type HasFieldX (a :: Symbol) b c = (HasFieldNum a b c)
+
+data ConstraintDSL script value where
+  Ask ::
+    forall (var :: CVar) datatype script.
+    ( SingI var
+    , datatype Prelude.~ (CVarType var script)
+    ) =>
+    Proxy var ->
+    ConstraintDSL script datatype
+  Pure :: (ToData value') => value' -> ConstraintDSL script value'
+  -- TODO: move to constraint?
+  Check ::
+    TxFanConstraint' (ConstraintDSL script) script ->
+    ConstraintDSL script value'
+  Error :: BuiltinString -> ConstraintDSL script value
+  If ::
+    ConstraintDSL script Bool ->
+    ConstraintDSL script value ->
+    ConstraintDSL script value ->
+    ConstraintDSL script value
+  IsOnChain :: ConstraintDSL script Bool
+  -- TODO
+  GetField ::
+    forall (label :: Symbol) x script value.
+    (HasFieldX label x value) =>
+    ConstraintDSL script x ->
+    Proxy label ->
+    ConstraintDSL script value
+  OfSpine ::
+    forall script datatype spine.
+    (spine Prelude.~ Spine datatype, Prelude.Enum spine) =>
+    spine ->
+    [RecordSetter (ConstraintDSL script) datatype] ->
+    ConstraintDSL script datatype
+  -- Primitives
+  Eq ::
+    forall x script.
+    (Eq x) =>
+    ConstraintDSL script x ->
+    ConstraintDSL script x ->
+    ConstraintDSL script Bool
+  Ge ::
+    -- | Or equal
+    Bool ->
+    ConstraintDSL script Integer ->
+    ConstraintDSL script Integer ->
+    ConstraintDSL script Bool
+  AdaValue :: ConstraintDSL script Integer -> ConstraintDSL script Value
+
+minLovelace = AdaValue $ Pure 3_000_000
+
+(@==) :: (Eq x) => ConstraintDSL script x -> ConstraintDSL script x -> ConstraintDSL script Bool
+(@==) = Eq
+(@>=) = Ge True
+(@>) = Ge False
+(@<=) = flip (@>=)
+(@<) = flip (@>)
+
+checkOnchainOnly ::
+  TxFanConstraint' (ConstraintDSL script) script ->
+  TxFanConstraint' (ConstraintDSL script) script
+checkOnchainOnly c = Embed (If IsOnChain (Check Noop) (Check c))
+
+data MyLabel (label :: Symbol) = MkMyLabel
+
+instance (KnownSymbol s1, s1 ~ s2) => IsLabel (s1 :: Symbol) (MyLabel s2) where
+  fromLabel :: MyLabel s2
+  fromLabel = MkMyLabel
+
+data RecordSetter f datatype where
+  (::=) ::
+    forall f (label :: Symbol) datatype value.
+    (HasFieldX label datatype value) =>
+    MyLabel label ->
+    f value ->
+    RecordSetter f datatype
+
+instance
+  (HasFieldX label datatype value) =>
+  HasField label (ConstraintDSL script datatype) (ConstraintDSL script value)
+  where
+  getField recordDsl =
+    GetField @label @datatype @script @value recordDsl Proxy
+
+instance Show (ConstraintDSL x y) where
+  show _ = "ConstraintDSL" -- TODO
+
+askC ::
+  forall (var :: CVar) script.
+  (SingI var) =>
+  ConstraintDSL script (CVarType var script)
+askC = Ask @var @_ @script (Proxy :: Proxy var)
+
+ctxParams = askC @CParams
+ctxTransition = askC @CTransition
+ctxState = askC @CState
+ctxComp = askC @CComp
+
+ask ::
+  forall (var :: CVar) (label :: Symbol) script value.
+  (HasFieldX label (CVarType var script) value, SingI var) =>
+  ConstraintDSL script value
+ask = GetField @label (Ask @var @_ @script (Proxy :: Proxy var)) Proxy
+
 -- Main API
 
 -- FIXME: move IsData here (now it breaks Plutus compilation)
@@ -101,10 +257,17 @@ class CEMScriptTypes script where
   -- | Transitions for deterministic CEM-machine
   type Transition script = transition | transition -> script
 
+  type TransitionComp script
+  type TransitionComp script = Void
+
 class
   ( HasSpine (Transition script)
   , HasSpine (State script)
-  , Stages (Stage script)
+  , HasSpine (Params script)
+  , HasSpine (TransitionComp script)
+  , Prelude.Enum (Spine (Transition script))
+  , Prelude.Bounded (Spine (Transition script))
+  , Stages (Stage script) (StageParams (Stage script))
   , DefaultConstraints (Stage script)
   , DefaultConstraints (Transition script)
   , DefaultConstraints (State script)
@@ -125,6 +288,21 @@ class
       , Maybe (Spine (State script))
       )
 
+  transitionComp ::
+    Maybe
+      ( Params script ->
+        Maybe (State script) ->
+        Transition script ->
+        TransitionComp script
+      )
+  transitionComp = Nothing
+
+  transitionSpec' ::
+    Map.Map
+      (Spine (Transition script))
+      [TxFanConstraint' (ConstraintDSL script) script]
+  transitionSpec' = Map.empty
+
   -- This functions define domain logic
   transitionSpec ::
     Params script ->
@@ -138,6 +316,9 @@ data TransitionSpec script = MkTransitionSpec
     signers :: [PubKeyHash]
   }
   deriving stock (Show)
+
+instance ToData (TransitionSpec script) where
+  toBuiltinData _ = toBuiltinData ()
 
 -- | List of all signing keys required for transition spec
 getAllSpecSigners :: TransitionSpec script -> [PubKeyHash]
