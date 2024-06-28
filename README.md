@@ -1,5 +1,3 @@
-[![PDD status](https://www.0pdd.com/svg?name=mlabs-haskell/cem-script)](https://www.0pdd.com/p?name=mlabs-haskell/cem-script)
-
 # CEM SDK
 
 ## Project pitch
