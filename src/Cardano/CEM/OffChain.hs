@@ -59,45 +59,6 @@ awaitTx txId = do
         then return ()
         else go $ n - 1
 
-data CEMAction script
-  = MkCEMAction (CEMParams script) (Transition script)
-
-deriving stock instance
-  (CEMScript script) => Show (CEMAction script)
-
--- FIXME: use generic Some
-data SomeCEMAction where
-  MkSomeCEMAction ::
-    forall script.
-    (CEMScriptCompiled script) =>
-    CEMAction script ->
-    SomeCEMAction
-
-instance Show SomeCEMAction where
-  -- FIXME: show script name
-  show :: SomeCEMAction -> String
-  show (MkSomeCEMAction action) = show action
-
-data TxSpec = MkTxSpec
-  { actions :: [SomeCEMAction]
-  , specSigner :: SigningKey PaymentKey
-  }
-  deriving stock (Show)
-
--- | Error occurred while trying to execute CEMScript transition
-data TransitionError
-  = StateMachineError
-      { errorMessage :: String
-      }
-  | MissingTransitionInput
-  deriving stock (Show, Eq)
-
-data TxResolutionError
-  = TxSpecIsIncorrect
-  | MkTransitionError SomeCEMAction TransitionError
-  | UnhandledSubmittingError TxSubmittingError
-  deriving stock (Show)
-
 failLeft :: (MonadFail m, Show s) => Either s a -> m a
 failLeft (Left errorMsg) = fail $ show errorMsg
 failLeft (Right value) = return value
@@ -252,7 +213,7 @@ resolveTx spec = runExceptT $ do
   -- Merge specs
   let
     mergedSpec' = head actionsSpecs
-    mergedSpec = mergedSpec' {signer = specSigner spec}
+    mergedSpec = (mergedSpec' :: ResolvedTx) {signer = specSigner spec}
 
   return mergedSpec
 

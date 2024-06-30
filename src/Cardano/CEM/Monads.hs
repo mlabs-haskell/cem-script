@@ -3,6 +3,7 @@ module Cardano.CEM.Monads where
 import Prelude
 
 import Data.Set (Set)
+import GHC.Natural (Natural)
 
 import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
@@ -14,9 +15,38 @@ import PlutusLedgerApi.V2 (
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
 import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
-import Cardano.Ledger.Shelley.API (ApplyTxError (..))
+import Cardano.Ledger.Shelley.API (ApplyTxError (..), Coin)
 
+import Cardano.CEM
+import Cardano.CEM.OnChain
 import Cardano.Extras
+
+-- CEMAction and TxSpec
+
+data CEMAction script
+  = MkCEMAction (CEMParams script) (Transition script)
+
+deriving stock instance
+  (CEMScript script) => Show (CEMAction script)
+
+-- FIXME: use generic Some
+data SomeCEMAction where
+  MkSomeCEMAction ::
+    forall script.
+    (CEMScriptCompiled script) =>
+    CEMAction script ->
+    SomeCEMAction
+
+instance Show SomeCEMAction where
+  -- FIXME: show script name
+  show :: SomeCEMAction -> String
+  show (MkSomeCEMAction action) = show action
+
+data TxSpec = MkTxSpec
+  { actions :: [SomeCEMAction]
+  , specSigner :: SigningKey PaymentKey
+  }
+  deriving stock (Show)
 
 -- MonadBlockchainParams
 
@@ -71,6 +101,20 @@ data TxSubmittingError
   | TxInOutdated [TxIn]
   | UnhandledAutobalanceError (TxBodyErrorAutoBalance Era)
   | UnhandledNodeSubmissionError (ApplyTxError LedgerEra)
+  deriving stock (Show)
+
+-- | Error occurred while trying to execute CEMScript transition
+data TransitionError
+  = StateMachineError
+      { errorMessage :: String
+      }
+  | MissingTransitionInput
+  deriving stock (Show, Eq)
+
+data TxResolutionError
+  = TxSpecIsIncorrect
+  | MkTransitionError SomeCEMAction TransitionError
+  | UnhandledSubmittingError TxSubmittingError
   deriving stock (Show)
 
 -- | Ability to send transaction to chain
