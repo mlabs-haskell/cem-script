@@ -10,7 +10,7 @@ import Data.Map qualified as Map
 
 -- Cardano imports
 import Cardano.Api hiding (queryUtxo)
-import Cardano.Api.Shelley (LedgerProtocolParameters (..))
+import Cardano.Api.Shelley (LedgerProtocolParameters (..), Tx (..))
 
 -- Project imports
 import Cardano.CEM.Monads
