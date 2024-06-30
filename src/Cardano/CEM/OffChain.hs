@@ -56,7 +56,7 @@ awaitTx txId = do
       exists <- checkTxIdExists txId
       liftIO $ threadDelay 1_000_000
       if exists
-        then return ()
+        then logEvent $ AwaitedTx txId
         else go $ n - 1
 
 failLeft :: (MonadFail m, Show s) => Either s a -> m a
@@ -221,7 +221,10 @@ resolveTxAndSubmit ::
   (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
   TxSpec ->
   m (Either TxResolutionError TxId)
-resolveTxAndSubmit spec = runExceptT $ do
-  resolved <- ExceptT $ resolveTx spec
-  let result = submitResolvedTx resolved
-  ExceptT $ first UnhandledSubmittingError <$> result
+resolveTxAndSubmit spec = do
+  result <- runExceptT $ do
+    resolved <- ExceptT $ resolveTx spec
+    let result = submitResolvedTx resolved
+    ExceptT $ first UnhandledSubmittingError <$> result
+  logEvent $ SubmittedTxSpec spec result
+  return result

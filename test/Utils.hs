@@ -3,6 +3,8 @@ module Utils where
 import Prelude
 
 import Data.Map (keys)
+import Data.Map qualified as Map
+import Data.Maybe (mapMaybe)
 
 import PlutusLedgerApi.V1.Interval (always)
 import PlutusLedgerApi.V1.Value (assetClassValue)
@@ -17,28 +19,31 @@ import Cardano.Api.Shelley (
 import Test.Hspec (shouldSatisfy)
 import Text.Show.Pretty (ppShow)
 
-import Clb (ClbT)
-
 import Cardano.CEM.Monads (
+  BlockchainMonadEvent (..),
+  CEMAction (..),
+  Fees (..),
+  MonadBlockchainParams (..),
   MonadQueryUtxo (..),
   MonadSubmitTx (..),
   ResolvedTx (..),
-  UtxoQuery (..),
- )
-import Cardano.CEM.Monads.CLB (execOnIsolatedClb)
-import Cardano.CEM.OffChain (
-  CEMAction (..),
   SomeCEMAction (..),
   TxSpec (..),
+  UtxoQuery (..),
+  submitResolvedTx,
+ )
+import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
+import Cardano.CEM.OffChain (
   awaitTx,
   fromPlutusAddressInMonad,
   resolveTxAndSubmit,
  )
 import Cardano.Extras
+import Data.Spine (HasSpine (..))
 
 import TestNFT
 
-execClb :: ClbT IO a -> IO a
+execClb :: ClbRunner a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
 
 mintTestTokens ::
@@ -108,3 +113,19 @@ submitAndCheck spec = do
     MkSomeCEMAction (MkCEMAction _ transition) ->
       liftIO $ putStrLn $ "Doing " <> show transition
   awaitEitherTx =<< resolveTxAndSubmit spec
+
+perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)
+perTransitionStats = do
+  events <- eventList
+  let feesByTxId = Map.fromList $ mapMaybe txIdFeePair events
+  return $ Map.fromList $ mapMaybe (transitionFeePair feesByTxId) events
+  where
+    txIdFeePair (UserSpentFee {fees, txId}) = Just (txId, fees)
+    txIdFeePair _ = Nothing
+    transitionFeePair feesByTxId event = case event of
+      ( SubmittedTxSpec
+          (MkTxSpec [MkSomeCEMAction (MkCEMAction _ transition)] _)
+          (Right txId)
+        ) ->
+          Just (show (getSpine transition), feesByTxId Map.! txId)
+      _ -> Nothing

@@ -16,6 +16,7 @@ import Cardano.Api.Shelley (LedgerProtocolParameters (..))
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
 import Cardano.Extras
+import Data.Maybe (mapMaybe)
 
 -- Main function
 
@@ -89,7 +90,43 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
     let
       tx = makeSignedTransactionWithKeys [signer] body
       txInMode = TxInMode ShelleyBasedEraBabbage tx
+
+    lift $ recordFee txInsUtxo body
+
     return (body, txInMode)
+  where
+    recordFee txInsUtxo body@(TxBody content) = do
+      case txFee content of
+        TxFeeExplicit era coin -> do
+          MkBlockchainParams {protocolParameters, systemStart, eraHistory} <-
+            queryBlockchainParams
+          Right report <-
+            return $
+              evaluateTransactionExecutionUnits
+                (shelleyBasedToCardanoEra era)
+                systemStart
+                eraHistory
+                (LedgerProtocolParameters protocolParameters)
+                txInsUtxo
+                body
+          let
+            rights = mapMaybe $ \case
+              Right x -> Just x
+              Left _ -> Nothing
+            budgets = rights $ map snd $ Map.toList report
+            usedMemory = sum $ executionMemory <$> budgets
+            usedCpu = sum $ executionSteps <$> budgets
+          logEvent $
+            UserSpentFee
+              { fees =
+                  MkFees
+                    { fee = coin
+                    , usedMemory
+                    , usedCpu
+                    }
+              , txId = getTxId body
+              , txSigner = signer
+              }
 
 -- Utils
 

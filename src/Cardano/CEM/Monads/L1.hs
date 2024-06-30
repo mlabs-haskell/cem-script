@@ -63,6 +63,10 @@ instance MonadBlockchainParams L1Runner where
       <*> (toLedgerEpochInfo <$> queryCardanoNode QueryEraHistory)
       <*> queryCardanoNodeWrapping QueryStakePools
 
+  -- FIXME
+  logEvent _ = return ()
+  eventList = return []
+
 queryCardanoNodeWrapping :: QueryInShelleyBasedEra Era b -> L1Runner b
 queryCardanoNodeWrapping query =
   handleEitherEra =<< queryCardanoNode wrapped

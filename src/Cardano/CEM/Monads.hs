@@ -60,13 +60,34 @@ data BlockchainParams = MkBlockchainParams
   }
   deriving stock (Show)
 
+data Fees = MkFees
+  { fee :: Coin
+  , usedMemory :: Natural
+  , usedCpu :: Natural
+  }
+  deriving stock (Show)
+
+data BlockchainMonadEvent
+  = SubmittedTxSpec TxSpec (Either TxResolutionError TxId)
+  | UserSpentFee
+      { txId :: TxId
+      , txSigner :: SigningKey PaymentKey
+      , fees :: Fees
+      }
+  | AwaitedTx TxId
+  deriving stock (Show)
+
 {- | This monad gives access to all information about Cardano params,
- | which is various kind of Ledger params and ValidityBound/Slots semantics
+ which is various kind of Ledger params and ValidityBound/Slots semantics
+
+ Also contains common structured log support.
 -}
 class (MonadFail m) => MonadBlockchainParams m where
   askNetworkId :: m NetworkId
   queryCurrentSlot :: m SlotNo
   queryBlockchainParams :: m BlockchainParams
+  logEvent :: BlockchainMonadEvent -> m ()
+  eventList :: m [BlockchainMonadEvent]
 
 -- MonadQuery
 

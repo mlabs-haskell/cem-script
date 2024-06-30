@@ -40,8 +40,8 @@ import Text.Show.Pretty (ppShow)
 
 import Cardano.CEM (CEMParams (..))
 import Cardano.CEM hiding (scriptParams)
-import Cardano.CEM.Monads (MonadSubmitTx (..), ResolvedTx (..))
-import Cardano.CEM.Monads.CLB (execOnIsolatedClb)
+import Cardano.CEM.Monads (CEMAction (..), MonadSubmitTx (..), ResolvedTx (..), SomeCEMAction (..), TxSpec (..))
+import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
 import Cardano.CEM.OffChain
 import Cardano.CEM.OnChain (CEMScriptCompiled)
 import Cardano.Extras (signingKeyToPKH)
@@ -329,14 +329,14 @@ instance
 
 runActionsInClb ::
   forall state.
-  (StateModel (ScriptState state), RunModel (ScriptState state) (ClbT IO)) =>
+  (StateModel (ScriptState state), RunModel (ScriptState state) ClbRunner) =>
   Value ->
   Actions (ScriptState state) ->
   Property
 runActionsInClb genesisValue actions =
   monadic (ioProperty . execOnIsolatedClb genesisValue) $
     void $
-      runActions @(ScriptState state) @(ClbT IO) actions
+      runActions @(ScriptState state) @(ClbRunner) actions
 
 -- Orphans
 
