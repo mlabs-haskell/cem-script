@@ -41,3 +41,110 @@ Catalyst Milestone Outputs:
 
 * Plutarch on-chain code generation and optimisation ([PR](https://github.com/mlabs-haskell/cem-script/pull/94))
 * Profiling implementation ([PR](https://github.com/mlabs-haskell/cem-script/pull/95))
+* Profiling performed for old (using Plutus) and new (using Plutarch) code generator,
+  and showed andvantage of second one in all fees measured, in some cases in order of magntude.
+
+## Profiling results
+
+### Old (Plutus) backend ([implementation commit](https://github.com/mlabs-haskell/cem-script/tree/7e39ee5cbb8b512f873de05af3573bda1355d0aa))
+
+Auction flow:
+
+```
+  [ ( "BuyoutSpine"
+    , MkFees
+        { fee = Coin 1072912
+        , usedMemory = 7642581
+        , usedCpu = 2334110505
+        }
+    )
+  , ( "CloseSpine"
+    , MkFees
+        { fee = Coin 1240433
+        , usedMemory = 9509189
+        , usedCpu = 3008756651
+        }
+    )
+  , ( "CreateSpine"
+    , MkFees { fee = Coin 198369 , usedMemory = 0 , usedCpu = 0 }
+    )
+  , ( "MakeBidSpine"
+    , MkFees
+        { fee = Coin 1240548
+        , usedMemory = 9489565
+        , usedCpu = 3001647940
+        }
+    )
+  , ( "StartSpine"
+    , MkFees
+        { fee = Coin 1182093
+        , usedMemory = 8782473
+        , usedCpu = 2783614841
+        }
+    )
+  ]
+```
+
+Voting flow (fails exceeding Tx limits on second vote):
+
+```
+  [ ( "CreateSpine"
+    , MkFees { fee = Coin 190141 , usedMemory = 0 , usedCpu = 0 }
+    )
+  , ( "StartSpine"
+    , MkFees
+        { fee = Coin 724655 , usedMemory = 2961157 , usedCpu = 943387589 }
+    )
+  , ( "VoteSpine"
+    , MkFees
+        { fee = Coin 1164933
+        , usedMemory = 8369793
+        , usedCpu = 2680589904
+        }
+    )
+  ]
+```
+
+### New (Plutarch with user-defined Plutus logic pieces) backend
+
+Auction: 
+
+```
+  [ ( "BuyoutSpine"
+    , MkFees
+        { fee = Coin 586779 , usedMemory = 625199 , usedCpu = 234106047 }
+    )
+  , ( "CloseSpine"
+    , MkFees
+        { fee = Coin 667350 , usedMemory = 1358848 , usedCpu = 611301346 }
+    )
+  , ( "CreateSpine"
+    , MkFees { fee = Coin 198237 , usedMemory = 0 , usedCpu = 0 }
+    )
+  , ( "MakeBidSpine"
+    , MkFees
+        { fee = Coin 669571 , usedMemory = 1364475 , usedCpu = 613191159 }
+    )
+  , ( "StartSpine"
+    , MkFees
+        { fee = Coin 747648 , usedMemory = 2231662 , usedCpu = 1028952087 }
+    )
+  ]
+```
+
+Voting Plutarch backend:
+
+```
+  [ ( "CreateSpine"
+    , MkFees { fee = Coin 190009 , usedMemory = 0 , usedCpu = 0 }
+    )
+  , ( "StartSpine"
+    , MkFees
+        { fee = Coin 495528 , usedMemory = 181513 , usedCpu = 72358787 }
+    )
+  , ( "VoteSpine"
+    , MkFees
+        { fee = Coin 646247 , usedMemory = 1882546 , usedCpu = 760595491 }
+    )
+  ]
+```
