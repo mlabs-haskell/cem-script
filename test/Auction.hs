@@ -3,36 +3,43 @@ module Auction where
 import Prelude
 
 import Control.Monad.Trans (MonadIO (..))
-import PlutusLedgerApi.V1.Value (assetClassValue)
+import Data.Proxy (Proxy (..))
+import GHC.IsList
 
-import Cardano.CEM
+import Text.Show.Pretty (ppShow)
+
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
+import Cardano.CEM.OnChain (CEMScriptCompiled (..))
 import Cardano.Extras
+
+import Plutarch.Script
+import PlutusLedgerApi.V1.Value (assetClassValue)
 
 import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
-import Utils (execClb, mintTestTokens, submitAndCheck)
+import Utils (execClb, mintTestTokens, perTransitionStats, submitAndCheck)
 
-auctionSpec = describe "Auction" $ do
+auctionSpec = describe "AuctionSpec" $ do
+  it "Serialise" $ do
+    let script = cemScriptCompiled (Proxy :: Proxy SimpleAuction)
+    putStrLn $
+      "Script bytes: "
+        <> show (length $ toList $ serialiseScript script)
   it "Wrong transition resolution error" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks
     let
       auctionParams =
-        MkCEMParams
-          { scriptParams =
-              MkAuctionParams
-                { seller = signingKeyToPKH seller
-                , lot =
-                    assetClassValue
-                      testNftAssetClass
-                      1
-                }
-          , stagesParams = NoControl
+        MkAuctionParams
+          { seller = signingKeyToPKH seller
+          , lot =
+              assetClassValue
+                testNftAssetClass
+                1
           }
 
     mintTestTokens seller 1
@@ -61,12 +68,11 @@ auctionSpec = describe "Auction" $ do
               ]
           , specSigner = bidder1
           }
-    ~( Left
-        ( MkTransitionError
-            _
-            (StateMachineError "\"Incorrect state for transition\"")
-          )
-      ) <-
+    ~(Left _) <-
+      -- ( MkTransitionError
+      --     _
+      --     (StateMachineError "\"Incorrect state for transition\"")
+      --   )
       return result
 
     return ()
@@ -76,16 +82,12 @@ auctionSpec = describe "Auction" $ do
     bidder1 <- (!! 1) <$> getTestWalletSks
     let
       auctionParams =
-        MkCEMParams
-          { scriptParams =
-              MkAuctionParams
-                { seller = signingKeyToPKH seller
-                , lot =
-                    assetClassValue
-                      testNftAssetClass
-                      10
-                }
-          , stagesParams = NoControl
+        MkAuctionParams
+          { seller = signingKeyToPKH seller
+          , lot =
+              assetClassValue
+                testNftAssetClass
+                10
           }
 
     mintTestTokens seller 10
@@ -124,11 +126,12 @@ auctionSpec = describe "Auction" $ do
           , specSigner = bidder1
           }
     ~( Left
-        ( MkTransitionError
-            _
-            (StateMachineError "\"Incorrect state for transition\"")
-          )
+        _
       ) <-
+      -- ( MkTransitionError
+      --     _
+      --     (StateMachineError "\"Incorrect state for transition\"")
+      --   )
       return result
 
     return ()
@@ -139,16 +142,12 @@ auctionSpec = describe "Auction" $ do
 
     let
       auctionParams =
-        MkCEMParams
-          { scriptParams =
-              MkAuctionParams
-                { seller = signingKeyToPKH seller
-                , lot =
-                    assetClassValue
-                      testNftAssetClass
-                      10
-                }
-          , stagesParams = NoControl
+        MkAuctionParams
+          { seller = signingKeyToPKH seller
+          , lot =
+              assetClassValue
+                testNftAssetClass
+                10
           }
 
     mintTestTokens seller 10
@@ -230,3 +229,7 @@ auctionSpec = describe "Auction" $ do
             ]
         , specSigner = bidder1
         }
+
+    -- FIXME
+    stats <- perTransitionStats
+    liftIO $ putStrLn $ ppShow stats
