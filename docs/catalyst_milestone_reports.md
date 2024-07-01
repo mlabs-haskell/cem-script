@@ -41,8 +41,8 @@ Catalyst Milestone Outputs:
 
 * Plutarch on-chain code generation and optimisation ([PR](https://github.com/mlabs-haskell/cem-script/pull/94))
 * Profiling implementation ([PR](https://github.com/mlabs-haskell/cem-script/pull/95))
-* Profiling performed for old (using Plutus) and new (using Plutarch) code generator,
-  and showed andvantage of second one in all fees measured, in some cases in order of magntude.
+* Profiling performed for old (using Plutus) and new (using Plutarch) code generator.
+  New one showed advantage over first one in all fees measured, and in some cases in order of magntude.
 
 ## Profiling results
 
