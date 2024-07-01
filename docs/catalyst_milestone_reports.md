@@ -30,3 +30,12 @@ CurrentBid -> Winner [label="Close (stage Closed)"];
 Winner -> "Void Out" [label="Buyout (stage Closed)"];
 }
 ```
+
+# Milestone 4
+
+## Summary
+
+Catalyst Milestone Outputs:
+
+* Plutarch on-chain code generation and optimisation ([PR](https://github.com/mlabs-haskell/cem-script/pull/94))
+* Profiling implementation ([PR](https://github.com/mlabs-haskell/cem-script/pull/95))
