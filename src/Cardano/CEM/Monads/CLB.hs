@@ -4,6 +4,7 @@ module Cardano.CEM.Monads.CLB where
 
 import Prelude
 
+import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
 import Control.Monad.State (StateT (..), gets)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
@@ -34,12 +35,23 @@ import Clb.TimeSlot (posixTimeToUTCTime)
 import Cardano.CEM.Monads
 import Cardano.CEM.Monads.L1Commons
 import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Control.Monad.Reader (MonadReader (..), ReaderT (..))
 
-instance (MonadFail m) => MonadBlockchainParams (ClbT m) where
-  askNetworkId :: ClbT m NetworkId
+instance (MonadReader r m) => MonadReader r (ClbT m) where
+  ask = lift ask
+  local f action = ClbT $ local f $ unwrapClbT action
+
+type ClbRunner = ClbT (ReaderT (MVar [BlockchainMonadEvent]) IO)
+
+instance
+  ( MonadFail m
+  , MonadIO m
+  , MonadReader (MVar [BlockchainMonadEvent]) m
+  ) =>
+  MonadBlockchainParams (ClbT m)
+  where
   askNetworkId = gets (mockConfigNetworkId . mockConfig)
 
-  queryCurrentSlot :: ClbT m SlotNo
   queryCurrentSlot = getCurrentSlot
 
   queryBlockchainParams = do
@@ -56,8 +68,14 @@ instance (MonadFail m) => MonadBlockchainParams (ClbT m) where
         , -- Staking is not supported
           stakePools = Set.empty
         }
+  logEvent e = do
+    logVar <- ask
+    liftIO $ modifyMVar_ logVar (return . (:) e)
+  eventList = do
+    events <- ask
+    liftIO $ readMVar events
 
-instance (MonadFail m) => MonadQueryUtxo (ClbT m) where
+instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadQueryUtxo (ClbT m) where
   queryUtxo query = do
     utxos <- fromLedgerUTxO shelleyBasedEra <$> gets getUtxosAtState
     predicate <- mkPredicate
@@ -69,7 +87,7 @@ instance (MonadFail m) => MonadQueryUtxo (ClbT m) where
           return $ \_ (TxOut a _ _ _) -> a `elem` cardanoAddresses
         ByTxIns txIns -> return $ \txIn _ -> txIn `elem` txIns
 
-instance (MonadFail m) => MonadSubmitTx (ClbT m) where
+instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadSubmitTx (ClbT m) where
   submitResolvedTx :: ResolvedTx -> ClbT m (Either TxSubmittingError TxId)
   submitResolvedTx tx = do
     cardanoTxBodyFromResolvedTx tx >>= \case
@@ -82,16 +100,20 @@ instance (MonadFail m) => MonadSubmitTx (ClbT m) where
       Right (_, _) -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
-instance (MonadFail m) => MonadTest (ClbT m) where
+instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadTest (ClbT m) where
   getTestWalletSks = return $ map intToCardanoSk [1 .. 10]
 
 genesisClbState :: Value -> ClbState
 genesisClbState genesisValue =
   initClb defaultBabbage genesisValue genesisValue
 
-execOnIsolatedClb :: Value -> ClbT IO a -> IO a
-execOnIsolatedClb genesisValue action =
+execOnIsolatedClb :: Value -> ClbRunner a -> IO a
+execOnIsolatedClb genesisValue action = do
+  emptyLog <- newMVar []
   fst
-    <$> runStateT
-      (unwrapClbT action)
-      (genesisClbState genesisValue)
+    <$> runReaderT
+      ( runStateT
+          (unwrapClbT action)
+          (genesisClbState genesisValue)
+      )
+      emptyLog

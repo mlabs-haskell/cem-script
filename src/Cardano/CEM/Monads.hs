@@ -3,6 +3,7 @@ module Cardano.CEM.Monads where
 import Prelude
 
 import Data.Set (Set)
+import GHC.Natural (Natural)
 
 import PlutusLedgerApi.V1.Address (Address)
 import PlutusLedgerApi.V2 (
@@ -14,9 +15,38 @@ import PlutusLedgerApi.V2 (
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
 import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
-import Cardano.Ledger.Shelley.API (ApplyTxError (..))
+import Cardano.Ledger.Shelley.API (ApplyTxError (..), Coin)
 
+import Cardano.CEM
+import Cardano.CEM.OnChain
 import Cardano.Extras
+
+-- CEMAction and TxSpec
+
+data CEMAction script
+  = MkCEMAction (CEMParams script) (Transition script)
+
+deriving stock instance
+  (CEMScript script) => Show (CEMAction script)
+
+-- FIXME: use generic Some
+data SomeCEMAction where
+  MkSomeCEMAction ::
+    forall script.
+    (CEMScriptCompiled script) =>
+    CEMAction script ->
+    SomeCEMAction
+
+instance Show SomeCEMAction where
+  -- FIXME: show script name
+  show :: SomeCEMAction -> String
+  show (MkSomeCEMAction action) = show action
+
+data TxSpec = MkTxSpec
+  { actions :: [SomeCEMAction]
+  , specSigner :: SigningKey PaymentKey
+  }
+  deriving stock (Show)
 
 -- MonadBlockchainParams
 
@@ -30,13 +60,34 @@ data BlockchainParams = MkBlockchainParams
   }
   deriving stock (Show)
 
+data Fees = MkFees
+  { fee :: Coin
+  , usedMemory :: Natural
+  , usedCpu :: Natural
+  }
+  deriving stock (Show)
+
+data BlockchainMonadEvent
+  = SubmittedTxSpec TxSpec (Either TxResolutionError TxId)
+  | UserSpentFee
+      { txId :: TxId
+      , txSigner :: SigningKey PaymentKey
+      , fees :: Fees
+      }
+  | AwaitedTx TxId
+  deriving stock (Show)
+
 {- | This monad gives access to all information about Cardano params,
- | which is various kind of Ledger params and ValidityBound/Slots semantics
+ which is various kind of Ledger params and ValidityBound/Slots semantics
+
+ Also contains common structured log support.
 -}
 class (MonadFail m) => MonadBlockchainParams m where
   askNetworkId :: m NetworkId
   queryCurrentSlot :: m SlotNo
   queryBlockchainParams :: m BlockchainParams
+  logEvent :: BlockchainMonadEvent -> m ()
+  eventList :: m [BlockchainMonadEvent]
 
 -- MonadQuery
 
@@ -71,6 +122,20 @@ data TxSubmittingError
   | TxInOutdated [TxIn]
   | UnhandledAutobalanceError (TxBodyErrorAutoBalance Era)
   | UnhandledNodeSubmissionError (ApplyTxError LedgerEra)
+  deriving stock (Show)
+
+-- | Error occurred while trying to execute CEMScript transition
+data TransitionError
+  = StateMachineError
+      { errorMessage :: String
+      }
+  | MissingTransitionInput
+  deriving stock (Show, Eq)
+
+data TxResolutionError
+  = TxSpecIsIncorrect
+  | MkTransitionError SomeCEMAction TransitionError
+  | UnhandledSubmittingError TxSubmittingError
   deriving stock (Show)
 
 -- | Ability to send transaction to chain

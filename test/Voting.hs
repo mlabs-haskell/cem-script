@@ -9,7 +9,7 @@ import Test.Hspec (describe, shouldBe)
 import Cardano.CEM
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Examples.Voting
-import Cardano.CEM.Monads (MonadTest (..))
+import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
 import Cardano.CEM.Stages
 import Cardano.Extras (signingKeyToPKH)
