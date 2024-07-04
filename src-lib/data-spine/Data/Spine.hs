@@ -3,12 +3,28 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 
-module Data.Spine (HasSpine (..), deriveSpine, OfSpine (..)) where
+{- |
+Note about design decision on nested spines.
+`getSpine (Just Value) = JustSpine ValueSpine` - looks more usable,
+than `getSpine (Just Value) = JustSpine`.
+But it seem to break deriving for parametised types like `Maybe a`,
+and can be done with `fmap getSpine mValue`. Probably it actually
+works exaclty for functorial parameters.
+-}
+module Data.Spine where
 
 import Prelude
 
+import Data.Data (Proxy)
+import Data.List (elemIndex)
+import Data.Map qualified as Map
+import Data.Maybe (mapMaybe)
+import GHC.Natural (Natural)
+import GHC.TypeLits (KnownSymbol, symbolVal)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+
+import PlutusTx (FromData, ToData, UnsafeFromData, unstableMakeIsData)
 
 -- | Definitions
 
@@ -19,29 +35,66 @@ import Language.Haskell.TH.Syntax
 class
   ( Ord (Spine sop)
   , Show (Spine sop)
+  , Enum (Spine sop)
+  , Bounded (Spine sop)
   ) =>
   HasSpine sop
   where
-  type Spine sop
+  type Spine sop = spine | spine -> sop
   getSpine :: sop -> Spine sop
 
-instance (HasSpine sop1, HasSpine sop2) => HasSpine (sop1, sop2) where
-  type Spine (sop1, sop2) = (Spine sop1, Spine sop2)
-  getSpine (d1, d2) = (getSpine d1, getSpine d2)
+-- | Version of `HasSpine` knowing its Plutus Data encoding
+class
+  ( HasSpine sop
+  , UnsafeFromData sop
+  , ToData sop
+  , FromData sop
+  ) =>
+  HasPlutusSpine sop
+  where
+  fieldsMap :: Map.Map (Spine sop) [String]
 
-instance (HasSpine sop) => HasSpine (Maybe sop) where
-  type Spine (Maybe sop) = Maybe (Spine sop)
-  getSpine = fmap getSpine
+toNat :: Int -> Natural
+toNat = fromInteger . toInteger
 
--- | Newtype encoding sop value of fixed known spine
-newtype OfSpine (x :: Spine datatype) = UnsafeMkOfSpine {getValue :: datatype}
+spineFieldsNum :: forall sop. (HasPlutusSpine sop) => Spine sop -> Natural
+spineFieldsNum spine =
+  toNat $ length $ (fieldsMap @sop) Map.! spine
 
--- | Deriving utils
+-- FIXME: use spine do discriminate
+fieldNum ::
+  forall sop label.
+  (HasPlutusSpine sop, KnownSymbol label) =>
+  Proxy label ->
+  Natural
+fieldNum proxyLabel =
+  head $ mapMaybe fieldIndex x
+  where
+    x = Map.elems $ fieldsMap @sop
+    fieldName = symbolVal proxyLabel
+    fieldIndex dict = toNat <$> elemIndex fieldName dict
+
+allSpines :: forall sop. (HasPlutusSpine sop) => [Spine sop]
+allSpines = [Prelude.minBound .. Prelude.maxBound]
+
+-- | Phantom type param is required for `HasSpine` injectivity
+data MaybeSpine a = JustSpine | NothingSpine
+  deriving stock (Eq, Ord, Show, Bounded, Enum)
+
+-- FIXME: could such types be derived?
+instance HasSpine (Maybe x) where
+  type Spine (Maybe x) = MaybeSpine x
+  getSpine Just {} = JustSpine
+  getSpine Nothing = NothingSpine
+
+-- Deriving utils
+
 addSuffix :: Name -> String -> Name
 addSuffix (Name (OccName name) flavour) suffix =
   Name (OccName $ name <> suffix) flavour
 
-reifyDatatype :: Name -> Q (Name, [Name])
+-- FIXME: cleaner return type
+reifyDatatype :: Name -> Q (Name, [Name], [[Name]])
 reifyDatatype ty = do
   (TyConI tyCon) <- reify ty
   (name, cs :: [Con]) <-
@@ -50,7 +103,17 @@ reifyDatatype ty = do
       NewtypeD _ n _ _ cs _ -> pure (n, [cs])
       _ -> fail "deriveTags: only 'data' and 'newtype' are supported"
   csNames <- mapM consName cs
-  return (name, csNames)
+  csFields <- mapM consFields cs
+  return (name, csNames, csFields)
+  where
+    fieldName (name, _, _) = name
+    consFields (RecC _ fields) = return $ map fieldName fields
+    consFields (NormalC _ fields) | length fields == 0 = return []
+    consFields _ =
+      fail $
+        "Spine: only Sum-of-Products are supported, but "
+          <> show ty
+          <> " is not"
 
 consName :: (MonadFail m) => Con -> m Name
 consName cons =
@@ -61,7 +124,7 @@ consName cons =
 
 deriveTags :: Name -> String -> [Name] -> Q [Dec]
 deriveTags ty suff classes = do
-  (tyName, csNames) <- reifyDatatype ty
+  (tyName, csNames, _) <- reifyDatatype ty
   -- XXX: Quasi-quote splice does not work for case matches list
   let cs = map (\name -> NormalC (addSuffix name suff) []) csNames
       v =
@@ -70,7 +133,7 @@ deriveTags ty suff classes = do
 
 deriveMapping :: Name -> String -> Q Exp
 deriveMapping ty suff = do
-  (_, csNames) <- reifyDatatype ty
+  (_, csNames, _) <- reifyDatatype ty
   -- XXX: Quasi-quote splice does not work for case matches list
   let
     matches =
@@ -87,9 +150,7 @@ deriveSpine name = do
   let
     suffix = "Spine"
     spineName = addSuffix name suffix
-  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show]
-  -- TODO: derive Sing
-  -- TODO: derive HasField (OfSpine ...)
+  spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show, ''Bounded]
 
   decls <-
     [d|
@@ -98,3 +159,19 @@ deriveSpine name = do
         getSpine = $(deriveMapping name suffix)
       |]
   return $ spineDec <> decls
+
+derivePlutusSpine :: Name -> Q [Dec]
+derivePlutusSpine name = do
+  decls <- deriveSpine name
+  isDataDecls <- unstableMakeIsData name
+
+  (_, _, fieldsNames') <- reifyDatatype name
+  let fieldsNames = map (map nameBase) fieldsNames'
+  instanceDecls <-
+    [d|
+      instance HasPlutusSpine $(conT name) where
+        fieldsMap =
+          Map.fromList $ zip (allSpines @($(conT name))) fieldsNames
+      |]
+
+  return $ decls <> isDataDecls <> instanceDecls
