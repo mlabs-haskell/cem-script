@@ -190,5 +190,7 @@ test-suite cem-sdk-test
     TestNFT
     Utils
     Voting
+    Oura
+    OuraFilters
 
   main-is:        Main.hs
