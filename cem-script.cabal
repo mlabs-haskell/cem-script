@@ -181,6 +181,7 @@ test-suite cem-sdk-test
     , QuickCheck
     , quickcheck-dynamic
     , random
+    , network
 
   hs-source-dirs: test/
   other-modules:
