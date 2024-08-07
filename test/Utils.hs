@@ -41,6 +41,9 @@ import Cardano.CEM.OffChain (
 import Cardano.Extras
 import Data.Spine (HasSpine (..))
 
+import Control.Exception (bracket)
+import System.Directory (removeFile)
+import System.IO (openTempFile)
 import TestNFT
 
 execClb :: ClbRunner a -> IO a
@@ -129,3 +132,10 @@ perTransitionStats = do
         ) ->
           Just (show (getSpine transition), feesByTxId Map.! txId)
       _ -> Nothing
+
+withNewFile :: FilePath -> (FilePath -> IO a) -> IO a
+withNewFile dir action = do
+  bracket
+    (openTempFile dir "")
+    (removeFile . fst)
+    (action . fst)
