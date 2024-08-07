@@ -8,6 +8,7 @@ module Oura (
   listenOuraSink,
   stopMonitoring,
   waitForOutput,
+  Interval (MkIntervalMs, unIntervalMs),
 ) where
 
 import Control.Concurrent (
@@ -29,6 +30,7 @@ import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
 import Network.Socket qualified as Socket
 import Network.Socket.ByteString qualified as Socket.BS
+import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 import Prelude
 
 exampleTx :: IO BS.ByteString
@@ -39,10 +41,10 @@ data OuraDaemonConnection = MkOuraDaemonConnection
   , ouraAddress :: Socket.SockAddr
   }
 
-connectToDaemon :: FilePath -> FilePath -> IO OuraDaemonConnection
-connectToDaemon ownSocketPath ouraSocketPath = do
+connectToDaemon :: FilePath -> SourcePath -> IO OuraDaemonConnection
+connectToDaemon ownSocketPath (MkSourcePath ouraSocketPath) = do
   let
-    ouraAddress = Socket.SockAddrUnix ouraSocketPath
+    ouraAddress = Socket.SockAddrUnix $ T.unpack ouraSocketPath
     ownSocketHints =
       Socket.defaultHints
         { Socket.addrFamily = Socket.AF_UNIX
@@ -73,13 +75,13 @@ close MkOuraDaemonConnection {ownSocket} = do
 
 data OuraOutput = MkOuraOutput
   { output :: Chan T.Text
-  , sinkPath :: FilePath
+  , sinkPath :: SinkPath
   , monitor :: Maybe ThreadId
   }
 
 newtype Interval = MkIntervalMs {unIntervalMs :: Int}
 
-listenOuraSink :: FilePath -> Maybe Interval -> IO OuraOutput
+listenOuraSink :: SinkPath -> Maybe Interval -> IO OuraOutput
 listenOuraSink sinkPath monitoringInterval = do
   output <- newChan
   let
@@ -109,6 +111,7 @@ monitorOutputs MkIntervalMs {unIntervalMs} out = forever do
 
 collectOutput :: OuraOutput -> IO ()
 collectOutput MkOuraOutput {output, sinkPath} = do
-  contents <- BS.readFile sinkPath
-  BS.writeFile sinkPath ""
+  let sink = T.unpack $ unSinkPath sinkPath
+  contents <- BS.readFile sink
+  BS.writeFile sink ""
   writeList2Chan output $ reverse $ T.lines $ Text.Encoding.decodeUtf8 contents
