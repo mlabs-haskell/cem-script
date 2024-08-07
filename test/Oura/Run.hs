@@ -1,6 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 
-module Oura.Run where
+module Oura.Run (
+  WorkDir (MkWorkDir, unWorkDir),
+  Oura (MkOura, send, receive, shutDown),
+  withOura,
+  runOura,
+) where
 
 import Control.Concurrent (ThreadId, forkIO, killThread)
 import Control.Monad (void)
@@ -10,7 +15,7 @@ import Data.ByteString qualified as BS
 import Data.String (IsString (fromString))
 import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
-import Oura qualified
+import Oura.Communication qualified as Communication
 import Oura.Config qualified as Config
 import System.Process qualified as Process
 import Toml.Pretty qualified
@@ -22,15 +27,14 @@ data Oura m = MkOura
   , receive :: m T.Text
   , shutDown :: m ()
   }
-
 newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
   deriving newtype (IsString)
 
 withOura :: WorkDir -> (Oura IO -> IO r) -> IO r
 withOura workdir =
-  runContT $ runOura workdir $ Just $ Oura.MkIntervalMs 1_000
+  runContT $ runOura workdir $ Just $ Communication.MkIntervalMs 1_000
 
-runOura :: WorkDir -> Maybe Oura.Interval -> ContT r IO (Oura IO)
+runOura :: WorkDir -> Maybe Communication.Interval -> ContT r IO (Oura IO)
 runOura (MkWorkDir (T.unpack -> workdir)) outputCheckingInterval = do
   sourcePath :: Config.SourcePath <-
     fmap fromString $
@@ -48,15 +52,19 @@ runOura (MkWorkDir (T.unpack -> workdir)) outputCheckingInterval = do
   configPath <- ContT $ withNewFile "config.toml" workdir
   lift $ T.IO.writeFile configPath config
   (ouraHandle, ouraThread) <- lift $ launchOura configPath
-  ouraConnection <- lift $ Oura.connectToDaemon writerPath sourcePath
-  ouraOutput <- lift $ Oura.listenOuraSink sinkPath outputCheckingInterval
+  ouraConnection <-
+    lift $
+      Communication.connectToDaemon writerPath sourcePath
+  ouraOutput <-
+    lift $
+      Communication.listenOuraSink sinkPath outputCheckingInterval
   let
     shutDown = do
-      Oura.close ouraConnection
+      Communication.close ouraConnection
       killThread ouraThread
       Process.terminateProcess ouraHandle
-    receive = Oura.waitForOutput ouraOutput
-    send = void . Oura.sendToOura ouraConnection
+    receive = Communication.waitForOutput ouraOutput
+    send = void . Communication.sendToOura ouraConnection
   pure MkOura {shutDown, receive, send}
 
 daemonConfig :: Config.SourcePath -> Config.SinkPath -> T.Text

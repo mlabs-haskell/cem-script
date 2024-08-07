@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 
-module Oura (
+module Oura.Communication (
   connectToDaemon,
   sendToOura,
   close,
