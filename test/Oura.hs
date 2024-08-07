@@ -62,6 +62,7 @@ runOura (MkWorkDir (T.unpack -> workdir)) outputCheckingInterval = do
       Communication.listenOuraSink sinkPath outputCheckingInterval
   let
     shutDown = do
+      Communication.stopMonitoring ouraOutput
       Communication.close ouraConnection
       killThread ouraThread
       Process.terminateProcess ouraHandle
