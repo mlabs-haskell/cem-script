@@ -184,6 +184,7 @@ test-suite cem-sdk-test
     , network
     , directory
     , toml-parser
+    , process
 
   hs-source-dirs: test/
   other-modules:
