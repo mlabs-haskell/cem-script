@@ -11,6 +11,8 @@ module Oura.Communication (
   Interval (MkIntervalMs, unIntervalMs),
 ) where
 
+import Prelude
+
 import Control.Concurrent (
   Chan,
   ThreadId,
@@ -30,8 +32,8 @@ import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
 import Network.Socket qualified as Socket
 import Network.Socket.ByteString qualified as Socket.BS
+
 import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
-import Prelude
 
 exampleTx :: IO BS.ByteString
 exampleTx = BS.readFile "./tx.json"

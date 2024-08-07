@@ -4,12 +4,13 @@ module Oura.Config (
   SinkPath (MkSinkPath, unSinkPath),
 ) where
 
+import Prelude
+
 import Data.String (IsString)
 import Data.Text qualified as T
 import Toml qualified
 import Toml.Schema.ToValue ((.=))
 import Toml.Schema.ToValue qualified as Toml.ToValue
-import Prelude
 
 -- * Config
 

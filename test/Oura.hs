@@ -7,6 +7,8 @@ module Oura (
   runOura,
 ) where
 
+import Prelude
+
 import Control.Concurrent (ThreadId, forkIO, killThread)
 import Control.Monad (void)
 import Control.Monad.Cont (ContT (ContT, runContT))
@@ -15,12 +17,12 @@ import Data.ByteString qualified as BS
 import Data.String (IsString (fromString))
 import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
-import Oura.Communication qualified as Communication
-import Oura.Config qualified as Config
 import System.Process qualified as Process
 import Toml.Pretty qualified
 import Utils (withNewFile)
-import Prelude
+
+import Oura.Communication qualified as Communication
+import Oura.Config qualified as Config
 
 data Oura m = MkOura
   { send :: BS.ByteString -> m ()
