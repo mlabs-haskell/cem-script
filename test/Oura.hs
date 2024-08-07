@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 
-module Oura.Run (
+module Oura (
   WorkDir (MkWorkDir, unWorkDir),
   Oura (MkOura, send, receive, shutDown),
   withOura,

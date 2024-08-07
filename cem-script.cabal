@@ -194,9 +194,9 @@ test-suite cem-sdk-test
     TestNFT
     Utils
     Voting
+    Oura
     Oura.Communication
     Oura.Config
-    Oura.Run
     OuraFilters
 
   main-is:        Main.hs
