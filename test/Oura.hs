@@ -1,25 +1,35 @@
 {-# LANGUAGE BlockArguments #-}
-module Oura
-  ( connectToDaemon
-  , sendToOura
-  , close
-  , exampleTx
 
-  , listenOuraSink
-  , stopMonitoring
-  , waitForOutput
-  ) where
+module Oura (
+  connectToDaemon,
+  sendToOura,
+  close,
+  exampleTx,
+  listenOuraSink,
+  stopMonitoring,
+  waitForOutput,
+) where
 
-import Prelude
-import qualified Network.Socket as Socket
-import qualified Data.ByteString as BS
-import qualified Network.Socket.ByteString as Socket.BS
-import Control.Concurrent (Chan, writeList2Chan, readChan, threadDelay, newChan, ThreadId, forkIO, killThread, myThreadId)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as Text.Encoding
-import Control.Monad (forever, void, replicateM)
-import Data.Traversable (for)
+import Control.Concurrent (
+  Chan,
+  ThreadId,
+  forkIO,
+  killThread,
+  myThreadId,
+  newChan,
+  readChan,
+  threadDelay,
+  writeList2Chan,
+ )
+import Control.Monad (forever, replicateM, void)
+import Data.ByteString qualified as BS
 import Data.Foldable (for_)
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as Text.Encoding
+import Data.Traversable (for)
+import Network.Socket qualified as Socket
+import Network.Socket.ByteString qualified as Socket.BS
+import Prelude
 
 exampleTx :: IO BS.ByteString
 exampleTx = BS.readFile "./tx.json"
@@ -33,17 +43,19 @@ connectToDaemon :: FilePath -> FilePath -> IO OuraDaemonConnection
 connectToDaemon ownSocketPath ouraSocketPath = do
   let
     ouraAddress = Socket.SockAddrUnix ouraSocketPath
-    ownSocketHints = Socket.defaultHints
+    ownSocketHints =
+      Socket.defaultHints
         { Socket.addrFamily = Socket.AF_UNIX
         , Socket.addrAddress = Socket.SockAddrUnix ownSocketPath
         , Socket.addrSocketType = Socket.Datagram
         }
   ownSocket <- Socket.openSocket ownSocketHints
   Socket.bind ownSocket (Socket.SockAddrUnix ownSocketPath)
-  pure MkOuraDaemonConnection
-    { ownSocket
-    , ouraAddress = ouraAddress
-    }
+  pure
+    MkOuraDaemonConnection
+      { ownSocket
+      , ouraAddress = ouraAddress
+      }
 
 sendToOura :: OuraDaemonConnection -> BS.ByteString -> IO Int
 sendToOura MkOuraDaemonConnection {ownSocket, ouraAddress} msg = do
@@ -65,17 +77,18 @@ data OuraOutput = MkOuraOutput
   , monitor :: Maybe ThreadId
   }
 
-newtype Interval = MkIntervalMs { unIntervalMs :: Int }
+newtype Interval = MkIntervalMs {unIntervalMs :: Int}
 
 listenOuraSink :: FilePath -> Maybe Interval -> IO OuraOutput
 listenOuraSink sinkPath monitoringInterval = do
   output <- newChan
   let
-    mkOutput monitor = MkOuraOutput
-      { output
-      , sinkPath
-      , monitor
-      }
+    mkOutput monitor =
+      MkOuraOutput
+        { output
+        , sinkPath
+        , monitor
+        }
   mkOutput <$> for monitoringInterval \interval -> forkIO do
     monitor <- myThreadId
     monitorOutputs interval $ mkOutput $ Just monitor
