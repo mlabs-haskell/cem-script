@@ -43,7 +43,7 @@ import Data.Spine (HasSpine (..))
 
 import Control.Exception (bracket)
 import System.Directory (removeFile)
-import System.IO (openTempFile)
+import System.IO (hClose, openTempFile)
 import TestNFT
 
 execClb :: ClbRunner a -> IO a
@@ -133,9 +133,13 @@ perTransitionStats = do
           Just (show (getSpine transition), feesByTxId Map.! txId)
       _ -> Nothing
 
-withNewFile :: FilePath -> (FilePath -> IO a) -> IO a
-withNewFile dir action = do
+withNewFile :: String -> FilePath -> (FilePath -> IO a) -> IO a
+withNewFile name dir action = do
   bracket
-    (openTempFile dir "")
-    (removeFile . fst)
-    (action . fst)
+    ( do
+        (path, handle) <- openTempFile dir name
+        hClose handle
+        pure path
+    )
+    removeFile
+    action
