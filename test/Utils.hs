@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 module Utils where
 
 import Prelude
@@ -45,6 +46,10 @@ import Control.Exception (bracket)
 import System.Directory (removeFile)
 import System.IO (hClose, openTempFile)
 import TestNFT
+import Data.Foldable (traverse_)
+import qualified Data.IORef as IORef
+import qualified Test.Hspec as Hspec
+import qualified System.Process as Process
 
 execClb :: ClbRunner a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
@@ -153,3 +158,48 @@ clearLogs = writeFile testLogsFile ""
 debug :: String -> IO ()
 debug msg = do
   appendFile testLogsFile $ msg <> "\n"
+
+-- * Janitor
+
+newtype SpotGarbage m a = MkSpotGarbage
+  { run :: a -> m a }
+
+data Janitor m a = MkJanitor
+  { cleanup :: m ()
+  , spotGarbage :: SpotGarbage m a
+  }
+
+-- Note, that the cleanup process may fail in this implementation
+newJanitor :: forall a.
+  (a -> IO ()) ->
+  IO (Janitor IO a)
+newJanitor trash = do
+  spottedGarbageRef <- IORef.newIORef []
+  pure MkJanitor
+    { spotGarbage = MkSpotGarbage \garbage -> do
+        IORef.modifyIORef spottedGarbageRef (garbage :)
+        pure garbage
+    , cleanup = IORef.readIORef spottedGarbageRef
+        >>= traverse_ trash
+    }
+
+cleanupAround ::
+  (a -> IO ()) ->
+  (Janitor IO a -> b) ->
+  Hspec.SpecWith b ->
+  Hspec.Spec
+cleanupAround trash toTestArg =
+  Hspec.around
+    $ bracket (newJanitor trash) cleanup
+    . flip fmap toTestArg
+
+-- | This is a workaround the bug that cabal test can't finish before all its spawned processes
+-- no matter what.
+-- The workaround is to collect process handles and terminate them on error, allowing
+-- test suite to finish.
+killProcessesOnError ::
+  Hspec.SpecWith (SpotGarbage IO Process.ProcessHandle) ->
+  Hspec.Spec
+killProcessesOnError =
+  cleanupAround Process.terminateProcess spotGarbage 
+  
