@@ -4,7 +4,6 @@ module Oura.Communication (
   connectToDaemon,
   sendToOura,
   close,
-  exampleTx,
   listenOuraSink,
   stopMonitoring,
   waitForOutput,
@@ -24,7 +23,7 @@ import Control.Concurrent (
   threadDelay,
   writeList2Chan,
  )
-import Control.Monad (forever, replicateM, void)
+import Control.Monad (forever)
 import Data.ByteString qualified as BS
 import Data.Foldable (for_)
 import Data.Text qualified as T
@@ -35,8 +34,6 @@ import Network.Socket.ByteString qualified as Socket.BS
 
 import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 
-exampleTx :: IO BS.ByteString
-exampleTx = BS.readFile "./tx.json"
 
 data OuraDaemonConnection = MkOuraDaemonConnection
   { ownSocket :: Socket.Socket
