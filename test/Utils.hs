@@ -143,3 +143,13 @@ withNewFile name dir action = do
     )
     removeFile
     action
+
+testLogsFile :: FilePath
+testLogsFile = "./test.log"
+
+clearLogs :: IO ()
+clearLogs = writeFile testLogsFile ""
+
+debug :: String -> IO ()
+debug msg = do
+  appendFile testLogsFile $ msg <> "\n"
