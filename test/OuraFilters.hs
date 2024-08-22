@@ -16,10 +16,10 @@ import qualified Data.Aeson as Aeson
 import Data.Aeson ((.:))
 
 exampleTx :: IO T.Text
-exampleTx = T.IO.readFile "./tx.json"
+exampleTx = T.IO.readFile "./mock/tx.json"
 
 exampleMatchingTx :: IO T.Text
-exampleMatchingTx = T.IO.readFile "./matchingTx.json"
+exampleMatchingTx = T.IO.readFile "./mock/matchingTx.json"
 
 ouraFiltersSpec :: Spec
 ouraFiltersSpec = Utils.killProcessesOnError do
