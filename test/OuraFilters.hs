@@ -22,8 +22,8 @@ exampleMatchingTx :: IO T.Text
 exampleMatchingTx = T.IO.readFile "./matchingTx.json"
 
 ouraFiltersSpec :: Spec
-ouraFiltersSpec = Utils.killProcessesOnError do --hspec do
-  it "Can execute oura" \spotGarbage -> do
+ouraFiltersSpec = Utils.killProcessesOnError do
+  it "Oura filters match tx it have to match, and don't match other" \spotGarbage -> do
     Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
       tx <- exampleTx
       matchingTx <- exampleMatchingTx
