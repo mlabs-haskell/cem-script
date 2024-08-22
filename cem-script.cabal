@@ -170,7 +170,7 @@ test-suite cem-sdk-test
     common-offchain,
 
   type:           exitcode-stdio-1.0
-  ghc-options:    -Wno-missing-signatures -Wno-incomplete-uni-patterns
+  ghc-options:   -threaded -Wno-missing-signatures -Wno-incomplete-uni-patterns
   build-depends:
     , cem-script
     , cem-script:cardano-extras
@@ -181,6 +181,11 @@ test-suite cem-sdk-test
     , QuickCheck
     , quickcheck-dynamic
     , random
+    , network
+    , directory
+    , toml-parser
+    , process
+    , async
 
   hs-source-dirs: test/
   other-modules:
@@ -190,5 +195,9 @@ test-suite cem-sdk-test
     TestNFT
     Utils
     Voting
+    Oura
+    Oura.Communication
+    Oura.Config
+    OuraFilters
 
   main-is:        Main.hs
