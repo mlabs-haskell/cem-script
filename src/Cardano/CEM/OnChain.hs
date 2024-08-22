@@ -93,7 +93,8 @@ genericCEMScript script scriptStage =
                     getDatum datumContent == expectedDatum
                   OutputDatumHash _ -> traceError "Hash datum not supported"
                   _ -> False
-        checkConstraint (MkTxFanC fanKind filterSpec quantifier) =
+        -- given a fans constraint checks it against all fans
+        checkConstraint (MkTxFansC fanKind filterSpec quantifier) =
           traceIfFalse ("Checking constraint " <> show fanKind <> " " <> show datumSpec)
             $ checkQuantifier
             $ filter checkTxFan fans

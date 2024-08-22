@@ -134,7 +134,7 @@ instance CEMScript SimpleVoting where
         let allowedToVoteConstraints =
               case juryPolicy params of
                 WithToken value ->
-                  [ MkTxFanC
+                  [ MkTxFansC
                       InRef
                       (MkTxFanFilter (ByPubKey jury) Anything)
                       (SumValueEq value)
@@ -160,4 +160,4 @@ instance CEMScript SimpleVoting where
       _ -> Left "Wrong state transition" where
     where
       nextScriptState state' =
-        MkTxFanC Out (MkTxFanFilter BySameScript (bySameCEM state')) (Exist 1)
+        MkTxFansC Out (MkTxFanFilter BySameScript (bySameCEM state')) (Exist 1)

@@ -34,6 +34,8 @@ addressSpecToAddress ownAddress addressSpec = case addressSpec of
   ByPubKey pubKey -> pubKeyHashAddress pubKey
   BySameScript -> ownAddress
 
+-- "Tx Fan" - is transaction input or output 
+
 data TxFanFilter script = MkTxFanFilter
   { address :: AddressSpec
   , rest :: TxFanFilter' script
@@ -57,16 +59,18 @@ bySameCEM ::
 bySameCEM = UnsafeBySameCEM . toBuiltinData
 
 -- TODO: use natural numbers
-data Quantor = Exist Integer | SumValueEq Value
+-- | How many tx fans should satify a 'TxFansConstraint'
+data Quantifier = Exist Integer | SumValueEq Value
   deriving stock (Show)
 
 data TxFanKind = In | InRef | Out
   deriving stock (Prelude.Eq, Prelude.Show)
 
-data TxFanConstraint script = MkTxFanC
-  { txFanCKind :: TxFanKind
-  , txFanCFilter :: TxFanFilter script
-  , txFanCQuantor :: Quantor
+-- | A constraint on Tx inputs or Outputs.
+data TxFansConstraint script = MkTxFansC
+  { txFansCKind :: TxFanKind -- is constraint applies strictly on inputs or on outputs
+  , txFansCFilter :: TxFanFilter script -- constraint on a single tx fan
+  , txFansCQuantor :: Quantifier -- how much fans are required to match
   }
   deriving stock (Show)
 
@@ -133,7 +137,7 @@ class
     Either BuiltinString (TransitionSpec script)
 
 data TransitionSpec script = MkTransitionSpec
-  { constraints :: [TxFanConstraint script]
+  { constraints :: [TxFansConstraint script]
   , -- List of additional signers (in addition to one required by TxIns)
     signers :: [PubKeyHash]
   }
@@ -143,8 +147,8 @@ data TransitionSpec script = MkTransitionSpec
 getAllSpecSigners :: TransitionSpec script -> [PubKeyHash]
 getAllSpecSigners spec = signers spec ++ txInPKHs
   where
-    txInPKHs = mapMaybe getPubKey $ filter ((Prelude.== In) . txFanCKind) $ constraints spec
-    getPubKey c = case address (txFanCFilter c) of
+    txInPKHs = mapMaybe getPubKey $ filter ((Prelude.== In) . txFansCKind) $ constraints spec
+    getPubKey c = case address (txFansCFilter c) of
       ByPubKey key -> Just key
       _ -> Nothing
 

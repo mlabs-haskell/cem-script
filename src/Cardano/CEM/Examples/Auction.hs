@@ -91,7 +91,7 @@ instance CEMScript SimpleAuction where
       Right
         $ MkTransitionSpec
           { constraints =
-              [ MkTxFanC
+              [ MkTxFansC
                   In
                   (MkTxFanFilter (ByPubKey $ seller params) Anything)
                   (SumValueEq $ lot params)
@@ -126,15 +126,15 @@ instance CEMScript SimpleAuction where
         $ MkTransitionSpec
           { constraints =
               [ -- Example: In constraints redundant for on-chain
-                MkTxFanC
+                MkTxFansC
                   In
                   (MkTxFanFilter (ByPubKey (better winnerBet)) Anything)
                   (SumValueEq $ betAdaValue winnerBet)
-              , MkTxFanC
+              , MkTxFansC
                   Out
                   (MkTxFanFilter (ByPubKey (better winnerBet)) Anything)
                   (SumValueEq $ lot params)
-              , MkTxFanC
+              , MkTxFansC
                   Out
                   (MkTxFanFilter (ByPubKey (seller params)) Anything)
                   (SumValueEq $ betAdaValue winnerBet)
@@ -145,7 +145,7 @@ instance CEMScript SimpleAuction where
     where
       initialBid = MkBet (seller params) 0
       nextState state' =
-        MkTxFanC
+        MkTxFansC
           Out
           (MkTxFanFilter BySameScript (bySameCEM state'))
           (SumValueEq $ lot params)
