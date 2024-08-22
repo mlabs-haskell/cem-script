@@ -6,7 +6,7 @@ module OuraFilters (ouraFiltersSpec) where
 import Prelude
 import Oura (Oura (send, receive, shutDown))
 import Oura qualified
-import Test.Hspec (Spec, it, shouldBe)
+import Test.Hspec (Spec, it, shouldBe, describe)
 import Control.Monad ((>=>))
 import qualified Data.Text as T
 import qualified Data.Text.IO as T.IO
@@ -36,6 +36,17 @@ ouraFiltersSpec = Utils.killProcessesOnError do
         <- pure $ extractInputTxHash matchingTx
       outTxHash `shouldBe` inputTxHash
       oura.shutDown
+  describe "Auction example" do
+    it "Recognizes 'Create' transition" \_ -> do
+      fail @IO @() "Not implemented"
+    it "Recognizes 'Start' transition" \_ -> do
+      fail @IO @() "Not implemented"
+    it "Recognizes 'MakeBid' transition" \_ -> do
+      fail @IO @() "Not implemented"
+    it "Recognizes 'Close' transition" \_ -> do
+      fail @IO @() "Not implemented"
+    it "Recognizes 'Buyout' transition" \_ -> do
+      fail @IO @() "Not implemented"
 
 extractInputTxHash :: T.Text -> Either String T.Text
 extractInputTxHash = Aeson.eitherDecodeStrictText >=> Aeson.parseEither \json -> do
