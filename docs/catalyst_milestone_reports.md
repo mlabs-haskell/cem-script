@@ -33,6 +33,20 @@ Winner -> "Void Out" [label="Buyout (stage Closed)"];
 }
 ```
 
+## Clarifications on M3 Deliverables
+
+### Running an Emulated Environment by CLB
+
+The CLB monad is designed to interact seamlessly with a Cardano mockchain environment. It can read from a shared environment, query blockchain parameters such as the current slot, and retrieve UTXO information, among other functions. This module facilitates simulation and testing, making it essential for unit tests and other testing scenarios where a controlled blockchain environment is needed. Using this emulated environment, developers can test and validate their Cardano applications in a reliable and repeatable manner.
+
+### Running QuickCheck Dynamic Tests, Including Mutation Support
+
+QuickCheck is a powerful Haskell library for property-based testing, which helps ensure that programs behave correctly for a wide range of inputs. The quickcheck-dynamic library extends this tool to stateful systems, making it particularly suitable for testing blockchain applications. Our testing framework uses a state machine model to simulate real-world scenarios, incorporating support for mutation testing. This approach helps verify that the system maintains correct behavior under various conditions, including edge cases and unexpected changes, thereby enhancing the robustness of the application.
+
+### Rendering CEMScript State Graphs
+
+Understanding state transitions and the overall system flow is critical for ensuring blockchain applications do not enter invalid states. To aid developers, we have implemented automated rendering of state graphs through our documentation module. This module generates DOT graph representations of CEMScript state transitions, providing an easy-to-understand visual model of how a DApp functions in real-world scenarios. This visualization tool increases developer confidence by highlighting the system's behavior and identifying potential shortcomings.
+
 # Milestone 4
 
 ## Summary
