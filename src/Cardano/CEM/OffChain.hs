@@ -7,19 +7,18 @@ import Prelude
 
 -- Haskell imports
 import Control.Concurrent (threadDelay)
+import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Proxy (..))
-import Data.List (find)
+import Data.List (find, nub)
 import Data.Map qualified as Map
+import Data.Maybe (fromJust)
+import Data.Spine (HasSpine (getSpine))
 
-import PlutusLedgerApi.V1.Address (Address)
-import PlutusLedgerApi.V2 (
-  UnsafeFromData (..),
-  always,
-  fromData,
- )
+import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
+import PlutusLedgerApi.V2 (PubKeyHash, always, fromData)
 
-import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns)
+import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns, txOuts)
 import Cardano.Api.Shelley (
   PlutusScript (..),
   ReferenceScript (..),
@@ -27,13 +26,15 @@ import Cardano.Api.Shelley (
   toPlutusData,
  )
 
+import Plutarch.Script (serialiseScript)
+
 -- Project imports
 
 import Cardano.CEM
+import Cardano.CEM.DSL
 import Cardano.CEM.Monads
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), cemScriptAddress)
 import Cardano.Extras
-import Data.Spine (HasSpine (getSpine))
 
 fromPlutusAddressInMonad ::
   (MonadBlockchainParams m) => Address -> m (AddressInEra Era)
@@ -63,24 +64,20 @@ failLeft :: (MonadFail m, Show s) => Either s a -> m a
 failLeft (Left errorMsg) = fail $ show errorMsg
 failLeft (Right value) = return value
 
--- TODO: use regular CEMScript
-cemTxOutDatum :: (CEMScriptCompiled script) => TxOut ctx Era -> Maybe (CEMScriptDatum script)
+cemTxOutDatum ::
+  (CEMScript script) => TxOut ctx Era -> Maybe (CEMScriptDatum script)
 cemTxOutDatum txOut =
   fromData =<< toPlutusData <$> getScriptData <$> mTxOutDatum txOut
 
 cemTxOutState :: (CEMScriptCompiled script) => TxOut ctx Era -> Maybe (State script)
-cemTxOutState txOut =
-  let
-    getState (_, _, state) = state
-   in
-    getState <$> cemTxOutDatum txOut
+cemTxOutState txOut = snd <$> cemTxOutDatum txOut
 
 queryScriptTxInOut ::
   forall m script.
   ( MonadQueryUtxo m
   , CEMScriptCompiled script
   ) =>
-  CEMParams script ->
+  Params script ->
   m (Maybe (TxIn, TxOut CtxUTxO Era))
 queryScriptTxInOut params = do
   utxo <- queryUtxo $ ByAddresses [scriptAddress]
@@ -90,7 +87,7 @@ queryScriptTxInOut params = do
           pairs -> find hasSameParams pairs
       hasSameParams (_, txOut) =
         case cemTxOutDatum txOut of
-          Just (p1, p2, _) -> params == MkCEMParams p2 p1
+          Just (p, _) -> params == p
           Nothing -> False -- May happen in case of changed Datum encoding
   return mScriptTxIn
   where
@@ -101,121 +98,170 @@ queryScriptState ::
   ( MonadQueryUtxo m
   , CEMScriptCompiled script
   ) =>
-  CEMParams script ->
+  Params script ->
   m (Maybe (State script))
 queryScriptState params = do
   mTxInOut <- queryScriptTxInOut params
   return (cemTxOutState . snd =<< mTxInOut)
 
-resolveAction ::
-  forall m.
-  (MonadQueryUtxo m, MonadSubmitTx m) =>
-  SomeCEMAction ->
-  m (Either TxResolutionError ResolvedTx)
-resolveAction
-  someAction@(MkSomeCEMAction @script (MkCEMAction params transition)) =
-    -- Add script TxIn
+-- FIXME: doc, naming
+data Resolution
+  = TxInR (TxIn, TxInWitness)
+  | TxInRefR (TxIn, TxInWitness)
+  | TxOutR (TxOut CtxTx Era)
+  | AdditionalSignerR PubKeyHash
+  | NoopR
+  deriving stock (Show, Eq)
 
-    runExceptT $ do
-      mScriptTxIn' <- lift $ queryScriptTxInOut params
+construct :: [Resolution] -> ResolvedTx
+construct rs = constructGo rs emptyResolvedTx
+  where
+    emptyResolvedTx =
+      MkResolvedTx
+        { txIns = []
+        , txInRefs = []
+        , txOuts = []
+        , toMint = TxMintNone
+        , additionalSigners = []
+        , signer = error "TODO: Unreachable laziness trick"
+        , -- FIXME
+          interval = always
+        }
+    constructGo (r : rest) !acc =
+      let newAcc = case r of
+            TxInR x -> acc {txIns = x : txIns acc}
+            TxInRefR x -> acc {txInRefs = fst x : txInRefs acc}
+            TxOutR x -> acc {txOuts = x : txOuts acc}
+            AdditionalSignerR s ->
+              acc {additionalSigners = s : additionalSigners acc}
+            NoopR -> acc
+       in constructGo rest newAcc
+    constructGo [] !acc = acc
+
+compileActionConstraints ::
+  forall script.
+  (CEMScriptCompiled script) =>
+  Maybe (State script) ->
+  CEMAction script ->
+  Either TxResolutionError [TxConstraint True script]
+compileActionConstraints
+  mState
+  (MkCEMAction params transition) =
+    runExcept $ do
+      let
+        uncompiled =
+          perTransitionScriptSpec @script
+            Map.! getSpine transition
+        xSpine = transitionInStateSpine uncompiled
+
+      when (fmap getSpine mState /= xSpine) $
+        throwError CEMScriptTxInResolutionError
 
       let
-        -- TODO
-        mScriptTxIn = case transitionStage (Proxy :: Proxy script) Map.! getSpine transition of
-          (_, Nothing, _) -> Nothing
-          _ -> mScriptTxIn'
-        mState = cemTxOutState =<< snd <$> mScriptTxIn
-        witnesedScriptTxIns =
-          case mScriptTxIn of
-            Just (txIn, _) ->
-              let
-                scriptWitness =
-                  mkInlinedDatumScriptWitness
-                    (PlutusScriptSerialised @PlutusLang script)
-                    transition
-               in
-                [(txIn, scriptWitness)]
-            Nothing -> []
+        -- FIXME: fromJust laziness trick
+        datum = (params, fromJust mState)
+        compiled' = map (compileConstraint datum transition) uncompiled
 
-      scriptTransition <- case transitionSpec (scriptParams params) mState transition of
-        Left errorMessage ->
-          throwError $
-            MkTransitionError someAction (StateMachineError $ show errorMessage)
-        Right result -> return result
+      -- FIXME: raise lefts from compiled
+      let f x = case x of
+            Left message -> throwError $ PerTransitionErrors [CompilationError message]
+            Right x' -> return x'
+      -- FIXME: add resolution logging
+      mapM f compiled'
 
-      -- Coin-select
-
-      let
-        byKind kind =
-          filter (\x -> txFanCKind x == kind) $
-            constraints scriptTransition
-
-      txInsPairs <- concat <$> mapM resolveTxIn (byKind In)
-      txOuts <- concat <$> mapM compileTxConstraint (byKind Out)
-
-      return $
-        MkResolvedTx
-          { txIns = witnesedScriptTxIns <> map fst txInsPairs
-          , txInsReference = []
-          , txOuts
-          , toMint = TxMintNone
-          , additionalSigners = signers scriptTransition
-          , signer = error "TODO"
-          , interval = always
-          }
-    where
-      script = cemScriptCompiled (Proxy :: Proxy script)
-      scriptAddress = cemScriptAddress (Proxy :: Proxy script)
-      resolveTxIn (MkTxFanC _ (MkTxFanFilter addressSpec _) _) = do
+process ::
+  forall script m.
+  (MonadQueryUtxo m, CEMScriptCompiled script) =>
+  CEMAction script ->
+  TxConstraint True script ->
+  ExceptT TxResolutionError m Resolution
+process (MkCEMAction params transition) ec = case ec of
+  Noop -> return NoopR
+  c@MainSignerCoinSelect {} -> do
+    utxo <- lift $ queryUtxo $ ByAddresses [pubKeyHashAddress $ user c]
+    let utxoPairs =
+          map (withKeyWitness . fst) $ Map.toList $ unUTxO utxo
+    -- FIXME: do actuall coin selection
+    return $ TxInR $ head utxoPairs
+  (TxFan kind fanFilter value) -> do
+    case kind of
+      Out -> do
+        let value' = convertTxOut $ fromPlutusValue value
+        address' <- lift $ fromPlutusAddressInMonad address
+        return $
+          TxOutR $
+            TxOut address' value' outTxDatum ReferenceScriptNone
+      someIn -> do
         utxo <- lift $ queryUtxo $ ByAddresses [address]
-        return $ map (\(x, y) -> (withKeyWitness x, y)) $ Map.toList $ unUTxO utxo
+        let
+          utxoPairs = Map.toList $ unUTxO utxo
+          matchingUtxos =
+            map (addWittness . fst) $ filter predicate utxoPairs
+        case matchingUtxos of
+          x : _ -> return $ case someIn of
+            -- FIXME: log/fail on >1 options to choose for script
+            In -> TxInR x
+            InRef -> TxInRefR x
+          [] ->
+            throwError $ PerTransitionErrors [CannotFindTransitionInput]
+    where
+      predicate (_, txOut) =
+        txOutValue txOut == fromPlutusValue value
+          && case fanFilter of
+            -- FIXME: refactor DRY
+            SameScript state ->
+              cemTxOutDatum txOut
+                == Just
+                  ( params
+                  , state
+                  )
+            UserAddress {} -> True
+
+      (address, outTxDatum) = case fanFilter of
+        UserAddress pkh -> (pubKeyHashAddress pkh, TxOutDatumNone)
+        SameScript state ->
+          ( scriptAddress
+          , mkInlineDatum
+              ( params
+              , state
+              )
+          )
+      -- FIXME: understand what is happening
+      convertTxOut x =
+        TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
+      addWittness = case fanFilter of
+        UserAddress {} -> withKeyWitness
+        SameScript {} -> (,scriptWitness)
         where
-          address = addressSpecToAddress scriptAddress addressSpec
-      compileTxConstraint
-        (MkTxFanC _ (MkTxFanFilter addressSpec filterSpec) quantor) = do
-          address' <- lift $ fromPlutusAddressInMonad address
-          let compiledTxOut value =
-                TxOut address' value datum ReferenceScriptNone
-          return $ case quantor of
-            Exist n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
-            SumValueEq value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
-          where
-            datum = case filterSpec of
-              Anything -> TxOutDatumNone
-              ByDatum datum' -> mkInlineDatum datum'
-              -- FIXME: Can be optimized via Plutarch
-              UnsafeBySameCEM newState ->
-                let
-                  cemDatum :: CEMScriptDatum script
-                  cemDatum =
-                    ( stagesParams params
-                    , scriptParams params
-                    , unsafeFromBuiltinData newState
-                    )
-                 in
-                  mkInlineDatum cemDatum
-            address = addressSpecToAddress scriptAddress addressSpec
-            -- TODO: protocol params
-            -- calculateMinimumUTxO era txout bpp
-            minUtxoValue = convertTxOut $ lovelaceToValue 3_000_000
-            -- TODO
-            convertTxOut x =
-              TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
+          scriptWitness =
+            mkInlinedDatumScriptWitness
+              (PlutusScriptSerialised @PlutusLang $ serialiseScript script)
+              transition
+  MainSignerNoValue pkh -> return $ AdditionalSignerR pkh
+  Error message ->
+    throwError $
+      PerTransitionErrors [SpecExecutionError $ show message]
+  where
+    script = cemScriptCompiled (Proxy :: Proxy script)
+    scriptAddress = cemScriptAddress (Proxy :: Proxy script)
 
 resolveTx ::
+  forall m.
   (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
   TxSpec ->
   m (Either TxResolutionError ResolvedTx)
 resolveTx spec = runExceptT $ do
-  -- Get specs
-  !actionsSpecs <- mapM (ExceptT . resolveAction) $ actions spec
-
-  -- Merge specs
-  let
-    mergedSpec' = head actionsSpecs
-    mergedSpec = (mergedSpec' :: ResolvedTx) {signer = specSigner spec}
-
-  return mergedSpec
+  !resolutions <- mapM resolveSomeAction (actions spec)
+  let resolvedTx = construct $ nub $ concat resolutions
+  return $ resolvedTx {signer = specSigner spec}
+  where
+    resolveSomeAction ::
+      SomeCEMAction -> (ExceptT TxResolutionError m) [Resolution]
+    resolveSomeAction (MkSomeCEMAction @script action) = do
+      let MkCEMAction params _ = action
+      mScript <- lift $ queryScriptState params
+      cs <- ExceptT $ return $ compileActionConstraints mScript action
+      mapM (process action) cs
 
 resolveTxAndSubmit ::
   (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>

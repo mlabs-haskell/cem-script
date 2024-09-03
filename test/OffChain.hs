@@ -57,7 +57,7 @@ offChainSpec = describe "Checking monad works" $ do
       tx =
         MkResolvedTx
           { txIns = map withKeyWitness user1TxIns
-          , txInsReference = []
+          , txInRefs = []
           , txOuts =
               [ out user1Address
               , out user2Address

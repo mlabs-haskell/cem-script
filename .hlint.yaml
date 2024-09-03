@@ -16,3 +16,4 @@
 - ignore: {name: Use unless}
 - ignore: {name: "Use asks"}
 - ignore: {name: "Eta reduce"}
+- ignore: {name: Use concatMap}

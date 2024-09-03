@@ -12,7 +12,6 @@ import Test.Hspec (describe, it, shouldBe)
 import Test.QuickCheck
 import Test.QuickCheck.DynamicLogic
 
-import Cardano.CEM (CEMParams (..))
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Monads (MonadTest (..))
@@ -25,16 +24,13 @@ import Utils (execClb, mintTestTokens)
 -- Defining generic instances
 
 instance CEMScriptArbitrary SimpleAuction where
-  arbitraryCEMParams actors = do
+  arbitraryParams actors = do
     seller <- elements actors
     return $
-      MkCEMParams
-        ( MkAuctionParams
-            { seller = signingKeyToPKH seller
-            , lot = assetClassValue testNftAssetClass 1
-            }
-        )
-        NoControl
+      MkAuctionParams
+        { seller = signingKeyToPKH seller
+        , lot = assetClassValue testNftAssetClass 1
+        }
 
   arbitraryTransition dappParams state = case state of
     Nothing -> return Create
@@ -55,8 +51,8 @@ instance CEMScriptArbitrary SimpleAuction where
 instance CEMScriptRunModel SimpleAuction where
   performHook
     (ConfigSet (MkTestConfig {actors}))
-    (SetupCEMParams cemParams) = do
-      let s = seller $ scriptParams cemParams
+    (SetupParams cemParams) = do
+      let s = seller cemParams
       mintTestTokens (findSkForPKH actors s) 1
       return ()
   performHook _ _ = return ()
