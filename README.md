@@ -19,6 +19,10 @@ Arch Linux has `libblst` in AUR, nix are exemplified by IOHK,
 and manual installation is described here:
 https://github.com/input-output-hk/cardano-node-wiki/blob/main/docs/getting-started/install.md#installing-blst
 
+Make sure to `cabal update` before building.
+
+The project uses `github:input-output-hk/devx` to make the development shell. See `.envrc` for details.
+
 ## Running tests
 
 Tests are runned in emulated environment by default.
