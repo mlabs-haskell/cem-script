@@ -93,8 +93,8 @@ instance CEMScript SimpleAuction where
           { constraints =
               [ MkTxFansC
                   In
-                  (MkTxFanFilter (ByPubKey $ seller params) Anything)
-                  (SumValueEq $ lot params)
+                  (MkTxFanFilter (ByPubKey $ seller params) AnyDatum)
+                  (FansWithTotalValueOfAtLeast $ lot params)
               , nextState NotStarted
               ]
           , signers = []
@@ -128,16 +128,16 @@ instance CEMScript SimpleAuction where
               [ -- Example: In constraints redundant for on-chain
                 MkTxFansC
                   In
-                  (MkTxFanFilter (ByPubKey (better winnerBet)) Anything)
-                  (SumValueEq $ betAdaValue winnerBet)
+                  (MkTxFanFilter (ByPubKey (better winnerBet)) AnyDatum)
+                  (FansWithTotalValueOfAtLeast $ betAdaValue winnerBet)
               , MkTxFansC
                   Out
-                  (MkTxFanFilter (ByPubKey (better winnerBet)) Anything)
-                  (SumValueEq $ lot params)
+                  (MkTxFanFilter (ByPubKey (better winnerBet)) AnyDatum)
+                  (FansWithTotalValueOfAtLeast $ lot params)
               , MkTxFansC
                   Out
-                  (MkTxFanFilter (ByPubKey (seller params)) Anything)
-                  (SumValueEq $ betAdaValue winnerBet)
+                  (MkTxFanFilter (ByPubKey (seller params)) AnyDatum)
+                  (FansWithTotalValueOfAtLeast $ betAdaValue winnerBet)
               ]
           , signers = []
           }
@@ -148,7 +148,7 @@ instance CEMScript SimpleAuction where
         MkTxFansC
           Out
           (MkTxFanFilter BySameScript (bySameCEM state'))
-          (SumValueEq $ lot params)
+          (FansWithTotalValueOfAtLeast $ lot params)
       betAdaValue = adaValue . betAmount
       adaValue =
         singleton (CurrencySymbol emptyByteString) (TokenName emptyByteString)

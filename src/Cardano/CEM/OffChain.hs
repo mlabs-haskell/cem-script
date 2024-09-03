@@ -177,11 +177,11 @@ resolveAction
           let compiledTxOut value =
                 TxOut address' value datum ReferenceScriptNone
           return $ case quantor of
-            Exist n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
-            SumValueEq value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
+            ExactlyNFans n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
+            FansWithTotalValueOfAtLeast value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
           where
             datum = case filterSpec of
-              Anything -> TxOutDatumNone
+              AnyDatum -> TxOutDatumNone
               ByDatum datum' -> mkInlineDatum datum'
               -- FIXME: Can be optimized via Plutarch
               UnsafeBySameCEM newState ->
@@ -190,7 +190,7 @@ resolveAction
                   cemDatum =
                     ( stagesParams params
                     , scriptParams params
-                    , unsafeFromBuiltinData newState
+                    , unsafeFromBuiltinData (unAsData newState)
                     )
                  in
                   mkInlineDatum cemDatum

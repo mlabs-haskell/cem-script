@@ -14,11 +14,12 @@ import Data.Map qualified as Map
 import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (ToData (..), Value)
-import PlutusTx.Show.TH (deriveShow)
+import PlutusTx.Show.TH qualified
 
 -- Project imports
 import Cardano.CEM.Stages
 import Data.Spine
+import qualified PlutusTx.IsData.Class
 
 -- | This is different ways to specify address
 data AddressSpec
@@ -36,17 +37,30 @@ addressSpecToAddress ownAddress addressSpec = case addressSpec of
 
 -- "Tx Fan" - is transaction input or output 
 
+-- FIXME: What is this?
 data TxFanFilter script = MkTxFanFilter
   { address :: AddressSpec
-  , rest :: TxFanFilter' script
+  , rest :: FilterDatum script
   }
   deriving stock (Show, Prelude.Eq)
 
-data TxFanFilter' script
-  = Anything
+newtype AsData a = MkAsData { unAsData :: BuiltinData }
+  deriving newtype
+    ( Prelude.Show
+    , Eq
+    , Prelude.Eq
+    , PlutusTx.Show.TH.Show
+    , PlutusTx.IsData.Class.FromData
+    , PlutusTx.IsData.Class.ToData
+    )
+
+-- | Tx Fan matches by
+data FilterDatum script
+  = AnyDatum
   | -- | To be used via `bySameCem`
-    UnsafeBySameCEM BuiltinData
-  | ByDatum BuiltinData
+    -- Basically means "make new 'CEMScriptDatum' containing this State and then use with 'ByDatum'"
+    UnsafeBySameCEM (AsData (State script)) -- state part of a 'CEMScriptDatum'
+  | ByDatum (AsData (CEMScriptDatum script))
   deriving stock (Show, Prelude.Eq)
 
 {-# INLINEABLE bySameCEM #-}
@@ -55,14 +69,17 @@ data TxFanFilter' script
 bySameCEM ::
   (ToData (State script), CEMScript script) =>
   State script ->
-  TxFanFilter' script
-bySameCEM = UnsafeBySameCEM . toBuiltinData
+  FilterDatum script
+bySameCEM = UnsafeBySameCEM . MkAsData . toBuiltinData
 
 -- TODO: use natural numbers
 -- | How many tx fans should satify a 'TxFansConstraint'
-data Quantifier = Exist Integer | SumValueEq Value
+data Quantifier
+  = ExactlyNFans Integer
+  | FansWithTotalValueOfAtLeast Value
   deriving stock (Show)
 
+-- | A kind of Tx input our output
 data TxFanKind = In | InRef | Out
   deriving stock (Prelude.Eq, Prelude.Show)
 
@@ -169,5 +186,5 @@ type CEMScriptDatum script =
 
 -- TH deriving done at end of file for GHC staging reasons
 
-deriveShow ''TxFanKind
-deriveShow ''TxFanFilter'
+PlutusTx.Show.TH.deriveShow ''TxFanKind
+PlutusTx.Show.TH.deriveShow ''FilterDatum
