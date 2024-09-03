@@ -62,9 +62,6 @@ votingSpec = describe "Voting" $ do
           , specSigner = jury1
           }
 
-      stats <- perTransitionStats
-      liftIO $ putStrLn $ ppShow stats
-
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction $ Vote (signingKeyToPKH jury2) No]
@@ -78,6 +75,9 @@ votingSpec = describe "Voting" $ do
           { actions = [mkAction Finalize]
           , specSigner = creator
           }
+
+      stats <- perTransitionStats
+      liftIO $ putStrLn $ ppShow stats
 
       Just state <- queryScriptState params
       liftIO $ state `shouldBe` Finalized Abstain

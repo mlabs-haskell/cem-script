@@ -18,7 +18,8 @@ import PlutusLedgerApi.V1.Value (assetClassValue)
 import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
-import Utils (execClb, mintTestTokens, submitAndCheck)
+import Utils (execClb, mintTestTokens, submitAndCheck, perTransitionStats)
+import Text.Show.Pretty (ppShow)
 
 auctionSpec = describe "AuctionSpec" $ do
   it "Serialise" $ do
@@ -226,3 +227,6 @@ auctionSpec = describe "AuctionSpec" $ do
             ]
         , specSigner = bidder1
         }
+
+    stats <- perTransitionStats
+    liftIO $ putStrLn $ ppShow stats
