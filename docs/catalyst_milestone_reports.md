@@ -53,10 +53,11 @@ Understanding state transitions and the overall system flow is critical for ensu
 
 Catalyst Milestone Outputs:
 
-* Plutarch on-chain code generation and optimisation ([PR](https://github.com/mlabs-haskell/cem-script/pull/94))
+* Static DSL for constraints and Plutarch on-chain code generation and optimisation ([PR#96](https://github.com/mlabs-haskell/cem-script/pull/96))
 * Profiling implementation ([PR](https://github.com/mlabs-haskell/cem-script/pull/95))
 * Profiling performed for old (using Plutus) and new (using Plutarch) code generator.
   New one showed advantage over first one in all fees measured, and in some cases in order of magntude.
+* A [video](https://drive.google.com/file/d/1720CsrdQFnpzA2ODDJuu6WK3thmEnE30/view?usp=sharing) that summarizes the outcomes achieved in the milestone.
 
 ## Profiling results
 
@@ -121,7 +122,7 @@ Voting flow (fails exceeding Tx limits on second vote):
 
 ### New (Plutarch with user-defined Plutus logic pieces) backend
 
-Auction: 
+Auction:
 
 ```
   [ ( "BuyoutSpine"

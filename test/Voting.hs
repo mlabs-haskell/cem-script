@@ -79,5 +79,8 @@ votingSpec = describe "Voting" $ do
           , specSigner = creator
           }
 
+      stats <- perTransitionStats
+      liftIO $ putStrLn $ ppShow stats
+
       Just state <- queryScriptState params
       liftIO $ state `shouldBe` Finalized Abstain
