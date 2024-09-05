@@ -178,6 +178,7 @@ test-suite cem-sdk-test
     , clb
     , dependent-map
     , hspec
+    , hspec-core
     , QuickCheck
     , quickcheck-dynamic
     , random
@@ -199,5 +200,6 @@ test-suite cem-sdk-test
     Oura.Communication
     Oura.Config
     OuraFilters
+    OuraFilters.Auction
 
   main-is:        Main.hs
