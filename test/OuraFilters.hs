@@ -6,28 +6,58 @@ module OuraFilters (ouraFiltersSpec) where
 import Prelude
 import Oura (Oura (send, receive, shutDown))
 import Oura qualified
-import Test.Hspec (Spec, it, focus, shouldBe, describe)
+import Test.Hspec (Spec, it, focus, shouldBe)
 import Control.Monad ((>=>))
 import qualified Data.Text as T
-import qualified Data.Text.IO as T.IO
 import Utils qualified
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Aeson as Aeson
 import Data.Aeson ((.:))
 import OuraFilters.Auction qualified
+import qualified OuraFilters.Mock as Mock
+import Data.Function ((&))
+import Control.Lens ((.~), ix)
 
-exampleTx :: IO T.Text
-exampleTx = T.IO.readFile "./mocks/tx.json"
+exampleMatchingTx :: Mock.TxEvent
+exampleMatchingTx =
+  exampleTx
+    & Mock.parsed_tx . Mock.inputs . ix 0 . Mock.as_output . Mock.address .~ inputAddress
+  where
+    inputAddress = Mock.MkBech32AsBase32 "AZSTMVzZLrXYxDBOZ7fhauNtYdNFAmlGV4EaLI4ze2LP/2QDoGo6y8NPjEYAPGn+eaNijO+pxHJR"
 
-exampleMatchingTx :: IO T.Text
-exampleMatchingTx = T.IO.readFile "./mocks/matchingTx.json"
+exampleTx :: Mock.TxEvent
+exampleTx = Mock.mkTxEvent $ Mock.arbitraryTx
+  & Mock.inputs .~ [
+    Mock.MkTxInput
+      { Mock._tx_hash = Mock.Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+      , Mock._output_index = 5
+      , Mock._as_output = out
+      , Mock._redeemer = Nothing
+      }
+  ]
+  & Mock.outputs .~ [out]
+  & Mock.collateralL . Mock.collateral_return . Mock.coin .~ 25464
+  & Mock.collateralL . Mock.total_collateral .~ 2555
+  & Mock.fee .~ 967
+  & Mock.validity .~ Mock.MkTxValidity { Mock._start = 324, Mock._ttl = 323 }
+
+  where
+    out = Mock.MkTxOutput
+      { Mock._address = Mock.MkBech32AsBase32 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
+      , Mock._coin = 254564
+      , Mock._assets = []
+      , Mock._datum = Nothing
+      , Mock._datum_hash = Mock.Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+      , Mock._script = Nothing
+      }
 
 ouraFiltersSpec :: Spec
 ouraFiltersSpec = Utils.killProcessesOnError do
   focus $ it "Oura filters match tx it have to match, and don't match other" \spotGarbage -> do
     Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
-      tx <- exampleTx
-      matchingTx <- exampleMatchingTx
+      let
+        tx = Mock.txToText exampleTx
+        matchingTx = Mock.txToText exampleMatchingTx
       oura.send tx
       -- _ <- oura.receive
       oura.send matchingTx
