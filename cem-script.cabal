@@ -187,6 +187,8 @@ test-suite cem-sdk-test
     , toml-parser
     , process
     , async
+    , lens
+    , aeson
 
   hs-source-dirs: test/
   other-modules:
@@ -201,5 +203,6 @@ test-suite cem-sdk-test
     Oura.Config
     OuraFilters
     OuraFilters.Auction
+    OuraFilters.Mock
 
   main-is:        Main.hs
