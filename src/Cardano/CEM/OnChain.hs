@@ -75,13 +75,13 @@ genericCEMScript script scriptStage =
         checkTxFan' filterSpec' fan =
           case filterSpec' of
             AnyDatum -> True
-            UnsafeBySameCEM (MkAsData stateData) ->
+            UnsafeBySameCEM stateData ->
               let
                 -- FIXUP: do not decode unnecessary
                 changedState =
                   unsafeFromBuiltinData stateData :: State $(conT script)
                 stateChangeDatum = (stageParams, params, stateData)
-                stateChangeDatumBS = MkAsData (toBuiltinData stateChangeDatum)
+                stateChangeDatumBS = toBuiltinData stateChangeDatum
                in
                 checkTxFan' (ByDatum stateChangeDatumBS) fan
             ByDatum expectedDatum ->
@@ -90,7 +90,7 @@ genericCEMScript script scriptStage =
                in
                 case datum of
                   OutputDatum datumContent ->
-                    MkAsData (getDatum datumContent) == expectedDatum
+                    getDatum datumContent == expectedDatum
                   OutputDatumHash _ -> traceError "Hash datum not supported"
                   _ -> False
         -- given a fans constraint checks it against all fans

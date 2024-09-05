@@ -44,15 +44,9 @@ data TxFanFilter script = MkTxFanFilter
   }
   deriving stock (Show, Prelude.Eq)
 
-newtype AsData a = MkAsData { unAsData :: BuiltinData }
-  deriving newtype
-    ( Prelude.Show
-    , Eq
-    , Prelude.Eq
-    , PlutusTx.Show.TH.Show
-    , PlutusTx.IsData.Class.FromData
-    , PlutusTx.IsData.Class.ToData
-    )
+-- This could only be a type alias
+-- https://github.com/IntersectMBO/plutus/issues/5769
+type AsData a = BuiltinData
 
 -- | Tx Fan matches by
 data FilterDatum script
@@ -70,7 +64,7 @@ bySameCEM ::
   (ToData (State script), CEMScript script) =>
   State script ->
   FilterDatum script
-bySameCEM = UnsafeBySameCEM . MkAsData . toBuiltinData
+bySameCEM = UnsafeBySameCEM . toBuiltinData
 
 -- TODO: use natural numbers
 -- | How many tx fans should satify a 'TxFansConstraint'
@@ -181,6 +175,9 @@ deriving stock instance (CEMScript script) => (Show (CEMParams script))
 deriving stock instance (CEMScript script) => (Prelude.Eq (CEMParams script))
 
 -- FIXME: documentation
+-- This can't be made anything than a tuple typealias because
+-- of the Plutus compiler limitations:
+-- https://github.com/IntersectMBO/plutus/issues/5769
 type CEMScriptDatum script =
   (StageParams (Stage script), Params script, State script)
 

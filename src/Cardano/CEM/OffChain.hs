@@ -190,7 +190,7 @@ resolveAction
                   cemDatum =
                     ( stagesParams params
                     , scriptParams params
-                    , unsafeFromBuiltinData (unAsData newState)
+                    , unsafeFromBuiltinData newState
                     )
                  in
                   mkInlineDatum cemDatum

@@ -218,7 +218,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
         outStates spec = mapMaybe decodeOutState $ constraints spec
         decodeOutState c = case rest (txFansCFilter c) of
           UnsafeBySameCEM stateBS ->
-            fromBuiltinData @(State script) (unAsData stateBS)
+            fromBuiltinData @(State script) stateBS
           _ -> Nothing
   nextState _ _ _ = error "Unreachable"
 
