@@ -57,7 +57,7 @@ Catalyst Milestone Outputs:
 * Profiling implementation ([PR](https://github.com/mlabs-haskell/cem-script/pull/95))
 * Profiling performed for old (using Plutus) and new (using Plutarch) code generator.
   New one showed advantage over first one in all fees measured, and in some cases in order of magntude.
-* A [video](https://drive.google.com/file/d/1720CsrdQFnpzA2ODDJuu6WK3thmEnE30/view?usp=sharing) that summarizes the outcomes achieved in the milestone.
+* A [video](https://www.youtube.com/watch?v=wveLyvuKjeI) that summarizes the outcomes achieved in the milestone.
 
 ## Profiling results
 
