@@ -32,6 +32,12 @@ spec :: SpecM (SpotGarbage IO ProcessHandle) ()
 spec = 
   describe "Auction example" do
     focus $ it "Recognizes 'Create' transition" \spotGarbage -> do
+      let
+        addr = PlutusLedgerApi.V1.Address
+            (PlutusLedgerApi.V1.PubKeyCredential
+              (PlutusLedgerApi.V1.PubKeyHash "e628bfd68c07a7a38fcd7d8df650812a9dfdbee54b1ed4c25c87ffbf"))
+            Nothing
+      print $ PlutusLedgerApi.V1.toBuiltinData addr
       fail @IO @() "Not implemented"
     it "Recognizes 'Start' transition" \spotGarbage -> do
       fail @IO @() "Not implemented"
@@ -77,3 +83,45 @@ plutusAaddressToOuraAddress ( PlutusLedgerApi.V1.Address payment stake) =
           <$> credentialToCardano cred
         PlutusLedgerApi.V1.StakingPtr {} ->
           error "Staking pointers are not supported"
+
+createTxMock :: Auction.SimpleAuctionParams -> Mock.Tx
+createTxMock params = Mock.arbitraryTx
+  & undefined 
+  where
+    input = Mock.MkTxInput
+      { Mock._as_output = Mock.MkTxOutput
+        { Mock._address = 
+          plutusAaddressToOuraAddress
+          $ PlutusLedgerApi.V1.Address
+            (PlutusLedgerApi.V1.PubKeyCredential params.seller)
+            Nothing
+        , Mock._datum = Nothing -- any datum
+        , Mock._coin = 2
+        , Mock._script = Nothing
+        , Mock._assets = valueToMultiAsset params.lot
+        }
+      , Mock._tx_hash = Mock.Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+      , Mock._output_index = 0
+      , Mock._redeemer = undefined
+      }
+    valueToMultiAsset :: PlutusLedgerApi.V1.Value -> [Mock.Multiasset]
+    valueToMultiAsset =
+      PlutusLedgerApi.V1.getValue >>> AssocMap.toList >>> fmap \(cs,tokens) ->
+        Mock.MkMultiasset
+        { Mock._policy_id =
+          T.Encoding.decodeUtf8
+          $ PlutusLedgerApi.V1.fromBuiltin
+          $ PlutusLedgerApi.V1.unCurrencySymbol cs
+        , Mock.assets = AssocMap.toList tokens <&> \(tn,amt) ->
+            Mock.MkAsset
+              { Mock._name = T.Encoding.decodeUtf8
+                $ PlutusLedgerApi.V1.fromBuiltin
+                $ PlutusLedgerApi.V1.unTokenName tn
+              , Mock._output_coin = amt -- positive
+              , Mock._mint_coin = 1
+              }
+        , Mock.redeemer = Nothing
+        }
+
+    inputState = Nothing
+    outputState = Just NotStarted
