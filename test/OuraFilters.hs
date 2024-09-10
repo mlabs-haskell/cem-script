@@ -23,7 +23,7 @@ exampleMatchingTx =
   exampleTx
     & Mock.parsed_tx . Mock.inputs . ix 0 . Mock.as_output . Mock.address .~ inputAddress
   where
-    inputAddress = Mock.MkBech32AsBase32 "AZSTMVzZLrXYxDBOZ7fhauNtYdNFAmlGV4EaLI4ze2LP/2QDoGo6y8NPjEYAPGn+eaNijO+pxHJR"
+    inputAddress = Mock.MkAddressAsBase64 "AZSTMVzZLrXYxDBOZ7fhauNtYdNFAmlGV4EaLI4ze2LP/2QDoGo6y8NPjEYAPGn+eaNijO+pxHJR"
 
 exampleTx :: Mock.TxEvent
 exampleTx = Mock.mkTxEvent $ Mock.arbitraryTx
@@ -36,18 +36,17 @@ exampleTx = Mock.mkTxEvent $ Mock.arbitraryTx
       }
   ]
   & Mock.outputs .~ [out]
-  & Mock.collateralL . Mock.collateral_return . Mock.coin .~ 25464
-  & Mock.collateralL . Mock.total_collateral .~ 2555
+  & Mock.txCollateral . Mock.collateral_return . Mock.coin .~ 25464
+  & Mock.txCollateral . Mock.total_collateral .~ 2555
   & Mock.fee .~ 967
   & Mock.validity .~ Mock.MkTxValidity { Mock._start = 324, Mock._ttl = 323 }
 
   where
     out = Mock.MkTxOutput
-      { Mock._address = Mock.MkBech32AsBase32 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
+      { Mock._address = Mock.MkAddressAsBase64 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
       , Mock._coin = 254564
       , Mock._assets = []
       , Mock._datum = Nothing
-      , Mock._datum_hash = Mock.Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
       , Mock._script = Nothing
       }
 

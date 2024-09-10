@@ -189,6 +189,9 @@ test-suite cem-sdk-test
     , async
     , lens
     , aeson
+    , base64
+    , cardano-api
+    , cardano-ledger-core
 
   hs-source-dirs: test/
   other-modules:

@@ -26,9 +26,7 @@ instance
   toJSON = Aeson.genericToJSON withoutLeadingUnderscore
 instance (Generic a, Aeson.GFromJSON Aeson.Zero (Rep a)) => Aeson.FromJSON (WithoutUnderscore a) where
   parseJSON = Aeson.genericParseJSON withoutLeadingUnderscore
-
-
-newtype Address = MkBech32AsBase32 T.Text
+newtype Address = MkAddressAsBase64 T.Text
   deriving newtype Aeson.ToJSON
   deriving newtype Aeson.FromJSON
 makeLenses ''Address
@@ -38,12 +36,36 @@ newtype Hash32 = Mk32BitBase16Hash T.Text
   deriving newtype Aeson.FromJSON
 makeLenses ''Hash32
 
+data Asset = MkAsset
+  { _name :: T.Text
+  , _output_coin :: Integer -- positive
+  , _mint_coin :: Integer
+  }
+  deriving stock Generic
+  deriving Aeson.ToJSON via (WithoutUnderscore Asset)
+  deriving Aeson.FromJSON via (WithoutUnderscore Asset)
+makeLenses ''Asset
+
+data Multiasset = MkMultiasset
+  { _policy_id :: T.Text
+  , assets :: [Asset]
+  , redeemer :: Maybe Aeson.Value
+  }
+  deriving stock Generic
+  deriving Aeson.ToJSON via (WithoutUnderscore Multiasset)
+  deriving Aeson.FromJSON via (WithoutUnderscore Multiasset)
+makeLenses ''Multiasset
+makeLensesFor
+  [ ("assets","multiassetAssets")
+  , ("redeemer","multiassetRedeemer")
+  ]
+  ''Multiasset
+
 data TxOutput = MkTxOutput
   { _address :: Address
   , _coin :: Integer
-  , _assets :: [Aeson.Value]
+  , _assets :: [Multiasset]
   , _datum :: Maybe Aeson.Value
-  , _datum_hash :: Hash32
   , _script :: Maybe Aeson.Value
   }
   deriving stock Generic
@@ -116,11 +138,10 @@ arbitraryTx = MkTx
   , collateral = MkTxCollateral
     { _collateral = []
     , _collateral_return = MkTxOutput
-      { _address = MkBech32AsBase32 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
+      { _address = MkAddressAsBase64 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
       , _coin = 0
       , _assets = []
       , _datum = Nothing
-      , _datum_hash = Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
       , _script = Nothing
       }
     , _total_collateral = 0
@@ -139,6 +160,7 @@ arbitraryTx = MkTx
   }
 
 
+-- Source: https://docs.rs/utxorpc-spec/latest/utxorpc_spec/utxorpc/v1alpha/cardano/struct.Tx.html
 data Tx = MkTx
   { _inputs :: [TxInput]
   , _outputs :: [TxOutput]
@@ -158,7 +180,7 @@ data Tx = MkTx
   deriving Aeson.ToJSON via (WithoutUnderscore Tx)
   deriving Aeson.FromJSON via (WithoutUnderscore Tx)
 makeLenses ''Tx
-makeLensesFor [("collateral","collateralL")] ''Tx
+makeLensesFor [("collateral","txCollateral")] ''Tx
 
 data TxEvent = MkTxEvent
   { _parsed_tx :: Tx
