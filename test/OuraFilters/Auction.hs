@@ -18,31 +18,74 @@ import Data.Base64.Types qualified as Base64
 import Data.ByteString.Base64 qualified as BS.Base64
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Text.Encoding qualified as T.Encoding
 import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified
 import PlutusTx.AssocMap qualified as AssocMap
 import System.Process (ProcessHandle)
-import Test.Hspec (HasCallStack, describe, focus, it)
+import Test.Hspec (HasCallStack, describe, focus, it, shouldBe)
 import Test.Hspec.Core.Spec (SpecM)
-import Utils (SpotGarbage)
+import Utils (SpotGarbage, resultToEither)
 import "cardano-api" Cardano.Api.Address qualified as Address
 import Prelude
+import Cardano.CEM (CEMScriptDatum)
+import Control.Lens ((%~), (.~), (^.))
+import qualified Oura
+import qualified Data.Aeson as Aeson
+import qualified PlutusLedgerApi.V1.Value as V1.Value
+import qualified Data.Text as T
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Base16 as Base16
+import qualified Data.ByteString.Base32 as Base32
+import qualified Data.Base16.Types as Base16.Types
+import qualified Data.ByteString.Base64 as Base64
+import qualified Data.Base64.Types as Base64.Types
+import Data.Coerce (coerce)
 
 spec :: SpecM (SpotGarbage IO ProcessHandle) ()
 spec =
   describe "Auction example" do
-    it "Recognizes 'Create' transition" \spotGarbage -> do
-      let
-        addr =
+    focus $ it "Recognizes 'Create' transition" \spotGarbage -> do
+      Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
+        let
+          params = Auction.MkAuctionParams
+            { seller = "e01bb07f0cd514c0b8b73572e8c5e7492449c5f68702fdac758225f4" -- "e01bb07f0cd514c0b8b73572e8c5e7492449c5f68702fdac758225f4"
+            , lot = V1.Value.assetClassValue
+              (V1.Value.assetClass
+                "94906060606060606060606060606060606060606060606969669696"
+                "fea6"
+              )
+              4
+            }
+        flip shouldBe 28
+          $ BS.length
+          -- $ Base16.decodeBase16
+          -- $ Base16.Types.assertBase16
+          $ PlutusLedgerApi.V1.fromBuiltin
+          $ PlutusLedgerApi.V1.getPubKeyHash params.seller
+        let
+          rightTxHash = Mock.MkBlake2b255Hex
+            "2266778888888888888888888888888888888888888888888888444444444444"
+          tx = Mock.txToText
+            $ Mock.mkTxEvent
+            $ Mock.hash .~ rightTxHash
+            $ createTxMock params
+          unmatchingTx = Mock.txToText $ Mock.mkTxEvent Mock.arbitraryTx
+        putStrLn "evaluating"
+        print $ plutusAaddressToOuraAddress $
           PlutusLedgerApi.V1.Address
-            ( PlutusLedgerApi.V1.PubKeyCredential
-                (PlutusLedgerApi.V1.PubKeyHash "e628bfd68c07a7a38fcd7d8df650812a9dfdbee54b1ed4c25c87ffbf")
-            )
+            (PlutusLedgerApi.V1.PubKeyCredential params.seller)
             Nothing
-      print $ PlutusLedgerApi.V1.toBuiltinData addr
-      fail @IO @() "Not implemented"
+        putStrLn "good"
+        oura.send unmatchingTx
+        putStrLn "Sent1"
+        oura.send tx
+        putStrLn "Sent2"
+        Right txEvent <- Aeson.eitherDecodeStrictText @Mock.TxEvent
+          <$> oura.receive
+        (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
+        oura.shutDown
     it "Recognizes 'Start' transition" \spotGarbage -> do
       fail @IO @() "Not implemented"
     it "Recognizes 'MakeBid' transition" \spotGarbage -> do
@@ -52,7 +95,7 @@ spec =
     it "Recognizes 'Buyout' transition" \spotGarbage -> do
       fail @IO @() "Not implemented"
 
-plutusAaddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Mock.Address
+plutusAaddressToOuraAddress :: HasCallStack => PlutusLedgerApi.V1.Address -> Mock.Address
 plutusAaddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
   Mock.MkAddressAsBase64 $
     Base64.extractBase64 $
@@ -60,8 +103,12 @@ plutusAaddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
         SerialiseRaw.serialiseToRawBytes $
           Address.ShelleyAddress
             Ledger.Mainnet
-            (fromJust paymentCredential)
-            (fromJust stakeCredential)
+            (fromMaybe
+              (error "plutusAaddressToOuraAddress:can't decode payment credential")
+              paymentCredential)
+            (fromMaybe
+              (error "plutusAaddressToOuraAddress:can't decode stake credential")
+              stakeCredential)
   where
     credentialToCardano
       ( PlutusLedgerApi.V1.PubKeyCredential
@@ -69,7 +116,8 @@ plutusAaddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
         ) =
         Cred.KeyHashObj
           . Ledger.Keys.KeyHash
-          <$> Cardano.Hash.hashFromBytes (PlutusLedgerApi.V1.fromBuiltin pkh)
+          <$> Cardano.Hash.hashFromBytes
+            (PlutusLedgerApi.V1.fromBuiltin pkh)
     credentialToCardano
       ( PlutusLedgerApi.V1.ScriptCredential
           (PlutusLedgerApi.V1.ScriptHash scriptHash)
@@ -92,7 +140,8 @@ plutusAaddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
 createTxMock :: Auction.SimpleAuctionParams -> Mock.Tx
 createTxMock params =
   Mock.arbitraryTx
-    & undefined
+    & Mock.inputs %~ (:) input
+    & Mock.outputs %~ (:) output
   where
     input =
       Mock.MkTxInput
@@ -108,10 +157,28 @@ createTxMock params =
               , Mock._script = Nothing
               , Mock._assets = valueToMultiAsset params.lot
               }
-        , Mock._tx_hash = Mock.Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+        , Mock._tx_hash = Mock.MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
         , Mock._output_index = 0
-        , Mock._redeemer = undefined
+        , Mock._redeemer = Just
+          $ Mock.MkRedeemer
+            { _purpose = Mock.PURPOSE_SPEND
+            , datum = Mock.encodePlutusData
+              $ PlutusLedgerApi.V1.toData Auction.Create  
+            }
         }
+    output = Mock.MkTxOutput
+      { Mock._address =
+          plutusAaddressToOuraAddress $
+            PlutusLedgerApi.V1.Address
+              (PlutusLedgerApi.V1.PubKeyCredential params.seller)
+              Nothing
+      , Mock._datum = Just
+        $ Mock.encodePlutusData
+        $ PlutusLedgerApi.V1.toData outputState
+      , Mock._coin = 2
+      , Mock._script = Nothing
+      , Mock._assets = valueToMultiAsset params.lot
+      }
     valueToMultiAsset :: PlutusLedgerApi.V1.Value -> [Mock.Multiasset]
     valueToMultiAsset =
       PlutusLedgerApi.V1.getValue >>> AssocMap.toList >>> fmap \(cs, tokens) ->
@@ -133,5 +200,5 @@ createTxMock params =
           , Mock.redeemer = Nothing
           }
 
-    inputState = Nothing
-    outputState = Just NotStarted
+    outputState :: CEMScriptDatum Auction.SimpleAuction
+    outputState = (Auction.NoControl, params, Auction.NotStarted)

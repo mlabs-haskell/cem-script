@@ -52,6 +52,11 @@ import System.IO (hClose, openTempFile)
 import System.Process qualified as Process
 import Test.Hspec qualified as Hspec
 import TestNFT
+import qualified Data.Aeson.Types as Aeson
+
+resultToEither :: Aeson.Result a -> Either String a
+resultToEither (Aeson.Success a) = Right a
+resultToEither (Aeson.Error err) = Left err
 
 totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
 totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral

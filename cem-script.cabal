@@ -193,6 +193,9 @@ test-suite cem-sdk-test
     , cardano-api
     , cardano-ledger-core
     , vector
+    , safe
+    , base16
+    , base32
 
   hs-source-dirs: test/
   other-modules:

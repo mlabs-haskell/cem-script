@@ -21,6 +21,8 @@ import GHC.Generics (Generic (Rep))
 import PlutusLedgerApi.V1 qualified
 import Utils (digits)
 import Prelude
+import qualified Safe
+import Control.Monad ((<=<))
 
 newtype WithoutUnderscore a = MkWithoutUnderscore a
   deriving newtype (Generic)
@@ -42,14 +44,22 @@ instance
 instance (Generic a, Aeson.GFromJSON Aeson.Zero (Rep a)) => Aeson.FromJSON (WithoutUnderscore a) where
   parseJSON = Aeson.genericParseJSON withoutLeadingUnderscore
 newtype Address = MkAddressAsBase64 T.Text
-  deriving newtype (Aeson.ToJSON)
-  deriving newtype (Aeson.FromJSON)
+  deriving newtype (Show, Eq, Ord, Aeson.ToJSON, Aeson.FromJSON)
 makeLenses ''Address
 
-newtype Hash32 = Mk32BitBase16Hash T.Text
+-- 32B long
+newtype Hash32 = MkBlake2b255Hex T.Text
+  deriving newtype (Show, Eq, Ord)
   deriving newtype (Aeson.ToJSON)
   deriving newtype (Aeson.FromJSON)
 makeLenses ''Hash32
+
+-- 28B long
+newtype Hash28 = MkBlake2b244Hex T.Text
+  deriving newtype (Show, Eq, Ord)
+  deriving newtype (Aeson.ToJSON)
+  deriving newtype (Aeson.FromJSON)
+makeLenses ''Hash28
 
 data Asset = MkAsset
   { _name :: T.Text
@@ -81,16 +91,30 @@ newtype PlutusData = MkPlutusData {_plutusData :: Aeson.Value}
   deriving newtype (Aeson.FromJSON, Aeson.ToJSON)
 makeLenses ''PlutusData
 
-data Datum = MkDatum
-  { hash :: Hash32
-  , _payload :: Maybe PlutusData
-  , _original_cbor :: T.Text
+data Purpose
+  = PURPOSE_UNSPECIFIED
+  | PURPOSE_SPEND
+  | PURPOSE_MINT
+  | PURPOSE_CERT
+  | PURPOSE_REWARD
+  deriving stock (Show, Enum, Bounded)
+
+instance Aeson.FromJSON Purpose where
+  parseJSON =
+    maybe (fail "There is no Purpose case with this Id") pure
+    . Safe.toEnumMay <=< Aeson.parseJSON @Int
+
+instance Aeson.ToJSON Purpose where
+  toJSON = Aeson.toJSON @Int . fromEnum
+
+data Redeemer = MkRedeemer
+  { _purpose :: Purpose
+  , datum :: PlutusData
   }
   deriving stock (Generic)
-  deriving (Aeson.ToJSON) via (WithoutUnderscore Datum)
-  deriving (Aeson.FromJSON) via (WithoutUnderscore Datum)
-makeLenses ''Datum
-makeLensesFor [("hash", "datum_hash")] ''Datum
+  deriving (Aeson.ToJSON) via (WithoutUnderscore Redeemer)
+  deriving (Aeson.FromJSON) via (WithoutUnderscore Redeemer)
+makeLenses ''Redeemer
 
 data TxOutput = MkTxOutput
   { _address :: Address
@@ -108,7 +132,7 @@ data TxInput = MkTxInput
   { _tx_hash :: Hash32
   , _output_index :: Integer
   , _as_output :: TxOutput
-  , _redeemer :: Maybe Datum
+  , _redeemer :: Maybe Redeemer
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore TxInput)
@@ -118,7 +142,7 @@ makeLenses ''TxInput
 data TxWitnesses = MkTxWitnesses
   { _vkeywitness :: [Aeson.Value]
   , _script :: [Aeson.Value]
-  , _plutus_datums :: [Datum]
+  , _plutus_datums :: [Aeson.Value]
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore TxWitnesses)
@@ -194,7 +218,7 @@ arbitraryTx =
           { _metadata = []
           , _scripts = []
           }
-    , _hash = Mk32BitBase16Hash "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+    , _hash = MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
     }
 
 -- Source: https://docs.rs/utxorpc-spec/latest/utxorpc_spec/utxorpc/v1alpha/cardano/struct.Tx.html
