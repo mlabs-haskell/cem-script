@@ -6,18 +6,32 @@
 
 module OuraFilters.Mock where
 
+import Cardano.Api.Address qualified as Address
+import Cardano.Api.Ledger qualified
+import Cardano.Api.Ledger qualified as Cred
+import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
+import Cardano.Crypto.Hash qualified as Cardano.Hash
+import Cardano.Ledger.BaseTypes qualified as Ledger
+import Cardano.Ledger.Credential qualified as Cred
+import Cardano.Ledger.Hashes qualified
+import Cardano.Ledger.Keys qualified as Ledger.Keys
 import Control.Lens.TH (makeLenses, makeLensesFor)
 import Control.Monad ((<=<))
 import Data.Aeson (KeyValue ((.=)))
 import Data.Aeson qualified as Aeson
+import Data.Base16.Types qualified as Base16.Types
+import Data.Base64.Types qualified as Base64
 import Data.Base64.Types qualified as Base64.Types
 import Data.ByteString qualified as BS
+import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Functor ((<&>))
+import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
+import GHC.Stack.Types (HasCallStack)
 import PlutusLedgerApi.V1 qualified
 import Safe qualified
 import Utils (digits)
@@ -47,14 +61,14 @@ newtype Address = MkAddressAsBase64 T.Text
 makeLenses ''Address
 
 -- 32B long
-newtype Hash32 = MkBlake2b255Hex T.Text
+newtype Hash32 = MkBlake2b255Hex {unHash32 :: T.Text}
   deriving newtype (Show, Eq, Ord)
   deriving newtype (Aeson.ToJSON)
   deriving newtype (Aeson.FromJSON)
 makeLenses ''Hash32
 
 -- 28B long
-newtype Hash28 = MkBlake2b244Hex T.Text
+newtype Hash28 = MkBlake2b244Hex {unHash28 :: T.Text}
   deriving newtype (Show, Eq, Ord)
   deriving newtype (Aeson.ToJSON)
   deriving newtype (Aeson.FromJSON)
@@ -71,9 +85,9 @@ data Asset = MkAsset
 makeLenses ''Asset
 
 data Multiasset = MkMultiasset
-  { _policy_id :: T.Text
+  { _policy_id :: Hash28
   , assets :: [Asset]
-  , redeemer :: Maybe Aeson.Value
+  -- , redeemer :: Maybe Aeson.Value
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore Multiasset)
@@ -330,3 +344,70 @@ datumToJson =
               [ "items" .= Aeson.Array (datumToJson <$> Vec.fromList xs)
               ]
         ]
+
+serialisePubKeyHash :: PlutusLedgerApi.V1.PubKeyHash -> Hash28
+serialisePubKeyHash = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.getPubKeyHash
+
+serialiseCurrencySymbol :: PlutusLedgerApi.V1.CurrencySymbol -> Hash28
+serialiseCurrencySymbol = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.unCurrencySymbol
+
+serialiseScriptHash :: PlutusLedgerApi.V1.ScriptHash -> Hash28
+serialiseScriptHash = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.getScriptHash
+
+serialiseTxHash :: PlutusLedgerApi.V1.TxId -> Hash32
+serialiseTxHash = MkBlake2b255Hex . serialiseAsHex . PlutusLedgerApi.V1.getTxId
+
+serialiseAsHex :: PlutusLedgerApi.V1.BuiltinByteString -> T.Text
+serialiseAsHex =
+  Base16.Types.extractBase16
+    . Base16.encodeBase16
+    . PlutusLedgerApi.V1.fromBuiltin
+
+plutusAddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Address
+plutusAddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
+  MkAddressAsBase64
+    . Base64.extractBase64
+    . Base64.encodeBase64
+    . SerialiseRaw.serialiseToRawBytes
+    $ Address.ShelleyAddress
+      Ledger.Mainnet
+      ( fromMaybe
+          (error "plutusAaddressToOuraAddress:can't decode payment credential")
+          paymentCredential
+      )
+      ( fromMaybe
+          (error "plutusAaddressToOuraAddress:can't decode stake credential")
+          stakeCredential
+      )
+  where
+    credentialToCardano
+      ( PlutusLedgerApi.V1.PubKeyCredential
+          (PlutusLedgerApi.V1.PubKeyHash pkh)
+        ) =
+        Cred.KeyHashObj
+          . Ledger.Keys.KeyHash
+          <$> Cardano.Hash.hashFromBytes
+            (PlutusLedgerApi.V1.fromBuiltin pkh)
+    credentialToCardano
+      ( PlutusLedgerApi.V1.ScriptCredential
+          (PlutusLedgerApi.V1.ScriptHash scriptHash)
+        ) =
+        Cred.ScriptHashObj
+          . Cardano.Ledger.Hashes.ScriptHash
+          <$> Cardano.Hash.hashFromBytes
+            (PlutusLedgerApi.V1.fromBuiltin scriptHash)
+
+    paymentCredential = credentialToCardano payment
+    stakeCredential = case stake of
+      Nothing -> Just Cardano.Api.Ledger.StakeRefNull
+      Just ref -> case ref of
+        PlutusLedgerApi.V1.StakingHash cred ->
+          Cardano.Api.Ledger.StakeRefBase
+            <$> credentialToCardano cred
+        PlutusLedgerApi.V1.StakingPtr slotNo txIx sertId ->
+          Just $
+            Cardano.Api.Ledger.StakeRefPtr $
+              Cred.Ptr
+                (Ledger.SlotNo $ fromInteger slotNo)
+                (Ledger.TxIx $ fromInteger txIx)
+                (Ledger.CertIx $ fromInteger sertId)
