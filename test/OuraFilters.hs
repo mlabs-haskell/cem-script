@@ -17,6 +17,7 @@ import OuraFilters.Auction qualified
 import qualified OuraFilters.Mock as Mock
 import Data.Function ((&))
 import Control.Lens ((.~), ix)
+import qualified PlutusLedgerApi.V1 as V1
 
 exampleMatchingTx :: Mock.TxEvent
 exampleMatchingTx =
@@ -46,7 +47,15 @@ exampleTx = Mock.mkTxEvent $ Mock.arbitraryTx
       { Mock._address = Mock.MkAddressAsBase64 "cM+tGRS1mdGL/9FNK71pYBnCiZy91qAzJc32gLw="
       , Mock._coin = 254564
       , Mock._assets = []
-      , Mock._datum = Nothing
+      , Mock._datum = Just
+            $ Mock.encodePlutusData
+            $ V1.List
+              [ V1.Map
+                [ (V1.I 2, V1.I 33)
+                ]
+              , V1.Constr 3 [V1.I 288]
+              , V1.I 34
+              ]
       , Mock._script = Nothing
       }
 
