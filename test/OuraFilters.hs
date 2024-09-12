@@ -58,6 +58,7 @@ exampleTx =
                       ]
                   , V1.Constr 3 [V1.I 288]
                   , V1.I 34
+                  , V1.B "aboba"
                   ]
         , Mock._script = Nothing
         }

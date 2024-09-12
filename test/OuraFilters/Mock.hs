@@ -291,7 +291,10 @@ datumToJson =
     PlutusLedgerApi.V1.B bs ->
       Aeson.object
         [ "bounded_bytes"
-            .= Aeson.String (T.Encoding.decodeUtf8 bs)
+            .= Aeson.String
+              ( Base64.Types.extractBase64 $
+                  Base64.encodeBase64 bs
+              )
         ]
     PlutusLedgerApi.V1.List xs ->
       Aeson.object
