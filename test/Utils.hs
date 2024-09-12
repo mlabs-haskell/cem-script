@@ -1,5 +1,6 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BlockArguments #-}
+
 module Utils where
 
 import Prelude
@@ -44,23 +45,26 @@ import Cardano.Extras
 import Data.Spine (HasSpine (..))
 
 import Control.Exception (bracket)
+import Data.Foldable (traverse_)
+import Data.IORef qualified as IORef
 import System.Directory (removeFile)
 import System.IO (hClose, openTempFile)
+import System.Process qualified as Process
+import Test.Hspec qualified as Hspec
 import TestNFT
-import Data.Foldable (traverse_)
-import qualified Data.IORef as IORef
-import qualified Test.Hspec as Hspec
-import qualified System.Process as Process
 
 totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
 totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral
 
-digits :: forall n m. (Integral n,RealFrac m, Floating m) => n -> n -> [n]
-digits base n = fst <$> case reverse [0..totalDigits @n @m base n - 1] of
-  (i:is) -> scanl
-    (\(_,remainder) digit -> remainder `divMod` (base ^ digit))
-    (n `divMod` (base ^ i)) is
-  [] -> []
+digits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> [n]
+digits base n =
+  fst <$> case reverse [0 .. totalDigits @n @m base n - 1] of
+    (i : is) ->
+      scanl
+        (\(_, remainder) digit -> remainder `divMod` (base ^ digit))
+        (n `divMod` (base ^ i))
+        is
+    [] -> []
 
 execClb :: ClbRunner a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
@@ -173,7 +177,7 @@ debug msg = do
 -- * Janitor
 
 newtype SpotGarbage m a = MkSpotGarbage
-  { run :: a -> m a }
+  {run :: a -> m a}
 
 data Janitor m a = MkJanitor
   { cleanup :: m ()
@@ -181,18 +185,21 @@ data Janitor m a = MkJanitor
   }
 
 -- Note, that the cleanup process may fail in this implementation
-newJanitor :: forall a.
+newJanitor ::
+  forall a.
   (a -> IO ()) ->
   IO (Janitor IO a)
 newJanitor trash = do
   spottedGarbageRef <- IORef.newIORef []
-  pure MkJanitor
-    { spotGarbage = MkSpotGarbage \garbage -> do
-        IORef.modifyIORef spottedGarbageRef (garbage :)
-        pure garbage
-    , cleanup = IORef.readIORef spottedGarbageRef
-        >>= traverse_ trash
-    }
+  pure
+    MkJanitor
+      { spotGarbage = MkSpotGarbage \garbage -> do
+          IORef.modifyIORef spottedGarbageRef (garbage :)
+          pure garbage
+      , cleanup =
+          IORef.readIORef spottedGarbageRef
+            >>= traverse_ trash
+      }
 
 cleanupAround ::
   (a -> IO ()) ->
@@ -200,17 +207,17 @@ cleanupAround ::
   Hspec.SpecWith b ->
   Hspec.Spec
 cleanupAround trash toTestArg =
-  Hspec.around
-    $ bracket (newJanitor trash) cleanup
-    . flip fmap toTestArg
+  Hspec.around $
+    bracket (newJanitor trash) cleanup
+      . flip fmap toTestArg
 
--- | This is a workaround the bug that cabal test can't finish before all its spawned processes
--- no matter what.
--- The workaround is to collect process handles and terminate them on error, allowing
--- test suite to finish.
+{- | This is a workaround the bug that cabal test can't finish before all its spawned processes
+no matter what.
+The workaround is to collect process handles and terminate them on error, allowing
+test suite to finish.
+-}
 killProcessesOnError ::
   Hspec.SpecWith (SpotGarbage IO Process.ProcessHandle) ->
   Hspec.Spec
 killProcessesOnError =
-  cleanupAround Process.terminateProcess spotGarbage 
-  
+  cleanupAround Process.terminateProcess spotGarbage

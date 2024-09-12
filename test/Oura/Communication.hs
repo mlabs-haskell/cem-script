@@ -34,7 +34,6 @@ import Network.Socket.ByteString qualified as Socket.BS
 
 import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 
-
 data OuraDaemonConnection = MkOuraDaemonConnection
   { ownSocket :: Socket.Socket
   , ouraAddress :: Socket.SockAddr
