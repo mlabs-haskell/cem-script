@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Utils where
 
 import Prelude
@@ -50,6 +51,16 @@ import Data.Foldable (traverse_)
 import qualified Data.IORef as IORef
 import qualified Test.Hspec as Hspec
 import qualified System.Process as Process
+
+totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
+totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral
+
+digits :: forall n m. (Integral n,RealFrac m, Floating m) => n -> n -> [n]
+digits base n = fst <$> case reverse [0..totalDigits @n @m base n - 1] of
+  (i:is) -> scanl
+    (\(_,remainder) digit -> remainder `divMod` (base ^ digit))
+    (n `divMod` (base ^ i)) is
+  [] -> []
 
 execClb :: ClbRunner a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000

@@ -192,6 +192,7 @@ test-suite cem-sdk-test
     , base64
     , cardano-api
     , cardano-ledger-core
+    , vector
 
   hs-source-dirs: test/
   other-modules:
