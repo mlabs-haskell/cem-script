@@ -45,6 +45,7 @@ import Cardano.Extras
 import Data.Spine (HasSpine (..))
 
 import Control.Exception (bracket)
+import Data.Aeson.Types qualified as Aeson
 import Data.Foldable (traverse_)
 import Data.IORef qualified as IORef
 import System.Directory (removeFile)
@@ -52,7 +53,6 @@ import System.IO (hClose, openTempFile)
 import System.Process qualified as Process
 import Test.Hspec qualified as Hspec
 import TestNFT
-import qualified Data.Aeson.Types as Aeson
 
 resultToEither :: Aeson.Result a -> Either String a
 resultToEither (Aeson.Success a) = Right a

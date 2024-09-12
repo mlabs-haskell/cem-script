@@ -35,11 +35,12 @@ exampleTx =
               { Mock._tx_hash = Mock.MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
               , Mock._output_index = 5
               , Mock._as_output = out
-              , Mock._redeemer = Just
-                $ Mock.MkRedeemer
-                  { _purpose = Mock.PURPOSE_UNSPECIFIED
-                  , datum = Mock.encodePlutusData (V1.I 212)
-                  }
+              , Mock._redeemer =
+                  Just $
+                    Mock.MkRedeemer
+                      { _purpose = Mock.PURPOSE_UNSPECIFIED
+                      , datum = Mock.encodePlutusData (V1.I 212)
+                      }
               }
            ]
       & Mock.outputs .~ [out]

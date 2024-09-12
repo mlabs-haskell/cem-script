@@ -7,6 +7,7 @@
 module OuraFilters.Mock where
 
 import Control.Lens.TH (makeLenses, makeLensesFor)
+import Control.Monad ((<=<))
 import Data.Aeson (KeyValue ((.=)))
 import Data.Aeson qualified as Aeson
 import Data.Base64.Types qualified as Base64.Types
@@ -19,10 +20,9 @@ import Data.Text.Encoding qualified as T.Encoding
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
 import PlutusLedgerApi.V1 qualified
+import Safe qualified
 import Utils (digits)
 import Prelude
-import qualified Safe
-import Control.Monad ((<=<))
 
 newtype WithoutUnderscore a = MkWithoutUnderscore a
   deriving newtype (Generic)
@@ -102,7 +102,8 @@ data Purpose
 instance Aeson.FromJSON Purpose where
   parseJSON =
     maybe (fail "There is no Purpose case with this Id") pure
-    . Safe.toEnumMay <=< Aeson.parseJSON @Int
+      . Safe.toEnumMay
+      <=< Aeson.parseJSON @Int
 
 instance Aeson.ToJSON Purpose where
   toJSON = Aeson.toJSON @Int . fromEnum
