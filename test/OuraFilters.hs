@@ -8,6 +8,7 @@ import Control.Monad ((>=>))
 import Data.Aeson ((.:))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson
+import Data.ByteString qualified as BS
 import Data.Function ((&))
 import Data.Text qualified as T
 import Oura (Oura (receive, send, shutDown))
@@ -73,8 +74,8 @@ ouraFiltersSpec = Utils.killProcessesOnError do
   focus $ it "Oura filters match tx it have to match, and don't match other" \spotGarbage -> do
     Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
       let
-        tx = Mock.txToText exampleTx
-        matchingTx = Mock.txToText exampleMatchingTx
+        tx = Mock.txToBS exampleTx
+        matchingTx = Mock.txToBS exampleMatchingTx
       oura.send tx
       -- _ <- oura.receive
       oura.send matchingTx
@@ -86,14 +87,14 @@ ouraFiltersSpec = Utils.killProcessesOnError do
       oura.shutDown
   OuraFilters.Auction.spec
 
-extractInputTxHash :: T.Text -> Either String T.Text
+extractInputTxHash :: BS.ByteString -> Either String T.Text
 extractInputTxHash =
-  Aeson.eitherDecodeStrictText >=> Aeson.parseEither \json -> do
+  Aeson.eitherDecodeStrict >=> Aeson.parseEither \json -> do
     parsedTx <- json .: "parsed_tx"
     parsedTx .: "hash"
 
-extractOutputTxHash :: T.Text -> Either String T.Text
+extractOutputTxHash :: BS.ByteString -> Either String T.Text
 extractOutputTxHash =
-  Aeson.eitherDecodeStrictText >=> Aeson.parseEither \json -> do
+  Aeson.eitherDecodeStrict >=> Aeson.parseEither \json -> do
     parsedTx <- json .: "record"
     parsedTx .: "hash"

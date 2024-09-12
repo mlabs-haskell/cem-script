@@ -24,7 +24,7 @@ import Utils qualified
 
 import Control.Concurrent.Async (Async)
 import Control.Concurrent.Async qualified as Async
-import Data.Text.Encoding qualified as Text.Encoding
+import Data.ByteString qualified as BS
 import Oura.Communication qualified as Communication
 import Oura.Config qualified as Config
 import System.Directory (removeFile)
@@ -36,8 +36,8 @@ ouraStartupDurationNs :: Int
 ouraStartupDurationNs = 1_000_000
 
 data Oura m = MkOura
-  { send :: T.Text -> m ()
-  , receive :: m T.Text
+  { send :: BS.ByteString -> m ()
+  , receive :: m BS.ByteString
   , shutDown :: m ()
   }
 newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
@@ -89,10 +89,7 @@ runOura (MkWorkDir (T.unpack -> workdir)) spotHandle outputCheckingInterval = do
       Async.cancel waitingForClose
       Process.terminateProcess ouraHandle
     receive = Communication.waitForOutput ouraOutput
-    send =
-      void
-        . Communication.sendToOura ouraConnection
-        . Text.Encoding.encodeUtf8
+    send = void . Communication.sendToOura ouraConnection
   pure MkOura {shutDown, receive, send}
 
 daemonConfig :: Config.SourcePath -> Config.SinkPath -> T.Text

@@ -16,7 +16,6 @@ import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Functor ((<&>))
 import Data.Text qualified as T
-import Data.Text.Encoding qualified as T.Encoding
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
 import PlutusLedgerApi.V1 qualified
@@ -260,11 +259,14 @@ mkTxEvent _parsed_tx =
     , _point = "Origin"
     }
 
-txToText :: TxEvent -> T.Text
-txToText =
-  T.Encoding.decodeUtf8
-    . LBS.toStrict
-    . Aeson.encode
+-- txToText :: TxEvent -> T.Text
+-- txToText =
+--   T.Encoding.decodeUtf8
+--     . LBS.toStrict
+--     . Aeson.encode
+
+txToBS :: TxEvent -> BS.ByteString
+txToBS = LBS.toStrict . Aeson.encode
 
 encodePlutusData :: PlutusLedgerApi.V1.Data -> PlutusData
 encodePlutusData = MkPlutusData . datumToJson

@@ -27,11 +27,11 @@ import Control.Monad (forever)
 import Data.ByteString qualified as BS
 import Data.Foldable (for_)
 import Data.Text qualified as T
-import Data.Text.Encoding qualified as Text.Encoding
 import Data.Traversable (for)
 import Network.Socket qualified as Socket
 import Network.Socket.ByteString qualified as Socket.BS
 
+import Data.ByteString.Char8 qualified as BS.Char8
 import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 
 data OuraDaemonConnection = MkOuraDaemonConnection
@@ -72,7 +72,7 @@ close MkOuraDaemonConnection {ownSocket} = do
 -- * Consuming Oura output
 
 data OuraOutput = MkOuraOutput
-  { output :: Chan T.Text
+  { output :: Chan BS.ByteString
   , sinkPath :: SinkPath
   , monitor :: Maybe ThreadId
   }
@@ -96,7 +96,7 @@ listenOuraSink sinkPath monitoringInterval = do
 stopMonitoring :: OuraOutput -> IO ()
 stopMonitoring MkOuraOutput {monitor} = for_ monitor killThread
 
-waitForOutput :: OuraOutput -> IO T.Text
+waitForOutput :: OuraOutput -> IO BS.ByteString
 waitForOutput out@MkOuraOutput {output} = do
   collectOutput out
   readChan output
@@ -112,4 +112,4 @@ collectOutput MkOuraOutput {output, sinkPath} = do
   let sink = T.unpack $ unSinkPath sinkPath
   contents <- BS.readFile sink
   BS.writeFile sink ""
-  writeList2Chan output $ reverse $ T.lines $ Text.Encoding.decodeUtf8 contents
+  writeList2Chan output $ reverse $ BS.Char8.lines contents

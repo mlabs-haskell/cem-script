@@ -55,8 +55,8 @@ spec =
               , lot =
                   V1.Value.assetClassValue
                     ( V1.Value.assetClass
-                        "94906060606060606060606060606060606060606060606969669696"
-                        "fea6"
+                        "e01bb07f0cd514c0b8b73572e8c5e7492449c5f68702fdac758225f4"
+                        ""
                     )
                     4
               }
@@ -72,11 +72,11 @@ spec =
             Mock.MkBlake2b255Hex
               "2266778888888888888888888888888888888888888888888888444444444444"
           tx =
-            Mock.txToText $
+            Mock.txToBS $
               Mock.mkTxEvent $
                 Mock.hash .~ rightTxHash $
                   createTxMock params
-          unmatchingTx = Mock.txToText $ Mock.mkTxEvent Mock.arbitraryTx
+          unmatchingTx = Mock.txToBS $ Mock.mkTxEvent Mock.arbitraryTx
         putStrLn "evaluating"
         print $
           plutusAaddressToOuraAddress $
@@ -89,7 +89,7 @@ spec =
         oura.send tx
         putStrLn "Sent2"
         Right txEvent <-
-          Aeson.eitherDecodeStrictText @Mock.TxEvent
+          Aeson.eitherDecodeStrict @Mock.TxEvent
             <$> oura.receive
         (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
         oura.shutDown
@@ -197,16 +197,18 @@ createTxMock params =
       PlutusLedgerApi.V1.getValue >>> AssocMap.toList >>> fmap \(cs, tokens) ->
         Mock.MkMultiasset
           { Mock._policy_id =
-              T.Encoding.decodeUtf8 $
-                PlutusLedgerApi.V1.fromBuiltin $
-                  PlutusLedgerApi.V1.unCurrencySymbol cs
+              Base16.Types.extractBase16 $
+                Base16.encodeBase16 $
+                  PlutusLedgerApi.V1.fromBuiltin $
+                    PlutusLedgerApi.V1.unCurrencySymbol cs
           , Mock.assets =
               AssocMap.toList tokens <&> \(tn, amt) ->
                 Mock.MkAsset
                   { Mock._name =
-                      T.Encoding.decodeUtf8 $
-                        PlutusLedgerApi.V1.fromBuiltin $
-                          PlutusLedgerApi.V1.unTokenName tn
+                      Base16.Types.extractBase16 $
+                        Base16.encodeBase16 $
+                          PlutusLedgerApi.V1.fromBuiltin $
+                            PlutusLedgerApi.V1.unTokenName tn
                   , Mock._output_coin = amt -- positive
                   , Mock._mint_coin = 1
                   }
