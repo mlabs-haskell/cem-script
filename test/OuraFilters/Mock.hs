@@ -87,7 +87,6 @@ makeLenses ''Asset
 data Multiasset = MkMultiasset
   { _policy_id :: Hash28
   , assets :: [Asset]
-  -- , redeemer :: Maybe Aeson.Value
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore Multiasset)
@@ -155,14 +154,15 @@ makeLenses ''TxInput
 
 data TxWitnesses = MkTxWitnesses
   { _vkeywitness :: [Aeson.Value]
-  , _script :: [Aeson.Value]
+  , script :: [Aeson.Value]
   , _plutus_datums :: [Aeson.Value]
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore TxWitnesses)
   deriving (Aeson.FromJSON) via (WithoutUnderscore TxWitnesses)
 
--- makeLenses ''TxWitnesses
+makeLenses ''TxWitnesses
+makeLensesFor [("script", "txWitnessesScript")] ''Multiasset
 
 data TxCollateral = MkTxCollateral
   { _collateral :: [Aeson.Value]
@@ -204,7 +204,7 @@ arbitraryTx =
     , _witnesses =
         MkTxWitnesses
           { _vkeywitness = []
-          , _script = []
+          , script = []
           , _plutus_datums = []
           }
     , collateral =
@@ -272,12 +272,6 @@ mkTxEvent _parsed_tx =
     { _parsed_tx
     , _point = "Origin"
     }
-
--- txToText :: TxEvent -> T.Text
--- txToText =
---   T.Encoding.decodeUtf8
---     . LBS.toStrict
---     . Aeson.encode
 
 txToBS :: TxEvent -> BS.ByteString
 txToBS = LBS.toStrict . Aeson.encode
