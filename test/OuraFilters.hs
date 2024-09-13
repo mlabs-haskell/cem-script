@@ -76,15 +76,15 @@ ouraFiltersSpec = Utils.killProcessesOnError do
       let
         tx = Mock.txToBS exampleTx
         matchingTx = Mock.txToBS exampleMatchingTx
-      oura.send tx
-      -- _ <- oura.receive
-      oura.send matchingTx
-      Right outTxHash <-
-        extractOutputTxHash <$> oura.receive
-      Right inputTxHash <-
-        pure $ extractInputTxHash matchingTx
-      outTxHash `shouldBe` inputTxHash
-      oura.shutDown
+      Utils.withTimeout 3.0 do
+        oura.send tx
+        oura.send matchingTx
+        Right outTxHash <-
+          extractOutputTxHash <$> oura.receive
+        Right inputTxHash <-
+          pure $ extractInputTxHash matchingTx
+        outTxHash `shouldBe` inputTxHash
+        oura.shutDown
   OuraFilters.Auction.spec
 
 extractInputTxHash :: BS.ByteString -> Either String T.Text

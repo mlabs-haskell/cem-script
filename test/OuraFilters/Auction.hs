@@ -9,16 +9,17 @@ import Control.Arrow ((>>>))
 import Control.Lens ((%~), (.~), (^.))
 import Data.Aeson qualified as Aeson
 import Data.Function ((&))
-import Data.Functor ((<&>))
+import Data.Functor (void, (<&>))
 import Oura qualified
 import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified
 import PlutusLedgerApi.V1.Value qualified as V1.Value
 import PlutusTx.AssocMap qualified as AssocMap
 import System.Process (ProcessHandle)
+import System.Timeout (timeout)
 import Test.Hspec (describe, focus, it, shouldBe)
 import Test.Hspec.Core.Spec (SpecM)
-import Utils (SpotGarbage)
+import Utils (SpotGarbage, withTimeout)
 import Prelude
 
 spec :: SpecM (SpotGarbage IO ProcessHandle) ()
@@ -47,13 +48,15 @@ spec =
                 Mock.hash .~ rightTxHash $
                   createTxMock params
           unmatchingTx = Mock.txToBS $ Mock.mkTxEvent Mock.arbitraryTx
-        oura.send unmatchingTx
-        oura.send tx
-        Right txEvent <-
-          Aeson.eitherDecodeStrict @Mock.TxEvent
-            <$> oura.receive
-        (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
-        oura.shutDown
+        withTimeout 3.0 do
+          oura.send unmatchingTx
+          oura.send tx
+          -- 2 sec
+          Right txEvent <-
+            Aeson.eitherDecodeStrict @Mock.TxEvent
+              <$> oura.receive
+          (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
+          oura.shutDown
     it "Recognizes 'Start' transition" \spotGarbage -> do
       fail @IO @() "Not implemented"
     it "Recognizes 'MakeBid' transition" \spotGarbage -> do

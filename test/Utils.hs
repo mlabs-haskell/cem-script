@@ -45,14 +45,21 @@ import Cardano.Extras
 import Data.Spine (HasSpine (..))
 
 import Control.Exception (bracket)
+import Control.Monad ((<=<))
 import Data.Aeson.Types qualified as Aeson
 import Data.Foldable (traverse_)
 import Data.IORef qualified as IORef
 import System.Directory (removeFile)
 import System.IO (hClose, openTempFile)
 import System.Process qualified as Process
+import System.Timeout (timeout)
 import Test.Hspec qualified as Hspec
 import TestNFT
+
+withTimeout :: (Hspec.HasCallStack) => Float -> IO a -> IO a
+withTimeout sec =
+  maybe (error "Failed by timeout") pure
+    <=< timeout (round $ sec * 10 ** 6)
 
 resultToEither :: Aeson.Result a -> Either String a
 resultToEither (Aeson.Success a) = Right a
