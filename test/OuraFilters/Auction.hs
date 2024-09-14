@@ -5,13 +5,17 @@ module OuraFilters.Auction (spec) where
 
 import Cardano.CEM (CEMScriptDatum)
 import Cardano.CEM.Examples.Auction qualified as Auction
+import Cardano.CEM.Examples.Compilation ()
+import Cardano.CEM.OnChain qualified as Compiled
 import Control.Arrow ((>>>))
 import Control.Lens ((%~), (.~), (?~), (^.))
 import Data.Aeson qualified as Aeson
+import Data.Data (Proxy (Proxy))
 import Data.Function ((&))
 import Data.Functor (void, (<&>))
 import Oura qualified
 import OuraFilters.Mock qualified as Mock
+import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
 import PlutusLedgerApi.V1.Value qualified as V1.Value
 import PlutusTx.AssocMap qualified as AssocMap
@@ -29,8 +33,11 @@ spec =
     focus $ it "Catches any Auction validator transition" \spotGarbage -> do
       Oura.withOura @() (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
         let
-          -- auction = undefined
-          auctionPaymentCredential = undefined
+          auctionPaymentCredential =
+            PlutusLedgerApi.V1.ScriptCredential
+              . scriptValidatorHash
+              . Compiled.cemScriptCompiled
+              $ Proxy @Auction.SimpleAuction
           -- we want oura to monitor just payment credential, ignoring stake credentials
           arbitraryStakeCredential = PlutusLedgerApi.V1.StakingPtr 5 3 2
           defaultTx = Mock.arbitraryTx
