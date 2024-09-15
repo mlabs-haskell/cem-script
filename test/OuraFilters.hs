@@ -71,20 +71,21 @@ exampleTx =
 
 ouraFiltersSpec :: Spec
 ouraFiltersSpec = Utils.killProcessesOnError do
-  focus $ it "Oura filters match tx it have to match, and don't match other" \spotGarbage -> do
-    Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage \oura -> do
-      let
-        tx = Mock.txToBS exampleTx
-        matchingTx = Mock.txToBS exampleMatchingTx
-      Utils.withTimeout 3.0 do
-        oura.send tx
-        oura.send matchingTx
-        Right outTxHash <-
-          extractOutputTxHash <$> oura.receive
-        Right inputTxHash <-
-          pure $ extractInputTxHash matchingTx
-        outTxHash `shouldBe` inputTxHash
-        oura.shutDown
+  focus $ it "Oura filters match tx it have to match, and don't match other" \spotGarbage ->
+    let
+      tx = Mock.txToBS exampleTx
+      matchingTx = Mock.txToBS exampleMatchingTx
+     in
+      Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage undefined \oura -> do
+        Utils.withTimeout 3.0 do
+          oura.send tx
+          oura.send matchingTx
+          Right outTxHash <-
+            extractOutputTxHash <$> oura.receive
+          Right inputTxHash <-
+            pure $ extractInputTxHash matchingTx
+          outTxHash `shouldBe` inputTxHash
+          oura.shutDown
   OuraFilters.Auction.spec
 
 extractInputTxHash :: BS.ByteString -> Either String T.Text
