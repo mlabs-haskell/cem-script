@@ -1,6 +1,6 @@
 {
   inputs = {
-    raw-oura.url = "github:Renegatto/oura?rev=3be6b2883d41ced958c4d462b5e899e05cdf9b6a";
+    raw-oura.url = "github:Renegatto/oura?rev=bfcac25065719f9e3405acbbdf5fe782846ddf32";
     flake-utils.follows = "raw-oura/flake-utils";
     rust-overlay.follows = "raw-oura/rust-overlay";
     nixpkgs.follows = "raw-oura/nixpkgs";
