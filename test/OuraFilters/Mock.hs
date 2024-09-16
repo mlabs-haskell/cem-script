@@ -6,6 +6,7 @@
 
 module OuraFilters.Mock where
 
+import Cardano.Api qualified
 import Cardano.Api.Address qualified as Address
 import Cardano.Api.Ledger qualified
 import Cardano.Api.Ledger qualified as Cred
@@ -27,7 +28,6 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Functor ((<&>))
-import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
@@ -56,7 +56,7 @@ instance
   toJSON = Aeson.genericToJSON withoutLeadingUnderscore
 instance (Generic a, Aeson.GFromJSON Aeson.Zero (Rep a)) => Aeson.FromJSON (WithoutUnderscore a) where
   parseJSON = Aeson.genericParseJSON withoutLeadingUnderscore
-newtype Address = MkAddressAsBase64 T.Text
+newtype Address = MkAddressAsBase64 {_addressL :: T.Text}
   deriving newtype (Show, Eq, Ord, Aeson.ToJSON, Aeson.FromJSON)
 makeLenses ''Address
 
@@ -357,22 +357,21 @@ serialiseAsHex =
     . Base16.encodeBase16
     . PlutusLedgerApi.V1.fromBuiltin
 
-plutusAddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Address
-plutusAddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
-  MkAddressAsBase64
-    . Base64.extractBase64
-    . Base64.encodeBase64
-    . SerialiseRaw.serialiseToRawBytes
-    $ Address.ShelleyAddress
-      Ledger.Mainnet
-      ( fromMaybe
-          (error "plutusAaddressToOuraAddress:can't decode payment credential")
-          paymentCredential
-      )
-      ( fromMaybe
-          (error "plutusAaddressToOuraAddress:can't decode stake credential")
-          stakeCredential
-      )
+plutusAddressToShelleyAddress ::
+  PlutusLedgerApi.V1.Address ->
+  Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
+plutusAddressToShelleyAddress (PlutusLedgerApi.V1.Address payment stake) = do
+  paymentCred <-
+    maybe
+      (Left "plutusAddressToShelleyAddress:can't decode payment credential")
+      Right
+      paymentCredential
+  stakeCred <-
+    maybe
+      (Left "plutusAddressToShelleyAddress:can't decode stake credential")
+      Right
+      stakeCredential
+  pure $ Address.ShelleyAddress Ledger.Mainnet paymentCred stakeCred
   where
     credentialToCardano
       ( PlutusLedgerApi.V1.PubKeyCredential
@@ -405,3 +404,16 @@ plutusAddressToOuraAddress (PlutusLedgerApi.V1.Address payment stake) =
                 (Ledger.SlotNo $ fromInteger slotNo)
                 (Ledger.TxIx $ fromInteger txIx)
                 (Ledger.CertIx $ fromInteger sertId)
+
+shelleyAddressBech32 ::
+  Cardano.Api.Address Cardano.Api.ShelleyAddr -> T.Text
+shelleyAddressBech32 = Cardano.Api.serialiseToBech32
+
+plutusAddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Address
+plutusAddressToOuraAddress =
+  MkAddressAsBase64
+    . Base64.extractBase64
+    . Base64.encodeBase64
+    . SerialiseRaw.serialiseToRawBytes
+    . either error id
+    . plutusAddressToShelleyAddress
