@@ -29,9 +29,7 @@ import Prelude
 
 spec :: SpecM (SpotGarbage IO ProcessHandle) ()
 spec =
-  --
   describe "Auction example" do
-    -- @(SpotGarbage IO ProcessHandle)
     focus $ it "Catches any Auction validator transition" \spotGarbage ->
       let
         auctionPaymentCredential =
@@ -73,100 +71,8 @@ spec =
                 <$> oura.receive
             (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
             oura.shutDown
-    it "Recognizes 'Create' transition" \spotGarbage ->
-      let
-        params =
-          Auction.MkAuctionParams
-            { seller = "ab0baab0baab0baab0baab0baab0ba00000000000004444444444444"
-            , lot =
-                V1.Value.assetClassValue
-                  ( V1.Value.assetClass
-                      "eeeeeeeeeeffffffffaaaaaaa4444444444444444444444444444444"
-                      ""
-                  )
-                  4
-            }
-        rightTxHash =
-          Mock.MkBlake2b255Hex
-            "2266778888888888888888888888888888888888888888888888444444444444"
-        tx =
-          Mock.txToBS $
-            Mock.mkTxEvent $
-              Mock.hash .~ rightTxHash $
-                createTxMock params
-        unmatchingTx = Mock.txToBS $ Mock.mkTxEvent Mock.arbitraryTx
-       in
-        Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage makeConfig \oura -> do
-          withTimeout 3.0 do
-            oura.send unmatchingTx
-            oura.send tx
-            Right txEvent <-
-              Aeson.eitherDecodeStrict @Mock.TxEvent
-                <$> oura.receive
-            (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
+            Mock.MkBlake2b255Hex txHash `shouldBe` rightTxHash
             oura.shutDown
-    it "Recognizes 'Start' transition" \spotGarbage -> do
-      fail @IO @() "Not implemented"
-    it "Recognizes 'MakeBid' transition" \spotGarbage -> do
-      fail @IO @() "Not implemented"
-    it "Recognizes 'Close' transition" \spotGarbage -> do
-      fail @IO @() "Not implemented"
-    it "Recognizes 'Buyout' transition" \spotGarbage -> do
-      fail @IO @() "Not implemented"
-
-createTxMock :: Auction.SimpleAuctionParams -> Mock.Tx
-createTxMock params =
-  Mock.arbitraryTx
-    & Mock.inputs %~ (:) input
-    & Mock.outputs %~ (:) output
-  where
-    input =
-      emptyInputFixture
-        (PlutusLedgerApi.V1.PubKeyCredential params.seller)
-        Nothing
-        & Mock.as_output . Mock.assets .~ valueToMultiAsset params.lot
-        & Mock.redeemer
-          ?~ Mock.MkRedeemer
-            { _purpose = Mock.PURPOSE_SPEND
-            , datum =
-                Mock.encodePlutusData $
-                  PlutusLedgerApi.V1.toData Auction.Create
-            }
-
-    output =
-      Mock.MkTxOutput
-        { Mock._address =
-            Mock.plutusAddressToOuraAddress $
-              PlutusLedgerApi.V1.Address
-                (PlutusLedgerApi.V1.PubKeyCredential params.seller)
-                Nothing
-        , Mock._datum =
-            Just $
-              Mock.encodePlutusData $
-                PlutusLedgerApi.V1.toData outputState
-        , Mock._coin = 2
-        , Mock._script = Nothing
-        , Mock._assets = valueToMultiAsset params.lot
-        }
-
-    outputState :: CEMScriptDatum Auction.SimpleAuction
-    outputState = (Auction.NoControl, params, Auction.NotStarted)
-
-valueToMultiAsset :: PlutusLedgerApi.V1.Value -> [Mock.Multiasset]
-valueToMultiAsset =
-  PlutusLedgerApi.V1.getValue >>> AssocMap.toList >>> fmap \(cs, tokens) ->
-    Mock.MkMultiasset
-      { Mock._policy_id = Mock.serialiseCurrencySymbol cs
-      , Mock.assets =
-          AssocMap.toList tokens <&> \(tn, amt) ->
-            Mock.MkAsset
-              { Mock._name =
-                  Mock.serialiseAsHex $
-                    PlutusLedgerApi.V1.unTokenName tn
-              , Mock._output_coin = amt -- positive
-              , Mock._mint_coin = 1
-              }
-      }
 
 emptyInputFixture ::
   PlutusLedgerApi.V1.Credential ->
