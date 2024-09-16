@@ -58,7 +58,7 @@ spec =
           Mock.MkBlake2b255Hex
             "2266778888888888888888888888888888888888888888888888444444444444"
         inputFromValidator =
-          emptyInputFixture auctionPaymentCredential Nothing -- (Just arbitraryStakeCredential)
+          emptyInputFixture auctionPaymentCredential (Just arbitraryStakeCredential)
         tx =
           Mock.txToBS
             . Mock.mkTxEvent
