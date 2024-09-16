@@ -5,6 +5,7 @@ module Oura.Config (
   SourcePath (MkSourcePath, unSourcePath),
   SinkPath (MkSinkPath, unSinkPath),
   filtersL,
+  predicateL,
   tableL,
   atKey,
   _Table,
@@ -18,9 +19,11 @@ import Prelude
 import Control.Lens (
   At (at),
   Each (each),
+  Iso',
   Lens',
   Prism',
   Traversal',
+  from,
   iso,
   mapping,
   partsOf,
@@ -95,13 +98,21 @@ source (MkSourcePath socketPath) =
     , "type" .= Toml.Text "TxOverSocket"
     ]
 
-filtersL :: Traversal' Toml.Value [Toml.Table]
+newtype Filter = MkFilter {unFilter :: Toml.Table}
+  deriving newtype (Eq, Show)
+
+filterL :: Iso' Filter Toml.Table
+filterL = iso unFilter MkFilter
+
+predicateL :: Traversal' Filter T.Text
+predicateL = filterL . atKey "predicate" . _Just . _Text
+
+filtersL :: Traversal' Toml.Table [Filter]
 filtersL =
-  _Table
-    . atKey "filters"
+  atKey "filters"
     . _Just
     . _List
-    . partsOf (each . _Table)
+    . partsOf (each . _Table . from filterL)
 
 atKey :: T.Text -> Traversal' Toml.Table (Maybe Toml.Value)
 atKey key = tableL . at key
