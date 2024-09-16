@@ -147,6 +147,7 @@ library
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1
+    Cardano.CEM.OuraConfig
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.Stages
@@ -158,6 +159,7 @@ library
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
+    , toml-parser
     , dependent-map
     , ouroboros-consensus
     , QuickCheck
