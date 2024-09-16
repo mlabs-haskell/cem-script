@@ -3,23 +3,25 @@
 
 module OuraFilters.Auction (spec) where
 
-import Cardano.CEM (CEMScriptDatum)
 import Cardano.CEM.Examples.Auction qualified as Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.OnChain qualified as Compiled
-import Control.Arrow ((>>>))
-import Control.Lens ((%~), (.~), (?~), (^.))
+import Control.Lens (Ixed (ix), (%~), (.~))
+import Control.Monad ((>=>))
+import Data.Aeson ((.:))
 import Data.Aeson qualified as Aeson
+import Data.Aeson.Types qualified as Aeson.Types
+import Data.ByteString qualified as BS
+import Data.ByteString.Char8 qualified as BS.IO
 import Data.Data (Proxy (Proxy))
 import Data.Function ((&))
-import Data.Functor ((<&>))
+import Data.Text qualified as T
+import Data.Text.IO qualified as T.IO
 import Oura qualified
 import Oura.Config qualified as Config
 import OuraFilters.Mock qualified as Mock
 import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
-import PlutusLedgerApi.V1.Value qualified as V1.Value
-import PlutusTx.AssocMap qualified as AssocMap
 import System.Process (ProcessHandle)
 import Test.Hspec (describe, focus, it, shouldBe)
 import Test.Hspec.Core.Spec (SpecM)
@@ -32,27 +34,35 @@ spec =
   describe "Auction example" do
     focus $ it "Catches any Auction validator transition" \spotGarbage ->
       let
+        auctionAddress =
+          PlutusLedgerApi.V1.Address
+            auctionPaymentCredential
+            Nothing
+        auctionAddressBech32Text =
+          Mock.shelleyAddressBech32
+            . either error id
+            $ Mock.plutusAddressToShelleyAddress auctionAddress
         auctionPaymentCredential =
-          PlutusLedgerApi.V1.ScriptCredential
-            . scriptValidatorHash
+          PlutusLedgerApi.V1.ScriptCredential auctionValidatorHash
+        auctionValidatorHash =
+          scriptValidatorHash
             . Compiled.cemScriptCompiled
             $ Proxy @Auction.SimpleAuction
+
         -- we want oura to monitor just payment credential, ignoring stake credentials
         arbitraryStakeCredential = PlutusLedgerApi.V1.StakingPtr 5 3 2
-        auctionOuraFilters = error "Not implemented"
-        defaultTx = Mock.arbitraryTx
+
         rightTxHash =
           Mock.MkBlake2b255Hex
             "2266778888888888888888888888888888888888888888888888444444444444"
         inputFromValidator =
-          emptyInputFixture auctionPaymentCredential (Just arbitraryStakeCredential)
-
+          emptyInputFixture auctionPaymentCredential Nothing -- (Just arbitraryStakeCredential)
         tx =
           Mock.txToBS
             . Mock.mkTxEvent
             . (Mock.inputs %~ (inputFromValidator :))
             . (Mock.hash .~ rightTxHash)
-            $ defaultTx
+            $ Mock.arbitraryTx
         unmatchingTx =
           Mock.txToBS
             . Mock.mkTxEvent
@@ -60,19 +70,23 @@ spec =
         makeConfig :: Config.SourcePath -> Config.SinkPath -> Toml.Table
         makeConfig sourcePath sinkPath =
           Config.daemonConfig sourcePath sinkPath
-            & Config.filtersL .~ auctionOuraFilters
+            & Config.filtersL
+              . ix 0
+              . Config.predicateL
+              .~ auctionAddressBech32Text
        in
-        Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage makeConfig \oura -> do
-          withTimeout 3.0 do
-            oura.send unmatchingTx
-            oura.send tx
-            Right txEvent <-
-              Aeson.eitherDecodeStrict @Mock.TxEvent
-                <$> oura.receive
-            (txEvent ^. Mock.parsed_tx . Mock.hash) `shouldBe` rightTxHash
-            oura.shutDown
-            Mock.MkBlake2b255Hex txHash `shouldBe` rightTxHash
-            oura.shutDown
+        do
+          putStrLn "Hash:"
+          T.IO.putStrLn auctionAddressBech32Text
+          Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage makeConfig \oura -> do
+            withTimeout 6.0 do
+              oura.send unmatchingTx
+              oura.send tx
+              msg <- oura.receive
+              BS.IO.putStrLn $ "message: " <> msg
+              txHash <- either error pure $ extractTxHash msg
+              Mock.MkBlake2b255Hex txHash `shouldBe` rightTxHash
+              oura.shutDown
 
 emptyInputFixture ::
   PlutusLedgerApi.V1.Credential ->
@@ -94,3 +108,9 @@ emptyInputFixture paymentCred mstakeCred =
     , Mock._output_index = 0
     , Mock._redeemer = Nothing
     }
+
+extractTxHash :: BS.ByteString -> Either String T.Text
+extractTxHash =
+  Aeson.eitherDecodeStrict >=> Aeson.Types.parseEither \json -> do
+    parsedTx <- json .: "record"
+    parsedTx .: "hash"

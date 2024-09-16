@@ -13,6 +13,7 @@ import Data.Function ((&))
 import Data.Text qualified as T
 import Oura (Oura (receive, send, shutDown))
 import Oura qualified
+import Oura.Config qualified as Config
 import OuraFilters.Auction qualified
 import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified as V1
@@ -76,7 +77,7 @@ ouraFiltersSpec = Utils.killProcessesOnError do
       tx = Mock.txToBS exampleTx
       matchingTx = Mock.txToBS exampleMatchingTx
      in
-      Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage undefined \oura -> do
+      Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage Config.daemonConfig \oura -> do
         Utils.withTimeout 3.0 do
           oura.send tx
           oura.send matchingTx
