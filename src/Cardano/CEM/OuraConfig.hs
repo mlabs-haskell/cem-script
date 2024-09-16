@@ -1,16 +1,17 @@
-module Cardano.CEM.OuraConfig
-  ( SourcePath (MkSourcePath, unSourcePath)
-  , SinkPath (MkSinkPath, unSinkPath)
-  , Filter (MkFilter, unFilter)
-  , daemonConfig
-  , selectByAddress
-  ) where
-import Toml qualified
-import Data.Text qualified as T
+module Cardano.CEM.OuraConfig (
+  SourcePath (MkSourcePath, unSourcePath),
+  SinkPath (MkSinkPath, unSinkPath),
+  Filter (MkFilter, unFilter),
+  daemonConfig,
+  selectByAddress,
+) where
+
 import Data.String (IsString)
-import Prelude
-import Toml.Schema.ToValue qualified as Toml.ToValue
+import Data.Text qualified as T
+import Toml qualified
 import Toml.Schema ((.=))
+import Toml.Schema.ToValue qualified as Toml.ToValue
+import Prelude
 
 newtype SourcePath = MkSourcePath {unSourcePath :: T.Text}
   deriving newtype (IsString)
@@ -34,11 +35,12 @@ daemonConfig filters sourcePath sinkPath =
 -- | A oura *filter* that selects by address
 selectByAddress :: T.Text -> Filter
 selectByAddress addressBech32 =
-  MkFilter $ Toml.ToValue.table
-    [ "predicate" .= Toml.Text addressBech32 -- "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x"
-    , "skip_uncertain" .= Toml.Bool False
-    , "type" .= Toml.Text "Select"
-    ]
+  MkFilter $
+    Toml.ToValue.table
+      [ "predicate" .= Toml.Text addressBech32 -- "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x"
+      , "skip_uncertain" .= Toml.Bool False
+      , "type" .= Toml.Text "Select"
+      ]
 
 cursor :: Toml.Table
 cursor =
