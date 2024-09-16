@@ -45,7 +45,7 @@ exampleTx =
                   Just $
                     Mock.MkRedeemer
                       { _purpose = Mock.PURPOSE_UNSPECIFIED
-                      , datum = Mock.encodePlutusData (V1.I 212)
+                      , payload = Mock.encodePlutusData (V1.I 212)
                       }
               }
            ]
@@ -62,15 +62,20 @@ exampleTx =
         , Mock._assets = []
         , Mock._datum =
             Just $
-              Mock.encodePlutusData $
-                V1.List
-                  [ V1.Map
-                      [ (V1.I 2, V1.I 33)
-                      ]
-                  , V1.Constr 3 [V1.I 288]
-                  , V1.I 34
-                  , V1.B "aboba"
-                  ]
+              Mock.MkDatum
+                { Mock._payload =
+                    Mock.encodePlutusData $
+                      V1.List
+                        [ V1.Map
+                            [ (V1.I 2, V1.I 33)
+                            ]
+                        , V1.Constr 3 [V1.I 288]
+                        , V1.I 34
+                        , V1.B "aboba"
+                        ]
+                , Mock.hash = Mock.MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+                , Mock._original_cbor = ""
+                }
         , Mock._script = Nothing
         }
 

@@ -120,9 +120,20 @@ instance Aeson.FromJSON Purpose where
 instance Aeson.ToJSON Purpose where
   toJSON = Aeson.toJSON @Int . fromEnum
 
+data Datum = MkDatum
+  { hash :: Hash32
+  , _payload :: PlutusData
+  , _original_cbor :: T.Text
+  }
+  deriving stock (Generic)
+  deriving (Aeson.ToJSON) via (WithoutUnderscore Datum)
+  deriving (Aeson.FromJSON) via (WithoutUnderscore Datum)
+makeLenses ''Datum
+makeLensesFor [("hash", "datumHash")] ''Multiasset
+
 data Redeemer = MkRedeemer
   { _purpose :: Purpose
-  , datum :: PlutusData
+  , payload :: PlutusData
   }
   deriving stock (Generic)
   deriving (Aeson.ToJSON) via (WithoutUnderscore Redeemer)
@@ -133,7 +144,7 @@ data TxOutput = MkTxOutput
   { _address :: Address
   , _coin :: Integer
   , _assets :: [Multiasset]
-  , _datum :: Maybe PlutusData
+  , _datum :: Maybe Datum
   , _script :: Maybe Aeson.Value
   }
   deriving stock (Generic)
