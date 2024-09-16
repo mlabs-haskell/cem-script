@@ -1,8 +1,10 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module OuraFilters (ouraFiltersSpec) where
 
+import Cardano.CEM.OuraConfig qualified as Config
 import Control.Lens (ix, (.~))
 import Control.Monad ((>=>))
 import Data.Aeson ((.:))
@@ -13,7 +15,6 @@ import Data.Function ((&))
 import Data.Text qualified as T
 import Oura (Oura (receive, send, shutDown))
 import Oura qualified
-import Oura.Config qualified as Config
 import OuraFilters.Auction qualified
 import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified as V1
@@ -27,6 +28,9 @@ exampleMatchingTx =
     & Mock.parsed_tx . Mock.inputs . ix 0 . Mock.as_output . Mock.address .~ inputAddress
   where
     inputAddress = Mock.MkAddressAsBase64 "AZSTMVzZLrXYxDBOZ7fhauNtYdNFAmlGV4EaLI4ze2LP/2QDoGo6y8NPjEYAPGn+eaNijO+pxHJR"
+
+exampleFilter :: Config.Filter
+exampleFilter = Config.selectByAddress "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x"
 
 exampleTx :: Mock.TxEvent
 exampleTx =
@@ -77,16 +81,20 @@ ouraFiltersSpec = Utils.killProcessesOnError do
       tx = Mock.txToBS exampleTx
       matchingTx = Mock.txToBS exampleMatchingTx
      in
-      Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage Config.daemonConfig \oura -> do
-        Utils.withTimeout 3.0 do
-          oura.send tx
-          oura.send matchingTx
-          Right outTxHash <-
-            extractOutputTxHash <$> oura.receive
-          Right inputTxHash <-
-            pure $ extractInputTxHash matchingTx
-          outTxHash `shouldBe` inputTxHash
-          oura.shutDown
+      Oura.withOura
+        (Oura.MkWorkDir "./tmp")
+        spotGarbage
+        (Config.daemonConfig [exampleFilter])
+        \oura -> do
+          Utils.withTimeout 3.0 do
+            oura.send tx
+            oura.send matchingTx
+            Right outTxHash <-
+              extractOutputTxHash <$> oura.receive
+            Right inputTxHash <-
+              pure $ extractInputTxHash matchingTx
+            outTxHash `shouldBe` inputTxHash
+            oura.shutDown
   OuraFilters.Auction.spec
 
 extractInputTxHash :: BS.ByteString -> Either String T.Text

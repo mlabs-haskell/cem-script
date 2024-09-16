@@ -6,7 +6,7 @@ module OuraFilters.Auction (spec) where
 import Cardano.CEM.Examples.Auction qualified as Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.OnChain qualified as Compiled
-import Control.Lens (Ixed (ix), (%~), (.~))
+import Control.Lens ((%~), (.~))
 import Control.Monad ((>=>))
 import Data.Aeson ((.:))
 import Data.Aeson qualified as Aeson
@@ -14,11 +14,13 @@ import Data.Aeson.Types qualified as Aeson.Types
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BS.IO
 import Data.Data (Proxy (Proxy))
-import Data.Function ((&))
 import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
 import Oura qualified
-import Oura.Config qualified as Config
+
+-- import Oura.Config qualified as Config
+
+import Cardano.CEM.OuraConfig qualified as OuraConfig
 import OuraFilters.Mock qualified as Mock
 import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
@@ -67,13 +69,12 @@ spec =
           Mock.txToBS
             . Mock.mkTxEvent
             $ Mock.arbitraryTx
-        makeConfig :: Config.SourcePath -> Config.SinkPath -> Toml.Table
+        makeConfig :: OuraConfig.SourcePath -> OuraConfig.SinkPath -> Toml.Table
         makeConfig sourcePath sinkPath =
-          Config.daemonConfig sourcePath sinkPath
-            & Config.filtersL
-              . ix 0
-              . Config.predicateL
-              .~ auctionAddressBech32Text
+          OuraConfig.daemonConfig
+            [OuraConfig.selectByAddress auctionAddressBech32Text]
+            sourcePath
+            sinkPath
        in
         do
           putStrLn "Hash:"

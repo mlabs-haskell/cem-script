@@ -22,11 +22,11 @@ import Toml.Pretty qualified
 import Utils (withNewFile)
 import Utils qualified
 
+import Cardano.CEM.OuraConfig qualified as Config
 import Control.Concurrent.Async (Async)
 import Control.Concurrent.Async qualified as Async
 import Data.ByteString qualified as BS
 import Oura.Communication qualified as Communication
-import Oura.Config qualified as Config
 import System.Directory (removeFile)
 import Toml (Table)
 

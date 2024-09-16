@@ -31,8 +31,8 @@ import Data.Traversable (for)
 import Network.Socket qualified as Socket
 import Network.Socket.ByteString qualified as Socket.BS
 
+import Cardano.CEM.OuraConfig (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 import Data.ByteString.Char8 qualified as BS.Char8
-import Oura.Config (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 
 data OuraDaemonConnection = MkOuraDaemonConnection
   { ownSocket :: Socket.Socket

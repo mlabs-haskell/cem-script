@@ -21,8 +21,8 @@ newtype SinkPath = MkSinkPath {unSinkPath :: T.Text}
 newtype Filter = MkFilter {unFilter :: Toml.Table}
   deriving newtype (Eq, Show)
 
-daemonConfig :: SourcePath -> SinkPath -> [Filter] -> Toml.Table
-daemonConfig sourcePath sinkPath filters =
+daemonConfig :: [Filter] -> SourcePath -> SinkPath -> Toml.Table
+daemonConfig filters sourcePath sinkPath =
   Toml.ToValue.table
     [ "filters" .= Toml.List (Toml.Table . unFilter <$> filters)
     , "cursor" .= cursor
