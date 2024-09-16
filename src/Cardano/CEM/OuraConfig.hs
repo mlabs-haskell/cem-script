@@ -4,8 +4,13 @@ module Cardano.CEM.OuraConfig (
   Filter (MkFilter, unFilter),
   daemonConfig,
   selectByAddress,
+  ouraMonitoringScript,
 ) where
 
+import Cardano.CEM.Address qualified as Address
+import Cardano.CEM.OnChain (CEMScriptCompiled)
+import Cardano.Ledger.BaseTypes qualified as Ledger
+import Data.Data (Proxy)
 import Data.String (IsString)
 import Data.Text qualified as T
 import Toml qualified
@@ -33,14 +38,30 @@ daemonConfig filters sourcePath sinkPath =
     ]
 
 -- | A oura *filter* that selects by address
-selectByAddress :: T.Text -> Filter
-selectByAddress addressBech32 =
+selectByAddress :: Address.AddressBech32 -> Filter
+selectByAddress (Address.MkAddressBech32 addressBech32) =
   MkFilter $
     Toml.ToValue.table
       [ "predicate" .= Toml.Text addressBech32 -- "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x"
       , "skip_uncertain" .= Toml.Bool False
       , "type" .= Toml.Text "Select"
       ]
+
+-- | Makes an oura config such that oura is going to monitor all spendings from the script's payment credential.
+ouraMonitoringScript ::
+  forall script.
+  (CEMScriptCompiled script) =>
+  Proxy script ->
+  Ledger.Network ->
+  SourcePath ->
+  SinkPath ->
+  Either String Toml.Table
+ouraMonitoringScript p network sourcePath sinkPath =
+  (\filters -> daemonConfig filters sourcePath sinkPath)
+    . pure
+    . selectByAddress
+    . Address.cardanoAddressBech32
+    <$> Address.scriptCardanoAddress p network
 
 cursor :: Toml.Table
 cursor =

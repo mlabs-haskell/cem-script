@@ -140,6 +140,7 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
+    Cardano.CEM.Address
     Cardano.CEM.Documentation
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation

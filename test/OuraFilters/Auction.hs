@@ -6,6 +6,8 @@ module OuraFilters.Auction (spec) where
 import Cardano.CEM.Examples.Auction qualified as Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.OnChain qualified as Compiled
+import Cardano.CEM.OuraConfig qualified as OuraConfig
+import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens ((%~), (.~))
 import Control.Monad ((>=>))
 import Data.Aeson ((.:))
@@ -15,19 +17,13 @@ import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BS.IO
 import Data.Data (Proxy (Proxy))
 import Data.Text qualified as T
-import Data.Text.IO qualified as T.IO
 import Oura qualified
-
--- import Oura.Config qualified as Config
-
-import Cardano.CEM.OuraConfig qualified as OuraConfig
 import OuraFilters.Mock qualified as Mock
 import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
 import System.Process (ProcessHandle)
 import Test.Hspec (describe, focus, it, shouldBe)
 import Test.Hspec.Core.Spec (SpecM)
-import Toml qualified
 import Utils (SpotGarbage, withTimeout)
 import Prelude
 
@@ -36,14 +32,6 @@ spec =
   describe "Auction example" do
     focus $ it "Catches any Auction validator transition" \spotGarbage ->
       let
-        auctionAddress =
-          PlutusLedgerApi.V1.Address
-            auctionPaymentCredential
-            Nothing
-        auctionAddressBech32Text =
-          Mock.shelleyAddressBech32
-            . either error id
-            $ Mock.plutusAddressToShelleyAddress auctionAddress
         auctionPaymentCredential =
           PlutusLedgerApi.V1.ScriptCredential auctionValidatorHash
         auctionValidatorHash =
@@ -69,25 +57,23 @@ spec =
           Mock.txToBS
             . Mock.mkTxEvent
             $ Mock.arbitraryTx
-        makeConfig :: OuraConfig.SourcePath -> OuraConfig.SinkPath -> Toml.Table
-        makeConfig sourcePath sinkPath =
-          OuraConfig.daemonConfig
-            [OuraConfig.selectByAddress auctionAddressBech32Text]
-            sourcePath
-            sinkPath
+        makeConfig source sink =
+          either error id $
+            OuraConfig.ouraMonitoringScript (Proxy @Auction.SimpleAuction) Ledger.Mainnet source sink
        in
         do
-          putStrLn "Hash:"
-          T.IO.putStrLn auctionAddressBech32Text
-          Oura.withOura (Oura.MkWorkDir "./tmp") spotGarbage makeConfig \oura -> do
-            withTimeout 6.0 do
-              oura.send unmatchingTx
-              oura.send tx
-              msg <- oura.receive
-              BS.IO.putStrLn $ "message: " <> msg
-              txHash <- either error pure $ extractTxHash msg
-              Mock.MkBlake2b255Hex txHash `shouldBe` rightTxHash
-              oura.shutDown
+          Oura.withOura
+            (Oura.MkWorkDir "./tmp")
+            spotGarbage
+            makeConfig
+            \oura -> do
+              withTimeout 6.0 do
+                oura.send unmatchingTx
+                oura.send tx
+                msg <- oura.receive
+                txHash <- either error pure $ extractTxHash msg
+                Mock.MkBlake2b255Hex txHash `shouldBe` rightTxHash
+                oura.shutDown
 
 emptyInputFixture ::
   PlutusLedgerApi.V1.Credential ->

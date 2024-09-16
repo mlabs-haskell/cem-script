@@ -6,16 +6,9 @@
 
 module OuraFilters.Mock where
 
-import Cardano.Api qualified
-import Cardano.Api.Address qualified as Address
-import Cardano.Api.Ledger qualified
-import Cardano.Api.Ledger qualified as Cred
 import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
-import Cardano.Crypto.Hash qualified as Cardano.Hash
+import Cardano.CEM.Address qualified as Address
 import Cardano.Ledger.BaseTypes qualified as Ledger
-import Cardano.Ledger.Credential qualified as Cred
-import Cardano.Ledger.Hashes qualified
-import Cardano.Ledger.Keys qualified as Ledger.Keys
 import Control.Lens.TH (makeLenses, makeLensesFor)
 import Control.Monad ((<=<))
 import Data.Aeson (KeyValue ((.=)))
@@ -368,58 +361,6 @@ serialiseAsHex =
     . Base16.encodeBase16
     . PlutusLedgerApi.V1.fromBuiltin
 
-plutusAddressToShelleyAddress ::
-  PlutusLedgerApi.V1.Address ->
-  Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
-plutusAddressToShelleyAddress (PlutusLedgerApi.V1.Address payment stake) = do
-  paymentCred <-
-    maybe
-      (Left "plutusAddressToShelleyAddress:can't decode payment credential")
-      Right
-      paymentCredential
-  stakeCred <-
-    maybe
-      (Left "plutusAddressToShelleyAddress:can't decode stake credential")
-      Right
-      stakeCredential
-  pure $ Address.ShelleyAddress Ledger.Mainnet paymentCred stakeCred
-  where
-    credentialToCardano
-      ( PlutusLedgerApi.V1.PubKeyCredential
-          (PlutusLedgerApi.V1.PubKeyHash pkh)
-        ) =
-        Cred.KeyHashObj
-          . Ledger.Keys.KeyHash
-          <$> Cardano.Hash.hashFromBytes
-            (PlutusLedgerApi.V1.fromBuiltin pkh)
-    credentialToCardano
-      ( PlutusLedgerApi.V1.ScriptCredential
-          (PlutusLedgerApi.V1.ScriptHash scriptHash)
-        ) =
-        Cred.ScriptHashObj
-          . Cardano.Ledger.Hashes.ScriptHash
-          <$> Cardano.Hash.hashFromBytes
-            (PlutusLedgerApi.V1.fromBuiltin scriptHash)
-
-    paymentCredential = credentialToCardano payment
-    stakeCredential = case stake of
-      Nothing -> Just Cardano.Api.Ledger.StakeRefNull
-      Just ref -> case ref of
-        PlutusLedgerApi.V1.StakingHash cred ->
-          Cardano.Api.Ledger.StakeRefBase
-            <$> credentialToCardano cred
-        PlutusLedgerApi.V1.StakingPtr slotNo txIx sertId ->
-          Just $
-            Cardano.Api.Ledger.StakeRefPtr $
-              Cred.Ptr
-                (Ledger.SlotNo $ fromInteger slotNo)
-                (Ledger.TxIx $ fromInteger txIx)
-                (Ledger.CertIx $ fromInteger sertId)
-
-shelleyAddressBech32 ::
-  Cardano.Api.Address Cardano.Api.ShelleyAddr -> T.Text
-shelleyAddressBech32 = Cardano.Api.serialiseToBech32
-
 plutusAddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Address
 plutusAddressToOuraAddress =
   MkAddressAsBase64
@@ -427,4 +368,4 @@ plutusAddressToOuraAddress =
     . Base64.encodeBase64
     . SerialiseRaw.serialiseToRawBytes
     . either error id
-    . plutusAddressToShelleyAddress
+    . Address.plutusAddressToShelleyAddress Ledger.Mainnet
