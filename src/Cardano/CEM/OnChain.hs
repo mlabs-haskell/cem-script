@@ -74,7 +74,7 @@ genericCEMScript script scriptStage =
       let
         checkTxFan' filterSpec' fan =
           case filterSpec' of
-            Anything -> True
+            AnyDatum -> True
             UnsafeBySameCEM stateData ->
               let
                 -- FIXUP: do not decode unnecessary
@@ -93,7 +93,8 @@ genericCEMScript script scriptStage =
                     getDatum datumContent == expectedDatum
                   OutputDatumHash _ -> traceError "Hash datum not supported"
                   _ -> False
-        checkConstraint (MkTxFanC fanKind filterSpec quantifier) =
+        -- given a fans constraint checks it against all fans
+        checkConstraint (MkTxFansC fanKind filterSpec quantifier) =
           traceIfFalse ("Checking constraint " <> show fanKind <> " " <> show datumSpec)
             $ checkQuantifier
             $ filter checkTxFan fans
@@ -108,9 +109,9 @@ genericCEMScript script scriptStage =
               Out -> txInfoOutputs info
             checkQuantifier txFans =
               case quantifier of
-                SumValueEq value ->
+                FansWithTotalValueOfAtLeast value ->
                   foldMap txOutValue txFans `geq` value
-                Exist n -> length txFans == n
+                ExactlyNFans n -> length txFans == n
 
         params :: Params $(conT script)
         stageParams :: StageParams ($(conT scriptStage))

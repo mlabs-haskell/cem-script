@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
 
 {-# HLINT ignore "Use when" #-}
 
@@ -134,10 +134,10 @@ instance CEMScript SimpleVoting where
         let allowedToVoteConstraints =
               case juryPolicy params of
                 WithToken value ->
-                  [ MkTxFanC
+                  [ MkTxFansC
                       InRef
-                      (MkTxFanFilter (ByPubKey jury) Anything)
-                      (SumValueEq value)
+                      (MkTxFanFilter (ByPubKey jury) AnyDatum)
+                      (FansWithTotalValueOfAtLeast value)
                   ]
                 _ -> []
 
@@ -160,4 +160,4 @@ instance CEMScript SimpleVoting where
       _ -> Left "Wrong state transition" where
     where
       nextScriptState state' =
-        MkTxFanC Out (MkTxFanFilter BySameScript (bySameCEM state')) (Exist 1)
+        MkTxFansC Out (MkTxFanFilter BySameScript (bySameCEM state')) (ExactlyNFans 1)

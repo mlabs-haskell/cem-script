@@ -216,7 +216,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
             error
               "This StateModel instance support only with single-output scripts"
         outStates spec = mapMaybe decodeOutState $ constraints spec
-        decodeOutState c = case rest (txFanCFilter c) of
+        decodeOutState c = case rest (txFansCFilter c) of
           UnsafeBySameCEM stateBS ->
             fromBuiltinData @(State script) stateBS
           _ -> Nothing

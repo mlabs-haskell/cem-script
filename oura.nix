@@ -9,7 +9,7 @@
       env = {
         OPENSSL_NO_VENDOR = "1"; # Use system openssl
       };
-      nativeBuildInputs = [pkgs.pkg-config];
+      nativeBuildInputs = [pkgs.pkg-config pkgs.m4];
       buildInputs = [pkgs.openssl];
       src = craneLib.cleanCargoSource inputs.oura;
     };
