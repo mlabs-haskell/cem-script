@@ -146,7 +146,6 @@ library
     Cardano.CEM.Examples.Voting
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
-    Cardano.CEM.Monads.L1
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.OuraConfig

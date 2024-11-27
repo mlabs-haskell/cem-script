@@ -24,7 +24,4 @@ cabal.project.local~
 .vscode
 haddocks
 .direnv/
-# Functions changed by runing local testnet
-devnet/db
-devnet/genesis-*.json
 test.log
