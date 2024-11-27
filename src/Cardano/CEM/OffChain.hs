@@ -147,7 +147,7 @@ resolveAction
 
       let
         byKind kind =
-          filter (\x -> txFanCKind x == kind) $
+          filter (\x -> txFansCKind x == kind) $
             constraints scriptTransition
 
       txInsPairs <- concat <$> mapM resolveTxIn (byKind In)
@@ -166,22 +166,22 @@ resolveAction
     where
       script = cemScriptCompiled (Proxy :: Proxy script)
       scriptAddress = cemScriptAddress (Proxy :: Proxy script)
-      resolveTxIn (MkTxFanC _ (MkTxFanFilter addressSpec _) _) = do
+      resolveTxIn (MkTxFansC _ (MkTxFanFilter addressSpec _) _) = do
         utxo <- lift $ queryUtxo $ ByAddresses [address]
         return $ map (\(x, y) -> (withKeyWitness x, y)) $ Map.toList $ unUTxO utxo
         where
           address = addressSpecToAddress scriptAddress addressSpec
       compileTxConstraint
-        (MkTxFanC _ (MkTxFanFilter addressSpec filterSpec) quantor) = do
+        (MkTxFansC _ (MkTxFanFilter addressSpec filterSpec) quantor) = do
           address' <- lift $ fromPlutusAddressInMonad address
           let compiledTxOut value =
                 TxOut address' value datum ReferenceScriptNone
           return $ case quantor of
-            Exist n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
-            SumValueEq value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
+            ExactlyNFans n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
+            FansWithTotalValueOfAtLeast value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
           where
             datum = case filterSpec of
-              Anything -> TxOutDatumNone
+              AnyDatum -> TxOutDatumNone
               ByDatum datum' -> mkInlineDatum datum'
               -- FIXME: Can be optimized via Plutarch
               UnsafeBySameCEM newState ->

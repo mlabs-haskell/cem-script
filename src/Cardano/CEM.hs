@@ -14,11 +14,12 @@ import Data.Map qualified as Map
 import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (ToData (..), Value)
-import PlutusTx.Show.TH (deriveShow)
+import PlutusTx.Show.TH qualified
 
 -- Project imports
 import Cardano.CEM.Stages
 import Data.Spine
+import qualified PlutusTx.IsData.Class
 
 -- | This is different ways to specify address
 data AddressSpec
@@ -34,17 +35,26 @@ addressSpecToAddress ownAddress addressSpec = case addressSpec of
   ByPubKey pubKey -> pubKeyHashAddress pubKey
   BySameScript -> ownAddress
 
+-- "Tx Fan" - is transaction input or output 
+
+-- FIXME: What is this?
 data TxFanFilter script = MkTxFanFilter
   { address :: AddressSpec
-  , rest :: TxFanFilter' script
+  , rest :: FilterDatum script
   }
   deriving stock (Show, Prelude.Eq)
 
-data TxFanFilter' script
-  = Anything
+-- This could only be a type alias
+-- https://github.com/IntersectMBO/plutus/issues/5769
+type AsData a = BuiltinData
+
+-- | Tx Fan matches by
+data FilterDatum script
+  = AnyDatum
   | -- | To be used via `bySameCem`
-    UnsafeBySameCEM BuiltinData
-  | ByDatum BuiltinData
+    -- Basically means "make new 'CEMScriptDatum' containing this State and then use with 'ByDatum'"
+    UnsafeBySameCEM (AsData (State script)) -- state part of a 'CEMScriptDatum'
+  | ByDatum (AsData (CEMScriptDatum script))
   deriving stock (Show, Prelude.Eq)
 
 {-# INLINEABLE bySameCEM #-}
@@ -53,20 +63,25 @@ data TxFanFilter' script
 bySameCEM ::
   (ToData (State script), CEMScript script) =>
   State script ->
-  TxFanFilter' script
+  FilterDatum script
 bySameCEM = UnsafeBySameCEM . toBuiltinData
 
 -- TODO: use natural numbers
-data Quantor = Exist Integer | SumValueEq Value
+-- | How many tx fans should satify a 'TxFansConstraint'
+data Quantifier
+  = ExactlyNFans Integer
+  | FansWithTotalValueOfAtLeast Value
   deriving stock (Show)
 
+-- | A kind of Tx input our output
 data TxFanKind = In | InRef | Out
   deriving stock (Prelude.Eq, Prelude.Show)
 
-data TxFanConstraint script = MkTxFanC
-  { txFanCKind :: TxFanKind
-  , txFanCFilter :: TxFanFilter script
-  , txFanCQuantor :: Quantor
+-- | A constraint on Tx inputs or Outputs.
+data TxFansConstraint script = MkTxFansC
+  { txFansCKind :: TxFanKind -- is constraint applies strictly on inputs or on outputs
+  , txFansCFilter :: TxFanFilter script -- constraint on a single tx fan
+  , txFansCQuantor :: Quantifier -- how much fans are required to match
   }
   deriving stock (Show)
 
@@ -133,7 +148,7 @@ class
     Either BuiltinString (TransitionSpec script)
 
 data TransitionSpec script = MkTransitionSpec
-  { constraints :: [TxFanConstraint script]
+  { constraints :: [TxFansConstraint script]
   , -- List of additional signers (in addition to one required by TxIns)
     signers :: [PubKeyHash]
   }
@@ -143,8 +158,8 @@ data TransitionSpec script = MkTransitionSpec
 getAllSpecSigners :: TransitionSpec script -> [PubKeyHash]
 getAllSpecSigners spec = signers spec ++ txInPKHs
   where
-    txInPKHs = mapMaybe getPubKey $ filter ((Prelude.== In) . txFanCKind) $ constraints spec
-    getPubKey c = case address (txFanCFilter c) of
+    txInPKHs = mapMaybe getPubKey $ filter ((Prelude.== In) . txFansCKind) $ constraints spec
+    getPubKey c = case address (txFansCFilter c) of
       ByPubKey key -> Just key
       _ -> Nothing
 
@@ -160,10 +175,13 @@ deriving stock instance (CEMScript script) => (Show (CEMParams script))
 deriving stock instance (CEMScript script) => (Prelude.Eq (CEMParams script))
 
 -- FIXME: documentation
+-- This can't be made anything than a tuple typealias because
+-- of the Plutus compiler limitations:
+-- https://github.com/IntersectMBO/plutus/issues/5769
 type CEMScriptDatum script =
   (StageParams (Stage script), Params script, State script)
 
 -- TH deriving done at end of file for GHC staging reasons
 
-deriveShow ''TxFanKind
-deriveShow ''TxFanFilter'
+PlutusTx.Show.TH.deriveShow ''TxFanKind
+PlutusTx.Show.TH.deriveShow ''FilterDatum

@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+
 module Oura (
   WorkDir (MkWorkDir, unWorkDir),
   Oura (MkOura, send, receive, shutDown),
@@ -18,24 +19,26 @@ import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
 import System.Process qualified as Process
 import Toml.Pretty qualified
-import Utils qualified
 import Utils (withNewFile)
+import Utils qualified
 
-import Data.Text.Encoding qualified as Text.Encoding
-import Oura.Communication qualified as Communication
-import Oura.Config qualified as Config
+import Cardano.CEM.OuraConfig qualified as Config
 import Control.Concurrent.Async (Async)
 import Control.Concurrent.Async qualified as Async
+import Data.ByteString qualified as BS
+import Oura.Communication qualified as Communication
 import System.Directory (removeFile)
+import Toml (Table)
 
--- | A time required for oura to start up and create a socket,
--- in microseconds.
+{- | A time required for oura to start up and create a socket,
+in microseconds.
+-}
 ouraStartupDurationNs :: Int
 ouraStartupDurationNs = 1_000_000
 
 data Oura m = MkOura
-  { send :: T.Text -> m ()
-  , receive :: m T.Text
+  { send :: BS.ByteString -> m ()
+  , receive :: m BS.ByteString
   , shutDown :: m ()
   }
 newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
@@ -44,17 +47,19 @@ newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
 withOura ::
   WorkDir ->
   Utils.SpotGarbage IO Process.ProcessHandle ->
+  (Config.SourcePath -> Config.SinkPath -> Table) ->
   (Oura IO -> IO r) ->
   IO r
-withOura spotHandle workdir =
-  runContT $ runOura spotHandle workdir $ Just $ Communication.MkIntervalMs 1_000
+withOura spotHandle workdir makeConfig =
+  runContT $ runOura spotHandle workdir makeConfig $ Just $ Communication.MkIntervalMs 1_000
 
 runOura ::
   WorkDir ->
   Utils.SpotGarbage IO Process.ProcessHandle ->
+  (Config.SourcePath -> Config.SinkPath -> Table) ->
   Maybe Communication.Interval ->
   ContT r IO (Oura IO)
-runOura (MkWorkDir (T.unpack -> workdir)) spotHandle outputCheckingInterval = do
+runOura (MkWorkDir (T.unpack -> workdir)) spotHandle makeConfig outputCheckingInterval = do
   writerPath <-
     ContT $
       withNewFile "writer.socket" workdir
@@ -68,7 +73,7 @@ runOura (MkWorkDir (T.unpack -> workdir)) spotHandle outputCheckingInterval = do
         withNewFile "source.socket" workdir
   lift $ removeFile $ T.unpack $ Config.unSourcePath sourcePath
   let
-    config = daemonConfig sourcePath sinkPath
+    config = configToText $ makeConfig sourcePath sinkPath
   configPath <- ContT $ withNewFile "config.toml" workdir
   lift $ T.IO.writeFile configPath config
   (ouraHandle, waitingForClose) <- launchOura configPath spotHandle
@@ -87,13 +92,11 @@ runOura (MkWorkDir (T.unpack -> workdir)) spotHandle outputCheckingInterval = do
       Async.cancel waitingForClose
       Process.terminateProcess ouraHandle
     receive = Communication.waitForOutput ouraOutput
-    send = void
-      . Communication.sendToOura ouraConnection
-      . Text.Encoding.encodeUtf8
+    send = void . Communication.sendToOura ouraConnection
   pure MkOura {shutDown, receive, send}
 
-daemonConfig :: Config.SourcePath -> Config.SinkPath -> T.Text
-daemonConfig = fmap (T.pack . show . Toml.Pretty.prettyToml) . Config.daemonConfig
+configToText :: Table -> T.Text
+configToText = T.pack . show . Toml.Pretty.prettyToml
 
 launchOura ::
   FilePath ->
@@ -101,13 +104,14 @@ launchOura ::
   ContT r IO (Process.ProcessHandle, Async ())
 launchOura configPath spotHandle = do
   ouraHandle <- lift do
-    ouraHandle <- Process.spawnProcess
-      "oura"
-      [ "daemon"
-      , "--config"
-      , configPath
-      ]
-    
+    ouraHandle <-
+      Process.spawnProcess
+        "oura"
+        [ "daemon"
+        , "--config"
+        , configPath
+        ]
+
     void $ spotHandle.run ouraHandle
     pure ouraHandle
 

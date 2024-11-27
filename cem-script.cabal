@@ -140,6 +140,7 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
+    Cardano.CEM.Address
     Cardano.CEM.Documentation
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation
@@ -147,6 +148,7 @@ library
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1
+    Cardano.CEM.OuraConfig
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.Stages
@@ -158,6 +160,7 @@ library
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
+    , toml-parser
     , dependent-map
     , ouroboros-consensus
     , QuickCheck
@@ -178,6 +181,7 @@ test-suite cem-sdk-test
     , clb
     , dependent-map
     , hspec
+    , hspec-core
     , QuickCheck
     , quickcheck-dynamic
     , random
@@ -186,6 +190,15 @@ test-suite cem-sdk-test
     , toml-parser
     , process
     , async
+    , lens
+    , aeson
+    , base64
+    , cardano-api
+    , cardano-ledger-core
+    , vector
+    , safe
+    , base16
+    , base32
 
   hs-source-dirs: test/
   other-modules:
@@ -199,5 +212,7 @@ test-suite cem-sdk-test
     Oura.Communication
     Oura.Config
     OuraFilters
+    OuraFilters.Auction
+    OuraFilters.Mock
 
   main-is:        Main.hs
