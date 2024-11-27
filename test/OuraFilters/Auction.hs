@@ -14,7 +14,6 @@ import Data.Aeson ((.:))
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson.Types
 import Data.ByteString qualified as BS
-import Data.ByteString.Char8 qualified as BS.IO
 import Data.Data (Proxy (Proxy))
 import Data.Text qualified as T
 import Oura qualified

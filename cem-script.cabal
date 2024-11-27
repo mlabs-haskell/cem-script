@@ -1,8 +1,8 @@
 cabal-version: 3.8
 name:          cem-script
 version:       0.1.0
-synopsis:      Cardano DApp SDK
-homepage:      https://github.com/cem-script
+synopsis:      CEM Script - a Cardano dApp SDK
+homepage:      https://github.com/mlabs-haskell/cem-script
 author:        MLabs
 maintainer:    gregory@mlabs.city
 data-files:    README.md
@@ -150,7 +150,6 @@ library
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.OuraConfig
-    Cardano.CEM.Stages
     Cardano.CEM.Testing.StateMachine
     Cardano.CEM.TH
 

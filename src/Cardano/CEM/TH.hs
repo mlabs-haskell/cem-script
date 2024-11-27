@@ -23,9 +23,8 @@ import Language.Haskell.TH.Datatype (
   reifyDatatype,
  )
 
-import Cardano.CEM (CEMScriptTypes (..))
+import Cardano.CEM (CEMScriptTypes (..), Stages (..))
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericCEMScript)
-import Cardano.CEM.Stages (Stages (..))
 import Data.Spine (deriveSpine)
 import PlutusTx.Show (deriveShow)
 

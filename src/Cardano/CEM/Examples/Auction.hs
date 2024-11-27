@@ -16,7 +16,6 @@ import PlutusLedgerApi.V2 (Value)
 import PlutusTx qualified
 
 import Cardano.CEM
-import Cardano.CEM.Stages (Stages (..))
 import Cardano.CEM.TH (deriveCEMAssociatedTypes, deriveStageAssociatedTypes)
 
 -- Simple no-deposit auction

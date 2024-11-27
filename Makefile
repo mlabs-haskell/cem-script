@@ -10,4 +10,4 @@ run-oura-daemon:
 	@oura daemon --config ./test/daemon.toml
 
 format:
-	@fourmolu --mode inplace $(git ls-files '*.hs')
+	fourmolu --mode inplace $$(git ls-files '*.hs')

@@ -11,7 +11,6 @@ import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Examples.Voting
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
-import Cardano.CEM.Stages
 import Cardano.Extras (signingKeyToPKH)
 
 import Utils

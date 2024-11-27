@@ -15,7 +15,6 @@ import PlutusTx qualified
 import PlutusTx.AssocMap qualified as PMap
 
 import Cardano.CEM
-import Cardano.CEM.Stages
 import Cardano.CEM.TH (deriveCEMAssociatedTypes)
 
 -- Voting

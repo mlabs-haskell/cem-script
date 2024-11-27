@@ -34,7 +34,7 @@ import PlutusTx.IsData (FromData, ToData (toBuiltinData), UnsafeFromData (..))
 import PlutusTx.Show (Show (..))
 
 import Cardano.CEM
-import Cardano.CEM.Stages
+
 import Plutus.Extras (scriptValidatorHash)
 
 class (CEMScript script, CEMScriptIsData script) => CEMScriptCompiled script where
