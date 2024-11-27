@@ -146,7 +146,7 @@ submitAndCheck :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m ()
 submitAndCheck spec = do
   case head $ actions spec of
     MkSomeCEMAction (MkCEMAction _ transition) ->
-      liftIO $ putStrLn $ "Doing " <> show transition
+      liftIO $ putStrLn $ "  --> " <> show transition
   awaitEitherTx =<< resolveTxAndSubmit spec
 
 perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)

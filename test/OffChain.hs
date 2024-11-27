@@ -33,7 +33,7 @@ offChainSpec = describe "Checking monad works" $ do
     _blockchainParams <- queryBlockchainParams
     return ()
   it "Querying UTxO works" $ execOn $ do
-    address <- signingKeyToAddress <$> (!! 0) <$> getTestWalletSks
+    address <- signingKeyToAddress . (!! 0) <$> getTestWalletSks
     _utxo <- queryUtxo $ ByAddresses [address]
     return ()
   it "Sending transaction works" $ execOn $ do
@@ -50,8 +50,7 @@ offChainSpec = describe "Checking monad works" $ do
       out userAddress =
         TxOut
           userAddress
-          ( convert (lovelaceToValue $ fromInteger 3_000_000)
-          )
+          (convert $ lovelaceToValue 3_000_000)
           TxOutDatumNone
           ReferenceScriptNone
       tx =

@@ -18,7 +18,7 @@ import Utils
 votingSpec = describe "Voting" $ do
   let ignoreTest (_name :: String) = const (return ())
 
-  -- FIXME: fix Voting budget
+  -- FIXME: fix Voting budget or fix this issue https://github.com/mlabs-haskell/clb/issues/50
   ignoreTest "Successfull flow" $
     execClb $ do
       jury1 : jury2 : creator : _ <- getTestWalletSks
@@ -34,13 +34,15 @@ votingSpec = describe "Voting" $ do
             }
         params = MkCEMParams params' NoSingleStageParams
         mkAction = MkSomeCEMAction . MkCEMAction params
-      -- Start
+
+      -- Create
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Create]
           , specSigner = creator
           }
 
+      -- Start
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Start]
@@ -48,7 +50,6 @@ votingSpec = describe "Voting" $ do
           }
 
       -- Vote
-
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction $ Vote (signingKeyToPKH jury1) Yes]
@@ -62,7 +63,6 @@ votingSpec = describe "Voting" $ do
           }
 
       -- Count result
-
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Finalize]
@@ -70,4 +70,4 @@ votingSpec = describe "Voting" $ do
           }
 
       Just state <- queryScriptState params
-      liftIO $ state `shouldBe` (Finalized Abstain)
+      liftIO $ state `shouldBe` Finalized Abstain
