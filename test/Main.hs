@@ -15,9 +15,9 @@ import Voting (votingSpec)
 
 main :: IO ()
 main = hspec do
-  runIO clearLogs
-  ouraFiltersSpec
-  dynamicSpec
-  offChainSpec
   auctionSpec
   votingSpec
+  offChainSpec
+  dynamicSpec
+  runIO clearLogs
+  ouraFiltersSpec
