@@ -19,7 +19,7 @@ import PlutusTx.Show.TH qualified
 -- Project imports
 import Cardano.CEM.Stages
 import Data.Spine
-import qualified PlutusTx.IsData.Class
+import PlutusTx.IsData.Class qualified
 
 -- | This is different ways to specify address
 data AddressSpec
@@ -35,7 +35,7 @@ addressSpecToAddress ownAddress addressSpec = case addressSpec of
   ByPubKey pubKey -> pubKeyHashAddress pubKey
   BySameScript -> ownAddress
 
--- "Tx Fan" - is transaction input or output 
+-- "Tx Fan" - is transaction input or output
 
 -- FIXME: What is this?
 data TxFanFilter script = MkTxFanFilter
@@ -67,6 +67,7 @@ bySameCEM ::
 bySameCEM = UnsafeBySameCEM . toBuiltinData
 
 -- TODO: use natural numbers
+
 -- | How many tx fans should satify a 'TxFansConstraint'
 data Quantifier
   = ExactlyNFans Integer

@@ -8,3 +8,6 @@ clear-sockets:
 run-oura-daemon:
 	@clear-sockets || true
 	@oura daemon --config ./test/daemon.toml
+
+format:
+	@fourmolu --mode inplace $(git ls-files '*.hs')

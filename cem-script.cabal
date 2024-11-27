@@ -129,7 +129,6 @@ library cardano-extras
   build-depends:   template-haskell
   exposed-modules:
     Cardano.Extras
-    Plutus.Deriving
     Plutus.Extras
 
 library
@@ -148,9 +147,9 @@ library
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1
-    Cardano.CEM.OuraConfig
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
+    Cardano.CEM.OuraConfig
     Cardano.CEM.Stages
     Cardano.CEM.Testing.StateMachine
     Cardano.CEM.TH
@@ -160,12 +159,12 @@ library
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
-    , toml-parser
     , dependent-map
     , ouroboros-consensus
     , QuickCheck
     , quickcheck-dynamic
     , singletons-th
+    , toml-parser
 
 test-suite cem-sdk-test
   import:
@@ -173,46 +172,48 @@ test-suite cem-sdk-test
     common-offchain,
 
   type:           exitcode-stdio-1.0
-  ghc-options:   -threaded -Wno-missing-signatures -Wno-incomplete-uni-patterns
+  ghc-options:
+    -threaded -Wno-missing-signatures -Wno-incomplete-uni-patterns
+
   build-depends:
+    , aeson
+    , async
+    , base16
+    , base32
+    , base64
+    , cardano-api
+    , cardano-ledger-core
     , cem-script
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
     , dependent-map
+    , directory
     , hspec
     , hspec-core
+    , lens
+    , network
+    , process
     , QuickCheck
     , quickcheck-dynamic
     , random
-    , network
-    , directory
-    , toml-parser
-    , process
-    , async
-    , lens
-    , aeson
-    , base64
-    , cardano-api
-    , cardano-ledger-core
-    , vector
     , safe
-    , base16
-    , base32
+    , toml-parser
+    , vector
 
   hs-source-dirs: test/
   other-modules:
     Auction
     Dynamic
     OffChain
-    TestNFT
-    Utils
-    Voting
     Oura
     Oura.Communication
     Oura.Config
     OuraFilters
     OuraFilters.Auction
     OuraFilters.Mock
+    TestNFT
+    Utils
+    Voting
 
   main-is:        Main.hs

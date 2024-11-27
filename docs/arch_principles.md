@@ -2,16 +2,17 @@
 
 ## Principles
 
-* Generic compilation across: on-chain code,
-offchain Tx construction and indexing backend
+* Generic compilation across:
+    * on-chain code
+    * offchain Tx construction
+    * indexing backend
 * Simple normalization and SMT conversion for:
     * Equivalence checking
     * Bi-simulation checking
-* Constraints determine TxIn/Outs up to UTxO coin-selection
-(we call it almost-determinacy)
+* Constraints determine TxIn/Outs up to UTxO coin-selection (we call it almost-determinacy)
 * Datum properties encoded as class types
 * Common on-chain optimizations are performed if possible
-    * Constraints normalization,  and CSE
+    * Constraints normalization, and CSE
     * Best error short-cutting
     * Common security problems prevention
 
@@ -19,8 +20,7 @@ offchain Tx construction and indexing backend
 
 * Ease and optimality of backend compilation
 * Robustness of SMT conversion and overall normalization
-* Possibility for parsing and correct offchain usage
-of almost-determinacy
+* Possibility for parsing and correct offchain usage of almost-determinacy
 * Having enough information for Tx submit retrying strategies
 * Design for using custom Datum properties is not obvious
 
@@ -32,9 +32,8 @@ all their principles and obstacles are affecting CEM as well.
 ## Principles
 
 * State-machine is deterministic modulo coin-change
-    * Transaction can always be parsed back into SM transitions
-    * Potential non-deterministic on-chain optimizations
-    should not affect this principle.
+* Transaction can always be parsed back into SM transitions
+* Potential non-deterministic on-chain optimizations should not affect this principle.
 
 ## Potential obstacles
 
