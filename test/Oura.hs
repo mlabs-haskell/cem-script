@@ -10,7 +10,7 @@ module Oura (
 
 import Prelude
 
-import Cardano.CEM.Indexing qualified as Config
+import Cardano.CEM.Indexing qualified as Indexing
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (Async)
 import Control.Concurrent.Async qualified as Async
@@ -45,7 +45,7 @@ newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
 withOura ::
   WorkDir ->
   Utils.SpotGarbage IO Process.ProcessHandle ->
-  (Config.SourcePath -> Config.SinkPath -> Table) ->
+  (Indexing.SourcePath -> Indexing.SinkPath -> Table) ->
   (Oura IO -> IO r) ->
   IO r
 withOura spotHandle workdir makeConfig =
@@ -54,25 +54,25 @@ withOura spotHandle workdir makeConfig =
 runOura ::
   WorkDir ->
   Utils.SpotGarbage IO Process.ProcessHandle ->
-  (Config.SourcePath -> Config.SinkPath -> Table) ->
+  (Indexing.SourcePath -> Indexing.SinkPath -> Table) ->
   Maybe Communication.Interval ->
   ContT r IO (Oura IO)
 runOura (MkWorkDir (T.unpack -> workdir)) spotHandle makeConfig outputCheckingInterval = do
   writerPath <-
     ContT $
       withNewFile "writer.socket" workdir
-  sinkPath :: Config.SinkPath <-
+  sinkPath :: Indexing.SinkPath <-
     fmap fromString $
       ContT $
         withNewFile "sink.socket" workdir
-  sourcePath :: Config.SourcePath <-
+  sourcePath :: Indexing.SourcePath <-
     fmap fromString $
       ContT $
         withNewFile "source.socket" workdir
-  lift $ removeFile $ T.unpack $ Config.unSourcePath sourcePath
+  lift $ removeFile $ T.unpack $ Indexing.unSourcePath sourcePath
   let
-    config = configToText $ makeConfig sourcePath sinkPath
-  configPath <- ContT $ withNewFile "config.toml" workdir
+    config = Indexing.configToText $ makeConfig sourcePath sinkPath
+  configPath <- ContT $ withNewFile "Indexing.toml" workdir
   lift $ T.IO.writeFile configPath config
   (ouraHandle, waitingForClose) <- launchOura configPath spotHandle
   lift $ Async.link waitingForClose

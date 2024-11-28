@@ -14,7 +14,9 @@ import Cardano.Ledger.BaseTypes qualified as Ledger
 import Data.Data (Proxy)
 import Data.String (IsString)
 import Data.Text qualified as T
+import Toml (Table)
 import Toml qualified
+import Toml.Pretty qualified
 import Toml.Schema ((.=))
 import Toml.Schema.ToValue qualified as Toml.ToValue
 import Prelude
@@ -62,7 +64,7 @@ ouraMonitoringScript p network sourcePath sinkPath =
     . pure
     . selectByAddress
     . Address.cardanoAddressBech32
-    <$> Address.scriptC2ardanoAddress p network
+    <$> Address.scriptCardanoAddress p network
 
 cursor :: Toml.Table
 cursor =

@@ -3,9 +3,12 @@
 ## Summary
 
 * L1 indexing:
-  * [pr]()
-  * [source]()
-  * [tests]()
+  * [Basic indexing support PR #98](https://github.com/mlabs-haskell/cem-script/pull/98)
+  * [Oura config generation PR #100](https://github.com/mlabs-haskell/cem-script/pull/100)
+  * [Source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Indexing.hs)
+  * [Tests for Auction example](https://github.com/mlabs-haskell/cem-script/blob/master/test/OuraFilter/Auction.hs)
+* Final code clean-up
+* Final tutorial and docs
 
 # Milestone 4
 
