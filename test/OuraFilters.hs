@@ -4,7 +4,7 @@
 
 module OuraFilters (ouraFiltersSpec) where
 
-import Cardano.CEM.OuraConfig qualified as Config
+import Cardano.CEM.Indexing qualified as Config
 import Control.Lens (ix, (.~))
 import Control.Monad ((>=>))
 import Data.Aeson ((.:))

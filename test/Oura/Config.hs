@@ -13,7 +13,7 @@ module Oura.Config (
 
 import Prelude
 
-import Cardano.CEM.OuraConfig qualified as Config
+import Cardano.CEM.Indexing qualified as Config
 import Control.Lens (
   At (at),
   Each (each),

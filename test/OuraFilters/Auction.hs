@@ -5,8 +5,8 @@ module OuraFilters.Auction (spec) where
 
 import Cardano.CEM.Examples.Auction qualified as Auction
 import Cardano.CEM.Examples.Compilation ()
+import Cardano.CEM.Indexing qualified as OuraConfig
 import Cardano.CEM.OnChain qualified as Compiled
-import Cardano.CEM.OuraConfig qualified as OuraConfig
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens ((%~), (.~))
 import Control.Monad ((>=>))

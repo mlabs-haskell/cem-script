@@ -10,25 +10,23 @@ module Oura (
 
 import Prelude
 
+import Cardano.CEM.Indexing qualified as Config
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async (Async)
+import Control.Concurrent.Async qualified as Async
 import Control.Monad (void)
 import Control.Monad.Cont (ContT (ContT, runContT))
 import Control.Monad.Trans (lift)
+import Data.ByteString qualified as BS
 import Data.String (IsString (fromString))
 import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
-import System.Process qualified as Process
-import Toml.Pretty qualified
-import Utils (withNewFile)
-import Utils qualified
-
-import Cardano.CEM.OuraConfig qualified as Config
-import Control.Concurrent.Async (Async)
-import Control.Concurrent.Async qualified as Async
-import Data.ByteString qualified as BS
 import Oura.Communication qualified as Communication
 import System.Directory (removeFile)
+import System.Process qualified as Process
 import Toml (Table)
+import Utils (withNewFile)
+import Utils qualified
 
 {- | A time required for oura to start up and create a socket,
 in microseconds.
@@ -94,9 +92,6 @@ runOura (MkWorkDir (T.unpack -> workdir)) spotHandle makeConfig outputCheckingIn
     receive = Communication.waitForOutput ouraOutput
     send = void . Communication.sendToOura ouraConnection
   pure MkOura {shutDown, receive, send}
-
-configToText :: Table -> T.Text
-configToText = T.pack . show . Toml.Pretty.prettyToml
 
 launchOura ::
   FilePath ->

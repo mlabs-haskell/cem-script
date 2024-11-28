@@ -1,10 +1,11 @@
-module Cardano.CEM.OuraConfig (
+module Cardano.CEM.Indexing (
   SourcePath (MkSourcePath, unSourcePath),
   SinkPath (MkSinkPath, unSinkPath),
   Filter (MkFilter, unFilter),
   daemonConfig,
   selectByAddress,
   ouraMonitoringScript,
+  configToText,
 ) where
 
 import Cardano.CEM.Address qualified as Address
@@ -61,7 +62,7 @@ ouraMonitoringScript p network sourcePath sinkPath =
     . pure
     . selectByAddress
     . Address.cardanoAddressBech32
-    <$> Address.scriptCardanoAddress p network
+    <$> Address.scriptC2ardanoAddress p network
 
 cursor :: Toml.Table
 cursor =
@@ -98,3 +99,6 @@ source (MkSourcePath socketPath) =
     [ "socket_path" .= Toml.Text socketPath
     , "type" .= Toml.Text "TxOverSocket"
     ]
+
+configToText :: Table -> T.Text
+configToText = T.pack . show . Toml.Pretty.prettyToml

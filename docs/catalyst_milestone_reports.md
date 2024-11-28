@@ -1,37 +1,11 @@
-# Milestone 3
+# Milestone 5
 
 ## Summary
 
-Changes:
-
-* Running in emulated environment by CLB
-  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Monads/CLB.hs), usage examples are all unit tests)
-* Running Quickcheck Dynamic tests, including mutation support
-  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Testing/StateMachine.hs),
-  [usage example](https://github.com/mlabs-haskell/cem-script/blob/master/test/Dynamic.hs),
-  [PR](https://github.com/mlabs-haskell/cem-script/pull/75) and [PR2](https://github.com/mlabs-haskell/cem-script/pull/89))
-* Rendering CEMScript state graphs
-  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Documentation.hs), rendered example below,
-  [PR](https://github.com/mlabs-haskell/cem-script/pull/33))
-
-## State graph examples
-
-![](./auction-state-graph.svg)
-
-
-Source code:
-
-```
-digraph Creator {
-rankdir=LR;
-node [shape="dot",fontsize=14,fixedsize=true,width=1.5];
-edge [fontsize=11];"Void In" [color="orange"];"Void Out" [color="orange"];"Void In" -> NotStarted [label="Create (stage Open)"];
-NotStarted -> CurrentBid [label="Start (stage Open)"];
-CurrentBid -> CurrentBid [label="MakeBid (stage Open)"];
-CurrentBid -> Winner [label="Close (stage Closed)"];
-Winner -> "Void Out" [label="Buyout (stage Closed)"];
-}
-```
+* L1 indexing:
+  * [pr]()
+  * [source]()
+  * [tests]()
 
 # Milestone 4
 
@@ -107,7 +81,7 @@ Voting flow (fails exceeding Tx limits on second vote):
 
 ### New (Plutarch with user-defined Plutus logic pieces) backend
 
-Auction: 
+Auction:
 
 ```
   [ ( "BuyoutSpine"
@@ -147,4 +121,39 @@ Voting Plutarch backend:
         { fee = Coin 646247 , usedMemory = 1882546 , usedCpu = 760595491 }
     )
   ]
+```
+
+# Milestone 3
+
+## Summary
+
+Changes:
+
+* Running in emulated environment by CLB
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Monads/CLB.hs), usage examples are all unit tests)
+* Running Quickcheck Dynamic tests, including mutation support
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Testing/StateMachine.hs),
+  [usage example](https://github.com/mlabs-haskell/cem-script/blob/master/test/Dynamic.hs),
+  [PR](https://github.com/mlabs-haskell/cem-script/pull/75) and [PR2](https://github.com/mlabs-haskell/cem-script/pull/89))
+* Rendering CEMScript state graphs
+  ([source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Documentation.hs), rendered example below,
+  [PR](https://github.com/mlabs-haskell/cem-script/pull/33))
+
+## State graph examples
+
+![](./auction-state-graph.svg)
+
+
+Source code:
+
+```
+digraph Creator {
+rankdir=LR;
+node [shape="dot",fontsize=14,fixedsize=true,width=1.5];
+edge [fontsize=11];"Void In" [color="orange"];"Void Out" [color="orange"];"Void In" -> NotStarted [label="Create (stage Open)"];
+NotStarted -> CurrentBid [label="Start (stage Open)"];
+CurrentBid -> CurrentBid [label="MakeBid (stage Open)"];
+CurrentBid -> Winner [label="Close (stage Closed)"];
+Winner -> "Void Out" [label="Buyout (stage Closed)"];
+}
 ```
