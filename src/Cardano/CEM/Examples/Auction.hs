@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
 {-# LANGUAGE NoPolyKinds #-}
 
 module Cardano.CEM.Examples.Auction where
@@ -35,6 +36,7 @@ data SimpleAuctionStageParams
   = NoControl
   | CanCloseAt POSIXTime
   deriving stock (Prelude.Eq, Prelude.Show)
+
 
 instance Stages SimpleAuctionStage where
   type StageParams SimpleAuctionStage = SimpleAuctionStageParams

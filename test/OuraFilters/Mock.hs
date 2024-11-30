@@ -21,6 +21,7 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Functor ((<&>))
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
@@ -29,6 +30,11 @@ import PlutusLedgerApi.V1 qualified
 import Safe qualified
 import Utils (digits)
 import Prelude
+import Cardano.CEM (Transition, CEMScript, transitionStage, State)
+import Data.Data (Proxy(Proxy))
+import Data.Spine (getSpine, Spine)
+import Data.Tuple (swap)
+import Data.Bifunctor (first)
 
 newtype WithoutUnderscore a = MkWithoutUnderscore a
   deriving newtype (Generic)
@@ -261,6 +267,28 @@ data Tx = MkTx
 makeLenses ''Tx
 makeLensesFor [("collateral", "txCollateral")] ''Tx
 
+
+-- ---
+
+type Event script = Spine (Transition script)
+
+
+extractEvent :: forall script. (CEMScript script) => Tx -> Maybe (Event script)
+extractEvent tx = do
+  let mOwnInput :: Maybe TxInput = undefined
+  let mSourceState ::  Maybe (State script) = _ mOwnInput
+  let mSourceSpine ::  Maybe (Spine (State script)) = getSpine <$> mSourceState
+
+  let mOwnOutput :: Maybe TxInput = undefined
+  let mTargetState ::  Maybe (State script) = _ mOwnInput
+  let mSourceSpine ::  Maybe (Spine (State script)) = getSpine <$> mSourceState
+
+  let transitions = first (\(_,b,c) -> (b,c)) . swap <$> Map.toList (transitionStage $ Proxy @script)
+  lookup (mSourceSpine, mSourceSpine) transitions
+
+-- ---
+
+
 data TxEvent = MkTxEvent
   { _parsed_tx :: Tx
   , _point :: String -- "Origin"
@@ -369,3 +397,4 @@ plutusAddressToOuraAddress =
     . SerialiseRaw.serialiseToRawBytes
     . either error id
     . Address.plutusAddressToShelleyAddress Ledger.Mainnet
+
