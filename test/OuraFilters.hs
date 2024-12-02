@@ -94,8 +94,10 @@ ouraFiltersSpec = Utils.killProcessesOnError do
           Utils.withTimeout 3.0 do
             oura.send tx
             oura.send matchingTx
-            Right outTxHash <-
-              extractOutputTxHash <$> oura.receive
+            Right outTxHash <- do
+              bs <- oura.receive
+              print bs
+              pure $ extractOutputTxHash bs
             Right inputTxHash <-
               pure $ extractInputTxHash matchingTx
             outTxHash `shouldBe` inputTxHash

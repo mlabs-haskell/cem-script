@@ -109,8 +109,7 @@ data ResolvedTx = MkResolvedTx
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
   , additionalSigners :: [PubKeyHash]
-  , -- FIXME
-    signer :: ~(SigningKey PaymentKey)
+  , signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 
@@ -141,6 +140,7 @@ data TxResolutionError
 -- | Ability to send transaction to chain
 class (MonadQueryUtxo m) => MonadSubmitTx m where
   submitResolvedTx :: ResolvedTx -> m (Either TxSubmittingError TxId)
+  submitResolvedTxRet :: ResolvedTx -> m (Either TxSubmittingError (TxBody Era, TxInMode, UTxO Era))
 
 -- | Stuff needed to use monad for local testing
 class (MonadSubmitTx m) => MonadTest m where

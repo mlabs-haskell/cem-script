@@ -67,6 +67,8 @@ spec =
             makeConfig
             \oura -> do
               withTimeout 6.0 do
+                putStrLn "------------------------------"
+                print tx
                 oura.send unmatchingTx
                 oura.send tx
                 msg <- oura.receive

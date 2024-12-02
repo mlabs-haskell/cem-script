@@ -12,9 +12,9 @@ import Language.Haskell.TH.Syntax
 
 -- | Definitions
 
-{- | Spine is datatype, which tags constructors of ADT.
-| TH deriving utility generates Spines, which are Enums,
-| but one could introduce more complex Spine datatypes manually.
+{- | Spine is datatype, which tags only constructors of ADT skipping their content.
+     TH deriving utility generates Spines which are Enums but one could introduce
+     more complex Spine datatypes manually.
 -}
 class
   ( Ord (Spine sop)

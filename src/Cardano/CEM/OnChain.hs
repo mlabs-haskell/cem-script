@@ -7,6 +7,7 @@
 
 module Cardano.CEM.OnChain (
   CEMScriptCompiled (..),
+  CEMScriptIsData,
   cemScriptAddress,
   genericCEMScript,
 ) where

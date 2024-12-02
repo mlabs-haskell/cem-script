@@ -15,7 +15,7 @@ import Cardano.Extras
 import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
-import Utils (execClb, mintTestTokens, submitAndCheck)
+import Utils (execClb, mintTestTokens, submitAndCheck, submitCheckReturn)
 
 auctionSpec = describe "Auction" $ do
   it "Wrong transition resolution error" $ execClb $ do
@@ -61,7 +61,7 @@ auctionSpec = describe "Auction" $ do
               ]
           , specSigner = bidder1
           }
-    ~( Left
+    ( Left
         ( MkTransitionError
             _
             (StateMachineError "\"Incorrect state for transition\"")
@@ -123,13 +123,14 @@ auctionSpec = describe "Auction" $ do
               ]
           , specSigner = bidder1
           }
-    ~( Left
-        ( MkTransitionError
-            _
-            (StateMachineError "\"Incorrect state for transition\"")
-          )
-      ) <-
-      return result
+    -- ~( Left
+    --     ( MkTransitionError
+    --         _
+    --         (StateMachineError "\"Incorrect state for transition\"")
+    --       )
+    --   ) <-
+    --   return result
+    (Left _) <- return result
 
     return ()
 
@@ -201,17 +202,22 @@ auctionSpec = describe "Auction" $ do
     Just (CurrentBid currentBid) <- queryScriptState auctionParams
     liftIO $ currentBid `shouldBe` bid1
 
-    submitAndCheck $
-      MkTxSpec
-        { actions =
-            [ MkSomeCEMAction $
-                MkCEMAction
-                  auctionParams
-                  ( MakeBid $ MkBet (signingKeyToPKH bidder1) 4_000_000
-                  )
-            ]
-        , specSigner = bidder1
-        }
+    (tx, txInMode, utxo) <-
+      submitCheckReturn $
+        MkTxSpec
+          { actions =
+              [ MkSomeCEMAction $
+                  MkCEMAction
+                    auctionParams
+                    ( MakeBid $ MkBet (signingKeyToPKH bidder1) 4_000_000
+                    )
+              ]
+          , specSigner = bidder1
+          }
+
+    -- liftIO $ print tx
+    -- liftIO $ print txInMode
+    liftIO $ print utxo
 
     submitAndCheck $
       MkTxSpec

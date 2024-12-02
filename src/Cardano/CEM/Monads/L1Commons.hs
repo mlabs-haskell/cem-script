@@ -23,7 +23,7 @@ import Data.Maybe (mapMaybe)
 cardanoTxBodyFromResolvedTx ::
   (MonadQueryUtxo m, MonadBlockchainParams m) =>
   ResolvedTx ->
-  m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+  m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode, UTxO Era))
 cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
   -- (lowerBound, upperBound) <- convertValidityBound validityBound
 
@@ -93,7 +93,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
 
     lift $ recordFee txInsUtxo body
 
-    return (body, txInMode)
+    return (body, txInMode, utxo)
   where
     recordFee txInsUtxo body@(TxBody content) = do
       case txFee content of

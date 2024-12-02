@@ -2,14 +2,15 @@
 {-# LANGUAGE BlockArguments #-}
 
 module Oura.Config (
-  -- filtersL,
-  -- predicateL,
-  -- tableL,
-  -- atKey,
-  -- _Table,
-  -- _Integer,
-  -- _Bool,
-  -- _Text,
+-- filtersL,
+-- predicateL,
+-- tableL,
+-- atKey,
+-- _Table,
+-- _Integer,
+-- _Bool,
+-- _Text,
+
 ) where
 
 -- import Prelude

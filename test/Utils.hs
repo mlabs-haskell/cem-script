@@ -40,13 +40,23 @@ import Cardano.CEM.OffChain (
   awaitTx,
   fromPlutusAddressInMonad,
   resolveTxAndSubmit,
+  resolveTxAndSubmitRet,
  )
-import Cardano.Extras
+import Cardano.Extras (
+  Era,
+  fromPlutusValue,
+  mintedTokens,
+  signingKeyToAddress,
+  tokenToAsset,
+  utxoValue,
+  withKeyWitness,
+ )
 import Data.Spine (HasSpine (..))
 
 import Control.Exception (bracket)
 import Control.Monad ((<=<))
 import Data.Aeson.Types qualified as Aeson
+import Data.Either.Extra (mapRight)
 import Data.Foldable (traverse_)
 import Data.IORef qualified as IORef
 import System.Directory (removeFile)
@@ -79,7 +89,7 @@ digits base n =
     [] -> []
 
 execClb :: ClbRunner a -> IO a
-execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
+execClb = execOnIsolatedClb $ lovelaceToValue 300_000_000
 
 mintTestTokens ::
   (MonadIO m, MonadSubmitTx m) => SigningKey PaymentKey -> Integer -> m ()
@@ -96,12 +106,12 @@ mintTestTokens userSk numMint = do
       TxOut
         userAddress
         ( convert $
-            ( fromPlutusValue $
-                assetClassValue
+            fromPlutusValue
+              ( assetClassValue
                   testNftAssetClass
                   numMint
-            )
-              <> (lovelaceToValue $ fromInteger 3_000_000)
+              )
+              <> lovelaceToValue 3_000_000
         )
         TxOutDatumNone
         ReferenceScriptNone
@@ -148,6 +158,15 @@ submitAndCheck spec = do
     MkSomeCEMAction (MkCEMAction _ transition) ->
       liftIO $ putStrLn $ "  --> " <> show transition
   awaitEitherTx =<< resolveTxAndSubmit spec
+
+submitCheckReturn :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m (TxBody Era, TxInMode, UTxO Era)
+submitCheckReturn spec = do
+  case head $ actions spec of
+    MkSomeCEMAction (MkCEMAction _ transition) ->
+      liftIO $ putStrLn $ "  --> " <> show transition
+  ~errOrTx@(Right tx) <- resolveTxAndSubmitRet spec
+  awaitEitherTx (mapRight (getTxId . (\(a, _, _) -> a)) errOrTx)
+  pure tx
 
 perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)
 perTransitionStats = do

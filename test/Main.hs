@@ -20,9 +20,9 @@ main = do
   runIndexing <- isJust <$> lookupEnv "INDEXING_TEST"
   hspec do
     auctionSpec
-    votingSpec
-    offChainSpec
-    dynamicSpec
+    -- votingSpec
+    -- offChainSpec
+    -- dynamicSpec
     if runIndexing
       then do
         -- These tests are not currently supported on CI

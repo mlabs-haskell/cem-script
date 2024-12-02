@@ -103,7 +103,7 @@ instance MonadSubmitTx L1Runner where
   submitResolvedTx tx = do
     ci <- localNode <$> ask
     cardanoTxBodyFromResolvedTx tx >>= \case
-      Right (body, txInMode) ->
+      Right (body, txInMode, _) ->
         liftIO $
           submitTxToNodeLocal ci txInMode >>= \case
             SubmitSuccess ->
