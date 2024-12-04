@@ -5,6 +5,8 @@ import Prelude
 import Control.Monad.Trans (MonadIO (..))
 import PlutusLedgerApi.V1.Value (assetClassValue)
 
+import Cardano.Api.NetworkId (toShelleyNetwork)
+
 import Cardano.CEM
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
@@ -16,6 +18,9 @@ import Test.Hspec (describe, it, shouldBe)
 
 import TestNFT (testNftAssetClass)
 import Utils (execClb, mintTestTokens, submitAndCheck, submitCheckReturn)
+
+import Data.Aeson (encode)
+import OuraFilters.Mock (extractEvent, resolvedTxToOura)
 
 auctionSpec = describe "Auction" $ do
   it "Wrong transition resolution error" $ execClb $ do
@@ -202,7 +207,7 @@ auctionSpec = describe "Auction" $ do
     Just (CurrentBid currentBid) <- queryScriptState auctionParams
     liftIO $ currentBid `shouldBe` bid1
 
-    (tx, txInMode, utxo) <-
+    (preBody, tx, txInMode, utxo) <-
       submitCheckReturn $
         MkTxSpec
           { actions =
@@ -215,9 +220,20 @@ auctionSpec = describe "Auction" $ do
           , specSigner = bidder1
           }
 
-    -- liftIO $ print tx
+    liftIO $ print tx
+    liftIO $ putStrLn "---"
+
     -- liftIO $ print txInMode
     liftIO $ print utxo
+    liftIO $ putStrLn "---"
+
+    let otx = resolvedTxToOura preBody utxo
+    liftIO $ print $ encode otx
+    liftIO $ putStrLn "---"
+
+    network <- toShelleyNetwork <$> askNetworkId
+    mEvent <- liftIO $ extractEvent @SimpleAuction otx network
+    liftIO $ print mEvent
 
     submitAndCheck $
       MkTxSpec

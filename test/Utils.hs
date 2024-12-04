@@ -159,13 +159,16 @@ submitAndCheck spec = do
       liftIO $ putStrLn $ "  --> " <> show transition
   awaitEitherTx =<< resolveTxAndSubmit spec
 
-submitCheckReturn :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m (TxBody Era, TxInMode, UTxO Era)
+submitCheckReturn ::
+  (MonadSubmitTx m, MonadIO m) =>
+  TxSpec ->
+  m (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era)
 submitCheckReturn spec = do
   case head $ actions spec of
     MkSomeCEMAction (MkCEMAction _ transition) ->
       liftIO $ putStrLn $ "  --> " <> show transition
   ~errOrTx@(Right tx) <- resolveTxAndSubmitRet spec
-  awaitEitherTx (mapRight (getTxId . (\(a, _, _) -> a)) errOrTx)
+  awaitEitherTx (mapRight (getTxId . (\(_, a, _, _) -> a)) errOrTx)
   pure tx
 
 perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)

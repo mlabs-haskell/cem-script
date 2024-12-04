@@ -1,5 +1,6 @@
 {-# LANGUAGE NoPolyKinds #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
+
+-- {-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
 
 module Cardano.CEM.Examples.Auction where
 

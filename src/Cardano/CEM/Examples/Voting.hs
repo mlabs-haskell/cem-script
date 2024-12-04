@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
+-- {-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
 
 {-# HLINT ignore "Use when" #-}
 

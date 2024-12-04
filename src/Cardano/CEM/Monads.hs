@@ -140,7 +140,9 @@ data TxResolutionError
 -- | Ability to send transaction to chain
 class (MonadQueryUtxo m) => MonadSubmitTx m where
   submitResolvedTx :: ResolvedTx -> m (Either TxSubmittingError TxId)
-  submitResolvedTxRet :: ResolvedTx -> m (Either TxSubmittingError (TxBody Era, TxInMode, UTxO Era))
+  submitResolvedTxRet ::
+    ResolvedTx ->
+    m (Either TxSubmittingError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 
 -- | Stuff needed to use monad for local testing
 class (MonadSubmitTx m) => MonadTest m where

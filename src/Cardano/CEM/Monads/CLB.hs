@@ -91,20 +91,22 @@ instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadQueryUtxo (ClbT m) wh
         ByTxIns txIns -> return $ \txIn _ -> txIn `elem` txIns
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadSubmitTx (ClbT m) where
-  submitResolvedTxRet :: ResolvedTx -> ClbT m (Either TxSubmittingError (TxBody Era, TxInMode, UTxO Era))
+  submitResolvedTxRet ::
+    ResolvedTx ->
+    ClbT m (Either TxSubmittingError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
   submitResolvedTxRet tx = do
     cardanoTxBodyFromResolvedTx tx >>= \case
-      Right (body, txInMode@(TxInMode ShelleyBasedEraBabbage tx'), utxo) -> do
+      Right (preBody, body, txInMode@(TxInMode ShelleyBasedEraBabbage tx'), utxo) -> do
         result <- sendTx tx'
         case result of
-          Success _ _ -> return $ Right (body, txInMode, utxo)
+          Success _ _ -> return $ Right (preBody, body, txInMode, utxo)
           Fail _ validationError ->
             return $ Left $ UnhandledNodeSubmissionError validationError
-      Right (_, _, _) -> fail "Unsupported tx format"
+      Right _ -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
 
   submitResolvedTx :: ResolvedTx -> ClbT m (Either TxSubmittingError TxId)
-  submitResolvedTx tx = mapRight (getTxId . (\(a, _, _) -> a)) <$> submitResolvedTxRet tx
+  submitResolvedTx tx = mapRight (getTxId . (\(_, a, _, _) -> a)) <$> submitResolvedTxRet tx
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadTest (ClbT m) where
   getTestWalletSks = return $ map intToCardanoSk [1 .. 10]

@@ -237,11 +237,11 @@ resolveTxAndSubmit spec = do
 resolveTxAndSubmitRet ::
   (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
   TxSpec ->
-  m (Either TxResolutionError (TxBody Era, TxInMode, UTxO Era))
+  m (Either TxResolutionError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 resolveTxAndSubmitRet spec = do
   result <- runExceptT $ do
     resolved <- ExceptT $ resolveTx spec
     let result = submitResolvedTxRet resolved
     ExceptT $ first UnhandledSubmittingError <$> result
-  logEvent $ SubmittedTxSpec spec (mapRight (getTxId . (\(a, _, _) -> a)) result)
+  logEvent $ SubmittedTxSpec spec (mapRight (getTxId . (\(_, a, _, _) -> a)) result)
   return result

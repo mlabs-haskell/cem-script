@@ -10,18 +10,22 @@ import Cardano.Api qualified as C
 
 -- import Cardano.Api.Address qualified as C
 import Cardano.Api (TxBody, TxIn, UTxO)
+import Cardano.Api.Address qualified as C (Address (..))
+import Cardano.Api.ScriptData qualified as C
 import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
-import Cardano.CEM (CEMScript, State, Transition, transitionStage)
+import Cardano.CEM (CEMScript, CEMScriptDatum, State, Transition, transitionStage)
 import Cardano.CEM.Address qualified as Address
 import Cardano.CEM.Monads (ResolvedTx (..))
 import Cardano.CEM.OnChain (CEMScriptCompiled, CEMScriptIsData)
 import Cardano.Extras (Era, TxInWitness)
 import Cardano.Ledger.BaseTypes qualified as Ledger
-import Control.Lens (view, (^.))
+import Control.Lens (preview, view, (^.))
 import Control.Lens.TH (makeLenses, makeLensesFor)
 import Control.Monad ((<=<))
+import Control.Monad.Extra (join)
 import Data.Aeson (KeyValue ((.=)))
 import Data.Aeson qualified as Aeson
+import Data.Base16.Types qualified as Base16
 import Data.Base16.Types qualified as Base16.Types
 import Data.Base64.Types qualified as Base64
 import Data.Base64.Types qualified as Base64.Types
@@ -29,20 +33,28 @@ import Data.Bifunctor (first)
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64 qualified as Base64
+import Data.ByteString.Base64.URL qualified as B64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Data (Proxy (Proxy))
+import Data.Either (fromRight)
+import Data.Either.Extra (eitherToMaybe)
+import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.List (find)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (fromJust, fromMaybe, mapMaybe)
 import Data.Spine (Spine, getSpine)
 import Data.Text qualified as T
+import Data.Text.Encoding (encodeUtf8)
 import Data.Tuple (swap)
 import Data.Vector qualified as Vec
+import Debug.Trace (trace, traceShowId)
 import GHC.Generics (Generic (Rep))
 import GHC.Stack.Types (HasCallStack)
-import PlutusLedgerApi.V1 (Credential)
+import PlutusLedgerApi.V1 (Credential, FromData, ToData)
 import PlutusLedgerApi.V1 qualified
 import Safe qualified
+import System.Process.Internals (ProcRetHandles (hStdOutput))
 import Test.QuickCheck (Result (output))
 import Utils (digits)
 import Prelude
@@ -312,47 +324,74 @@ data IndexerEvent script
     -- | FIXME: Open an issue in Oura's repository
     Following (Spine (Transition script)) -- (Transition script)
 
--- For testing
-resolvedTxToOura :: TxBody Era -> UTxO Era -> Tx
-resolvedTxToOura _ _ =
+deriving stock instance (Show (Spine (Transition script))) => (Show (IndexerEvent script))
+
+-- For testing: build a tx in the Oura format from a Cardano tx.
+-- We populate only fields we use, use with cautious.
+resolvedTxToOura :: C.TxBodyContent C.BuildTx Era -> UTxO Era -> Tx
+resolvedTxToOura tbc utxo =
   arbitraryTx
-    { _inputs = undefined
-    , _outputs = undefined
+    { _inputs = oInputs
+    , _outputs = oOutputs
+    }
+  where
+    oInputs = mapMaybe (toOuraInput utxo . fst) (C.txIns tbc)
+    oOutputs = toOuraTxOutput <$> C.txOuts tbc
+
+-- | This is a partial function, use with cautious
+toOuraInput :: UTxO Era -> TxIn -> Maybe TxInput
+toOuraInput (C.UTxO utxo) txIn =
+  case Map.lookup txIn utxo of
+    Nothing -> Nothing
+    Just output ->
+      pure $
+        MkTxInput
+          { _tx_hash = MkBlake2b255Hex ""
+          , _output_index = 0
+          , _as_output = toOuraTxOutput output
+          , _redeemer = Nothing
+          }
+
+-- | This is a partial function, we use address and datum
+toOuraTxOutput :: C.TxOut ctx Era -> TxOutput
+toOuraTxOutput (C.TxOut addr _ dat _) =
+  MkTxOutput
+    { _address = toOuraAddrress addr
+    , _coin = 0
+    , _assets = []
+    , _datum = toOuraDatum dat
+    , _script = Nothing
     }
 
--- mkOuraInput :: (TxIn, TxInWitness) -> TxInput
--- mkOuraInput =
---   -- PlutusLedgerApi.V1.Credential ->
---   -- Maybe PlutusLedgerApi.V1.StakingCredential ->
--- --  paymentCred mstakeCred =
---   MkTxInput
---     { _as_output =
---         MkTxOutput
---           { _address = undefined-- Mock.plutusAddressToOuraAddress $ PlutusLedgerApi.V1.Address paymentCred mstakeCred
---           , _datum = Nothing
---           , _coin = 2
---           , _script = Nothing
---           , _assets = mempty
---           }
---     , _tx_hash = undefined -- Mock.MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
---     , _output_index = 0
---     , _redeemer = Nothing
---     }
+-- | This is a partial function, we use only original_cbor.
+toOuraDatum :: C.TxOutDatum ctx Era -> Maybe Datum
+toOuraDatum = \case
+  (C.TxOutDatumInline _ hsd) ->
+    let bs = traceShowId $ C.serialiseToCBOR hsd
+     in Just $
+          MkDatum
+            { _payload = MkPlutusData Aeson.Null
+            , hash = MkBlake2b255Hex ""
+            , _original_cbor -- Base64.extractBase64 $ Base64.encodeBase64 $
+              =
+                Base16.extractBase16 $ Base16.encodeBase16 bs
+            }
+  _ -> Nothing
 
-{-
-        rightTxHash =
-          Mock.MkBlake2b255Hex
-            "2266778888888888888888888888888888888888888888888888444444444444"
-        inputFromValidator =
-          emptyInputFixture auctionPaymentCredential (Just arbitraryStakeCredential)
-        tx =
-          Mock.txToBS
-            . Mock.mkTxEvent
-            . (Mock.inputs %~ (inputFromValidator :))
-            . (Mock.hash .~ rightTxHash)
-            $ Mock.arbitraryTx
--}
+toOuraAddrress :: C.AddressInEra Era -> Address
+toOuraAddrress (C.AddressInEra _ addr) =
+  case addr of
+    C.ByronAddress _ -> error "Encounter Byron address"
+    C.ShelleyAddress {} ->
+      addr
+        & MkAddressAsBase64
+          -- . Base64.extractBase64
+          -- . Base64.encodeBase64
+          . Base16.extractBase16
+          . Base16.encodeBase16
+          . SerialiseRaw.serialiseToRawBytes
 
+-- The core function, that extracts an Event out of a Oura transaction.
 extractEvent ::
   forall script.
   ( CEMScript script
@@ -360,21 +399,27 @@ extractEvent ::
   , CEMScriptCompiled script
   ) =>
   Tx ->
-  Maybe (IndexerEvent script)
-extractEvent tx = do
+  Ledger.Network ->
+  IO (Maybe (IndexerEvent script))
+extractEvent tx network = do
   -- Script payemnt credential based predicate
-  let scriptCred = Address.scriptCredential (Proxy @script)
-  let cPred = hasScriptCred scriptCred
+  let (Right scriptAddr) = Address.scriptCardanoAddress (Proxy @script) network
+  let cPred = hasAddr scriptAddr
+  print scriptAddr
 
   -- Source state
   let mOwnInput :: Maybe TxInput = find (cPred . view as_output) (tx ^. inputs)
-  mSourceState :: Maybe (State script) <- extractState . view as_output <$> mOwnInput
+  let mSourceState :: Maybe (State script) = (extractState . view as_output) =<< mOwnInput
   let mSourceSpine :: Maybe (Spine (State script)) = getSpine <$> mSourceState
+  putStr "Source state: "
+  print mSourceSpine
 
   -- Target state
   let mOwnOutput :: Maybe TxOutput = find cPred $ tx ^. outputs
-  mTargetState :: Maybe (State script) <- extractState <$> mOwnOutput
+  let mTargetState :: Maybe (State script) = extractState =<< mOwnOutput
   let mTargetSpine :: Maybe (Spine (State script)) = getSpine <$> mTargetState
+  putStr "Target state: "
+  print mTargetSpine
 
   -- Look up the transition
   let transitions =
@@ -382,35 +427,55 @@ extractEvent tx = do
           (\(_, b, c) -> (b, c))
           . swap
           <$> Map.toList (transitionStage $ Proxy @script)
-  transSpine <- lookup (mSourceSpine, mTargetSpine) transitions
+  let transSpine = lookup (mSourceSpine, mTargetSpine) transitions
+
+  -- Return
   case mOwnInput of
-    Nothing -> pure $ Initial transSpine
+    Nothing -> pure $ Initial <$> transSpine
     Just _ownInput -> do
       -- FIXME: fix once Oura has rawCbor for redeemer
       -- rdm <- ownInput ^. redeemer
       -- pure $ Following $ undefined (rdm ^. redeemerPayload)
-      pure $ Following transSpine
+      pure $ Following <$> transSpine
 
-extractState :: TxOutput -> Maybe (State script)
-extractState output =
-  let mDatum :: Maybe T.Text = undefined -- output ^. (datum . original_cbor)
-   in undefined
+extractState ::
+  forall script.
+  (FromData (CEMScriptDatum script)) =>
+  TxOutput ->
+  Maybe (State script)
+extractState MkTxOutput {_datum = mDtm} =
+  case mDtm of
+    Nothing -> Nothing
+    Just dtm -> do
+      let MkDatum _ _ cbor = dtm
+      let datumAsData :: PlutusLedgerApi.V1.Data =
+            traceShowId cbor
+              & C.toPlutusData
+                . C.getScriptData
+                . fromJust
+                . eitherToMaybe
+                . C.deserialiseFromCBOR C.AsHashableScriptData
+                . Base16.decodeBase16Lenient
+                . encodeUtf8
+      let ~(Just (_, _, state)) = PlutusLedgerApi.V1.fromData @(CEMScriptDatum script) datumAsData
+      pure state
 
-hasScriptCred :: Credential -> TxOutput -> Bool
-hasScriptCred cred' output =
+hasAddr :: C.Address C.ShelleyAddr -> TxOutput -> Bool
+hasAddr addr' output =
   let addr = output ^. address
-   in case mScriptCredential addr of
-        Nothing -> False
-        Just cred -> cred == cred'
+   in traceShowId (fromOuraAddress addr) == addr'
 
-mScriptCredential :: Address -> Maybe Credential
-mScriptCredential addr = undefined
-
--- let
---   foo = addr ^. addressL
--- in
---   SerialiseRaw.deserialiseFromRawBytesHex @(C.Address C.ShelleyAddr)
--- ---
+fromOuraAddress :: Address -> C.Address C.ShelleyAddr
+fromOuraAddress (MkAddressAsBase64 addr) =
+  addr
+    & fromJust
+      . eitherToMaybe
+      . SerialiseRaw.deserialiseFromRawBytes (C.AsAddress C.AsShelleyAddr)
+      --  . fromJust
+      --  . eitherToMaybe
+      --  . B64.decodeBase64PaddedUntyped
+      . Base16.decodeBase16Lenient
+      . encodeUtf8
 
 data TxEvent = MkTxEvent
   { _parsed_tx :: Tx
