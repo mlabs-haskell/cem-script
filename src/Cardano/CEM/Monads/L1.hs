@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas -Wno-missing-methods #-}
 
 module Cardano.CEM.Monads.L1 where
 
