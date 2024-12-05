@@ -4,7 +4,7 @@ version:       0.1.0
 synopsis:      CEM Script - a Cardano dApp SDK
 homepage:      https://github.com/mlabs-haskell/cem-script
 author:        MLabs
-maintainer:    gregory@mlabs.city
+maintainer:    ilia@mlabs.city
 data-files:    README.md
 tested-with:   GHC ==9.6.3
 

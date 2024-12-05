@@ -5,23 +5,12 @@ module Utils where
 
 import Prelude
 
-import Data.Map (keys)
-import Data.Map qualified as Map
-import Data.Maybe (mapMaybe)
-
-import PlutusLedgerApi.V1.Interval (always)
-import PlutusLedgerApi.V1.Value (assetClassValue)
-
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (
   PlutusScript (..),
   ReferenceScript (..),
   toMaryValue,
  )
-
-import Test.Hspec (shouldSatisfy)
-import Text.Show.Pretty (ppShow)
-
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),
   CEMAction (..),
@@ -51,20 +40,25 @@ import Cardano.Extras (
   utxoValue,
   withKeyWitness,
  )
-import Data.Spine (HasSpine (..))
-
 import Control.Exception (bracket)
 import Control.Monad ((<=<))
 import Data.Aeson.Types qualified as Aeson
-import Data.Either.Extra (mapRight)
 import Data.Foldable (traverse_)
 import Data.IORef qualified as IORef
+import Data.Map (keys)
+import Data.Map qualified as Map
+import Data.Maybe (mapMaybe)
+import Data.Spine (HasSpine (..))
+import PlutusLedgerApi.V1.Interval (always)
+import PlutusLedgerApi.V1.Value (assetClassValue)
 import System.Directory (removeFile)
 import System.IO (hClose, openTempFile)
 import System.Process qualified as Process
 import System.Timeout (timeout)
+import Test.Hspec (shouldSatisfy)
 import Test.Hspec qualified as Hspec
 import TestNFT
+import Text.Show.Pretty (ppShow)
 
 withTimeout :: (Hspec.HasCallStack) => Float -> IO a -> IO a
 withTimeout sec =
@@ -149,7 +143,6 @@ awaitEitherTx eitherTx =
   case eitherTx of
     Right txId -> do
       awaitTx txId
-    -- liftIO $ putStrLn $ "Awaited " <> show txId
     Left errorMsg -> error $ "Failed to send tx: " <> ppShow errorMsg
 
 submitAndCheck :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m ()
@@ -162,14 +155,14 @@ submitAndCheck spec = do
 submitCheckReturn ::
   (MonadSubmitTx m, MonadIO m) =>
   TxSpec ->
-  m (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era)
+  m (TxBodyContent BuildTx Era, UTxO Era)
 submitCheckReturn spec = do
   case head $ actions spec of
     MkSomeCEMAction (MkCEMAction _ transition) ->
       liftIO $ putStrLn $ "  --> " <> show transition
-  ~errOrTx@(Right tx) <- resolveTxAndSubmitRet spec
-  awaitEitherTx (mapRight (getTxId . (\(_, a, _, _) -> a)) errOrTx)
-  pure tx
+  ~(Right (tbc, tb, _, utxo)) <- resolveTxAndSubmitRet spec
+  awaitTx $ getTxId tb
+  pure (tbc, utxo)
 
 perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)
 perTransitionStats = do

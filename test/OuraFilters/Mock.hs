@@ -9,20 +9,18 @@ module OuraFilters.Mock where
 import Cardano.Api qualified as C
 
 -- import Cardano.Api.Address qualified as C
-import Cardano.Api (TxBody, TxIn, UTxO)
+import Cardano.Api (TxIn, UTxO)
 import Cardano.Api.Address qualified as C (Address (..))
 import Cardano.Api.ScriptData qualified as C
 import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
 import Cardano.CEM (CEMScript, CEMScriptDatum, State, Transition, transitionStage)
 import Cardano.CEM.Address qualified as Address
-import Cardano.CEM.Monads (ResolvedTx (..))
 import Cardano.CEM.OnChain (CEMScriptCompiled, CEMScriptIsData)
-import Cardano.Extras (Era, TxInWitness)
+import Cardano.Extras (Era)
 import Cardano.Ledger.BaseTypes qualified as Ledger
-import Control.Lens (preview, view, (^.))
+import Control.Lens (view, (^.))
 import Control.Lens.TH (makeLenses, makeLensesFor)
 import Control.Monad ((<=<))
-import Control.Monad.Extra (join)
 import Data.Aeson (KeyValue ((.=)))
 import Data.Aeson qualified as Aeson
 import Data.Base16.Types qualified as Base16
@@ -33,29 +31,24 @@ import Data.Bifunctor (first)
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Base64 qualified as Base64
-import Data.ByteString.Base64.URL qualified as B64
 import Data.ByteString.Lazy qualified as LBS
 import Data.Data (Proxy (Proxy))
-import Data.Either (fromRight)
 import Data.Either.Extra (eitherToMaybe)
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.List (find)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromJust, fromMaybe, mapMaybe)
+import Data.Maybe (fromJust, mapMaybe)
 import Data.Spine (Spine, getSpine)
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
 import Data.Tuple (swap)
 import Data.Vector qualified as Vec
-import Debug.Trace (trace, traceShowId)
 import GHC.Generics (Generic (Rep))
 import GHC.Stack.Types (HasCallStack)
-import PlutusLedgerApi.V1 (Credential, FromData, ToData)
+import PlutusLedgerApi.V1 (FromData)
 import PlutusLedgerApi.V1 qualified
 import Safe qualified
-import System.Process.Internals (ProcRetHandles (hStdOutput))
-import Test.QuickCheck (Result (output))
 import Utils (digits)
 import Prelude
 
@@ -324,7 +317,12 @@ data IndexerEvent script
     -- | FIXME: Open an issue in Oura's repository
     Following (Spine (Transition script)) -- (Transition script)
 
-deriving stock instance (Show (Spine (Transition script))) => (Show (IndexerEvent script))
+deriving stock instance
+  (Show (Spine (Transition script))) =>
+  (Show (IndexerEvent script))
+deriving stock instance
+  (Eq (Spine (Transition script))) =>
+  (Eq (IndexerEvent script))
 
 -- For testing: build a tx in the Oura format from a Cardano tx.
 -- We populate only fields we use, use with cautious.
@@ -367,7 +365,7 @@ toOuraTxOutput (C.TxOut addr _ dat _) =
 toOuraDatum :: C.TxOutDatum ctx Era -> Maybe Datum
 toOuraDatum = \case
   (C.TxOutDatumInline _ hsd) ->
-    let bs = traceShowId $ C.serialiseToCBOR hsd
+    let bs = C.serialiseToCBOR hsd
      in Just $
           MkDatum
             { _payload = MkPlutusData Aeson.Null
@@ -391,35 +389,33 @@ toOuraAddrress (C.AddressInEra _ addr) =
           . Base16.encodeBase16
           . SerialiseRaw.serialiseToRawBytes
 
--- The core function, that extracts an Event out of a Oura transaction.
+{- | The core function, that extracts an Event out of a Oura transaction.
+It might be a pure function, IO here was used mostly to simplify debugging
+during its development.
+-}
 extractEvent ::
   forall script.
   ( CEMScript script
   , CEMScriptIsData script
   , CEMScriptCompiled script
   ) =>
-  Tx ->
   Ledger.Network ->
+  Tx ->
   IO (Maybe (IndexerEvent script))
-extractEvent tx network = do
+extractEvent network tx = do
   -- Script payemnt credential based predicate
   let (Right scriptAddr) = Address.scriptCardanoAddress (Proxy @script) network
   let cPred = hasAddr scriptAddr
-  print scriptAddr
 
   -- Source state
   let mOwnInput :: Maybe TxInput = find (cPred . view as_output) (tx ^. inputs)
   let mSourceState :: Maybe (State script) = (extractState . view as_output) =<< mOwnInput
   let mSourceSpine :: Maybe (Spine (State script)) = getSpine <$> mSourceState
-  putStr "Source state: "
-  print mSourceSpine
 
   -- Target state
   let mOwnOutput :: Maybe TxOutput = find cPred $ tx ^. outputs
   let mTargetState :: Maybe (State script) = extractState =<< mOwnOutput
   let mTargetSpine :: Maybe (Spine (State script)) = getSpine <$> mTargetState
-  putStr "Target state: "
-  print mTargetSpine
 
   -- Look up the transition
   let transitions =
@@ -449,7 +445,7 @@ extractState MkTxOutput {_datum = mDtm} =
     Just dtm -> do
       let MkDatum _ _ cbor = dtm
       let datumAsData :: PlutusLedgerApi.V1.Data =
-            traceShowId cbor
+            cbor
               & C.toPlutusData
                 . C.getScriptData
                 . fromJust
@@ -463,7 +459,7 @@ extractState MkTxOutput {_datum = mDtm} =
 hasAddr :: C.Address C.ShelleyAddr -> TxOutput -> Bool
 hasAddr addr' output =
   let addr = output ^. address
-   in traceShowId (fromOuraAddress addr) == addr'
+   in fromOuraAddress addr == addr'
 
 fromOuraAddress :: Address -> C.Address C.ShelleyAddr
 fromOuraAddress (MkAddressAsBase64 addr) =
@@ -471,9 +467,6 @@ fromOuraAddress (MkAddressAsBase64 addr) =
     & fromJust
       . eitherToMaybe
       . SerialiseRaw.deserialiseFromRawBytes (C.AsAddress C.AsShelleyAddr)
-      --  . fromJust
-      --  . eitherToMaybe
-      --  . B64.decodeBase64PaddedUntyped
       . Base16.decodeBase16Lenient
       . encodeUtf8
 
