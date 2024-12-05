@@ -1,4 +1,8 @@
-module Cardano.CEM.Indexing (
+{- | CEM provides the building blocks to build an indexer for your dApp.
+Current implementation is based on Oura. This module provides tools to
+run Oura.
+-}
+module Cardano.CEM.Indexing.Oura (
   SourcePath (MkSourcePath, unSourcePath),
   SinkPath (MkSinkPath, unSinkPath),
   Filter (MkFilter, unFilter),

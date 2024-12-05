@@ -1,4 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BlockArguments #-}
 
 module Utils where
@@ -68,19 +67,6 @@ withTimeout sec =
 resultToEither :: Aeson.Result a -> Either String a
 resultToEither (Aeson.Success a) = Right a
 resultToEither (Aeson.Error err) = Left err
-
-totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
-totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral
-
-digits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> [n]
-digits base n =
-  fst <$> case reverse [0 .. totalDigits @n @m base n - 1] of
-    (i : is) ->
-      scanl
-        (\(_, remainder) digit -> remainder `divMod` (base ^ digit))
-        (n `divMod` (base ^ i))
-        is
-    [] -> []
 
 execClb :: ClbRunner a -> IO a
 execClb = execOnIsolatedClb $ lovelaceToValue 300_000_000

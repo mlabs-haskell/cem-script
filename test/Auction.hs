@@ -8,11 +8,12 @@ import Cardano.Api.NetworkId (toShelleyNetwork)
 import Cardano.CEM
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
+import Cardano.CEM.Indexing.Event
+import Cardano.CEM.Indexing.Tx (resolvedTxToOura)
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
 import Cardano.Extras
 import Control.Monad.Trans (MonadIO (..))
-import OuraFilters.Mock (IndexerEvent (Following, Initial), extractEvent, resolvedTxToOura)
 import PlutusLedgerApi.V1.Value (assetClassValue)
 import Test.Hspec (describe, it, shouldBe)
 import TestNFT (testNftAssetClass)

@@ -145,7 +145,9 @@ library
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation
     Cardano.CEM.Examples.Voting
-    Cardano.CEM.Indexing
+    Cardano.CEM.Indexing.Event
+    Cardano.CEM.Indexing.Oura
+    Cardano.CEM.Indexing.Tx
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1
@@ -156,15 +158,20 @@ library
 
   other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
+    , base16
+    , base64
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
     , dependent-map
+    , lens
     , ouroboros-consensus
     , QuickCheck
     , quickcheck-dynamic
+    , safe
     , singletons-th
     , toml-parser
+    , vector
 
 test-suite cem-sdk-test
   import:
@@ -206,12 +213,10 @@ test-suite cem-sdk-test
     Auction
     Dynamic
     OffChain
-    Oura
     Oura.Communication
-    Oura.Config
-    OuraFilters
     OuraFilters.Auction
     OuraFilters.Mock
+    OuraFilters.Simple
     TestNFT
     Utils
     Voting
