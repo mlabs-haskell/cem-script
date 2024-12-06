@@ -15,9 +15,11 @@ flag dev
   default:     True
   manual:      False
 
-common common-lang
-  -- Options from MLabs styleguide
+flag force-recomp
+  description: Compile with -fforce-recomp and -Wunused-packages
+  default:     False
 
+common common-lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wredundant-constraints
@@ -25,6 +27,12 @@ common common-lang
 
   if !flag(dev)
     ghc-options: -Werror
+
+  if flag(dev)
+    default-extensions: PartialTypeSignatures
+
+  if flag(force-recomp)
+    ghc-options: -fforce-recomp -Wunused-packages
 
   build-depends:
     , base
@@ -52,9 +60,6 @@ common common-lang
     TypeFamilyDependencies
     UndecidableInstances
     ViewPatterns
-
-  if flag(dev)
-    default-extensions: PartialTypeSignatures
 
   default-language:   GHC2021
 
@@ -150,7 +155,6 @@ library
     Cardano.CEM.Indexing.Tx
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
-    Cardano.CEM.Monads.L1
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
     Cardano.CEM.Testing.StateMachine

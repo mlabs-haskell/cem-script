@@ -184,7 +184,7 @@ resolveAction
             datum = case filterSpec of
               AnyDatum -> TxOutDatumNone
               ByDatum datum' -> mkInlineDatum datum'
-              -- FIXME: Can be optimized via Plutarch
+              -- This case probably can be optimized via Plutarch
               UnsafeBySameCEM newState ->
                 let
                   cemDatum :: CEMScriptDatum script
@@ -196,10 +196,8 @@ resolveAction
                  in
                   mkInlineDatum cemDatum
             address = addressSpecToAddress scriptAddress addressSpec
-            -- TODO: protocol params
-            -- calculateMinimumUTxO era txout bpp
+            -- TODO: protocol params calculateMinimumUTxO era txout bpp
             minUtxoValue = convertTxOut $ lovelaceToValue 3_000_000
-            -- TODO
             convertTxOut x =
               TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
 

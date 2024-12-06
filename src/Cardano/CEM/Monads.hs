@@ -29,7 +29,6 @@ data CEMAction script
 deriving stock instance
   (CEMScript script) => Show (CEMAction script)
 
--- FIXME: use generic Some
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.
@@ -38,7 +37,6 @@ data SomeCEMAction where
     SomeCEMAction
 
 instance Show SomeCEMAction where
-  -- FIXME: show script name
   show :: SomeCEMAction -> String
   show (MkSomeCEMAction action) = show action
 
@@ -54,8 +52,7 @@ data TxSpec = MkTxSpec
 data BlockchainParams = MkBlockchainParams
   { protocolParameters :: PParams LedgerEra
   , systemStart :: SystemStart
-  , -- FIXME: rename
-    eraHistory :: LedgerEpochInfo
+  , ledgerEpochInfo :: LedgerEpochInfo
   , stakePools :: Set PoolId
   }
   deriving stock (Show)

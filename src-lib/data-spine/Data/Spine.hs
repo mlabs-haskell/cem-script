@@ -88,8 +88,6 @@ deriveSpine name = do
     suffix = "Spine"
     spineName = addSuffix name suffix
   spineDec <- deriveTags name suffix [''Eq, ''Ord, ''Enum, ''Show]
-  -- TODO: derive Sing
-  -- TODO: derive HasField (OfSpine ...)
 
   decls <-
     [d|

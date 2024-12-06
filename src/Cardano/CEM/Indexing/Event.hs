@@ -43,7 +43,6 @@ import Prelude
   (3) For the final transition the situation is like (2) except the target
   datum is missing, which doesn't matter.
 
-
   TODO: How we can improve this in the future:
   * API is probably bad, as we always have some transition like Init state -
   which you can decode, as you have State. If one changes data

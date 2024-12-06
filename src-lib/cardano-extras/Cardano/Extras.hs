@@ -275,7 +275,6 @@ mintedTokens ::
   [(AssetName, Quantity)] ->
   Cardano.TxMintValue BuildTx Era
 mintedTokens script redeemer assets =
-  -- FIXME: is hardcoding era correct?
   TxMintValue Cardano.MaryEraOnwardsBabbage mintedTokens' mintedWitnesses'
   where
     mintedTokens' = valueFromList (fmap (first (AssetId policyId)) assets)
