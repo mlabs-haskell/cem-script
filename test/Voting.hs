@@ -1,24 +1,22 @@
 module Voting (votingSpec) where
 
-import Prelude hiding (readFile)
-
-import Control.Monad.IO.Class (MonadIO (..))
-
-import Test.Hspec (describe, shouldBe)
-
 import Cardano.CEM
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Examples.Voting
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
 import Cardano.Extras (signingKeyToPKH)
-
+import Control.Monad.IO.Class (MonadIO (..))
+import Test.Hspec (describe, shouldBe)
 import Utils
+import Prelude hiding (readFile)
 
 votingSpec = describe "Voting" $ do
   let ignoreTest (_name :: String) = const (return ())
 
-  -- FIXME: fix Voting budget or fix this issue https://github.com/mlabs-haskell/clb/issues/50
+  -- TODO: fix Voting budget
+  -- https://github.com/mlabs-haskell/cem-script/issues/108
+  -- https://github.com/mlabs-haskell/clb/issues/50
   ignoreTest "Successfull flow" $
     execClb $ do
       jury1 : jury2 : creator : _ <- getTestWalletSks

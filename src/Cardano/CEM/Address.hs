@@ -1,6 +1,7 @@
 module Cardano.CEM.Address (
-  cardanoAddressBech32,
+  scriptCredential,
   scriptCardanoAddress,
+  cardanoAddressBech32,
   plutusAddressToShelleyAddress,
   AddressBech32 (MkAddressBech32, unAddressBech32),
 ) where
@@ -14,7 +15,7 @@ import Cardano.Ledger.BaseTypes qualified as Ledger
 import Cardano.Ledger.Credential qualified as Cred
 import Cardano.Ledger.Hashes qualified
 import Cardano.Ledger.Keys qualified as Ledger.Keys
-import Data.Data (Proxy (Proxy))
+import Data.Proxy (Proxy)
 import Data.String (IsString)
 import Data.Text qualified as T
 import Plutus.Extras qualified
@@ -33,13 +34,22 @@ scriptCardanoAddress ::
   Proxy script ->
   Cardano.Api.Ledger.Network ->
   Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
-scriptCardanoAddress _ network =
+scriptCardanoAddress p network =
   plutusAddressToShelleyAddress network
     . flip PlutusLedgerApi.V1.Address Nothing
-    . PlutusLedgerApi.V1.ScriptCredential
+    . scriptCredential
+    $ p
+
+scriptCredential ::
+  forall script.
+  (Compiled.CEMScriptCompiled script) =>
+  Proxy script ->
+  PlutusLedgerApi.V1.Credential
+scriptCredential p =
+  PlutusLedgerApi.V1.ScriptCredential
     . Plutus.Extras.scriptValidatorHash
     . Compiled.cemScriptCompiled
-    $ Proxy @script
+    $ p
 
 plutusAddressToShelleyAddress ::
   Cardano.Api.Ledger.Network ->

@@ -33,6 +33,7 @@ import Cardano.CEM
 import Cardano.CEM.Monads
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), cemScriptAddress)
 import Cardano.Extras
+import Data.Either.Extra (mapRight)
 import Data.Spine (HasSpine (getSpine))
 
 fromPlutusAddressInMonad ::
@@ -65,8 +66,7 @@ failLeft (Right value) = return value
 
 -- TODO: use regular CEMScript
 cemTxOutDatum :: (CEMScriptCompiled script) => TxOut ctx Era -> Maybe (CEMScriptDatum script)
-cemTxOutDatum txOut =
-  fromData =<< toPlutusData <$> getScriptData <$> mTxOutDatum txOut
+cemTxOutDatum txOut = fromData . (toPlutusData <$> getScriptData) =<< mTxOutDatum txOut
 
 cemTxOutState :: (CEMScriptCompiled script) => TxOut ctx Era -> Maybe (State script)
 cemTxOutState txOut =
@@ -124,7 +124,7 @@ resolveAction
         mScriptTxIn = case transitionStage (Proxy :: Proxy script) Map.! getSpine transition of
           (_, Nothing, _) -> Nothing
           _ -> mScriptTxIn'
-        mState = cemTxOutState =<< snd <$> mScriptTxIn
+        mState = cemTxOutState . snd =<< mScriptTxIn
         witnesedScriptTxIns =
           case mScriptTxIn of
             Just (txIn, _) ->
@@ -168,7 +168,7 @@ resolveAction
       scriptAddress = cemScriptAddress (Proxy :: Proxy script)
       resolveTxIn (MkTxFansC _ (MkTxFanFilter addressSpec _) _) = do
         utxo <- lift $ queryUtxo $ ByAddresses [address]
-        return $ map (\(x, y) -> (withKeyWitness x, y)) $ Map.toList $ unUTxO utxo
+        return $ map (first withKeyWitness) $ Map.toList $ unUTxO utxo
         where
           address = addressSpecToAddress scriptAddress addressSpec
       compileTxConstraint
@@ -178,12 +178,13 @@ resolveAction
                 TxOut address' value datum ReferenceScriptNone
           return $ case quantor of
             ExactlyNFans n -> replicate (fromInteger n) $ compiledTxOut minUtxoValue
-            FansWithTotalValueOfAtLeast value -> [compiledTxOut $ (convertTxOut $ fromPlutusValue value) <> minUtxoValue]
+            FansWithTotalValueOfAtLeast value ->
+              [compiledTxOut $ convertTxOut (fromPlutusValue value) <> minUtxoValue]
           where
             datum = case filterSpec of
               AnyDatum -> TxOutDatumNone
               ByDatum datum' -> mkInlineDatum datum'
-              -- FIXME: Can be optimized via Plutarch
+              -- This case probably can be optimized via Plutarch
               UnsafeBySameCEM newState ->
                 let
                   cemDatum :: CEMScriptDatum script
@@ -195,10 +196,8 @@ resolveAction
                  in
                   mkInlineDatum cemDatum
             address = addressSpecToAddress scriptAddress addressSpec
-            -- TODO: protocol params
-            -- calculateMinimumUTxO era txout bpp
+            -- TODO: protocol params calculateMinimumUTxO era txout bpp
             minUtxoValue = convertTxOut $ lovelaceToValue 3_000_000
-            -- TODO
             convertTxOut x =
               TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
 
@@ -215,6 +214,10 @@ resolveTx spec = runExceptT $ do
     mergedSpec' = head actionsSpecs
     mergedSpec = (mergedSpec' :: ResolvedTx) {signer = specSigner spec}
 
+  -- liftIO $ do
+  --   putStr "Resolved spec: "
+  --   print mergedSpec
+
   return mergedSpec
 
 resolveTxAndSubmit ::
@@ -227,4 +230,16 @@ resolveTxAndSubmit spec = do
     let result = submitResolvedTx resolved
     ExceptT $ first UnhandledSubmittingError <$> result
   logEvent $ SubmittedTxSpec spec result
+  return result
+
+resolveTxAndSubmitRet ::
+  (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
+  TxSpec ->
+  m (Either TxResolutionError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
+resolveTxAndSubmitRet spec = do
+  result <- runExceptT $ do
+    resolved <- ExceptT $ resolveTx spec
+    let result = submitResolvedTxRet resolved
+    ExceptT $ first UnhandledSubmittingError <$> result
+  logEvent $ SubmittedTxSpec spec (mapRight (getTxId . (\(_, a, _, _) -> a)) result)
   return result

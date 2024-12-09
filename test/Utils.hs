@@ -1,16 +1,8 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BlockArguments #-}
 
 module Utils where
 
 import Prelude
-
-import Data.Map (keys)
-import Data.Map qualified as Map
-import Data.Maybe (mapMaybe)
-
-import PlutusLedgerApi.V1.Interval (always)
-import PlutusLedgerApi.V1.Value (assetClassValue)
 
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (
@@ -18,10 +10,6 @@ import Cardano.Api.Shelley (
   ReferenceScript (..),
   toMaryValue,
  )
-
-import Test.Hspec (shouldSatisfy)
-import Text.Show.Pretty (ppShow)
-
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),
   CEMAction (..),
@@ -40,21 +28,36 @@ import Cardano.CEM.OffChain (
   awaitTx,
   fromPlutusAddressInMonad,
   resolveTxAndSubmit,
+  resolveTxAndSubmitRet,
  )
-import Cardano.Extras
-import Data.Spine (HasSpine (..))
-
+import Cardano.Extras (
+  Era,
+  fromPlutusValue,
+  mintedTokens,
+  signingKeyToAddress,
+  tokenToAsset,
+  utxoValue,
+  withKeyWitness,
+ )
 import Control.Exception (bracket)
 import Control.Monad ((<=<))
 import Data.Aeson.Types qualified as Aeson
 import Data.Foldable (traverse_)
 import Data.IORef qualified as IORef
+import Data.Map (keys)
+import Data.Map qualified as Map
+import Data.Maybe (mapMaybe)
+import Data.Spine (HasSpine (..))
+import PlutusLedgerApi.V1.Interval (always)
+import PlutusLedgerApi.V1.Value (assetClassValue)
 import System.Directory (removeFile)
 import System.IO (hClose, openTempFile)
 import System.Process qualified as Process
 import System.Timeout (timeout)
+import Test.Hspec (shouldSatisfy)
 import Test.Hspec qualified as Hspec
 import TestNFT
+import Text.Show.Pretty (ppShow)
 
 withTimeout :: (Hspec.HasCallStack) => Float -> IO a -> IO a
 withTimeout sec =
@@ -65,21 +68,8 @@ resultToEither :: Aeson.Result a -> Either String a
 resultToEither (Aeson.Success a) = Right a
 resultToEither (Aeson.Error err) = Left err
 
-totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
-totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral
-
-digits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> [n]
-digits base n =
-  fst <$> case reverse [0 .. totalDigits @n @m base n - 1] of
-    (i : is) ->
-      scanl
-        (\(_, remainder) digit -> remainder `divMod` (base ^ digit))
-        (n `divMod` (base ^ i))
-        is
-    [] -> []
-
 execClb :: ClbRunner a -> IO a
-execClb = execOnIsolatedClb $ lovelaceToValue $ fromInteger 300_000_000
+execClb = execOnIsolatedClb $ lovelaceToValue 300_000_000
 
 mintTestTokens ::
   (MonadIO m, MonadSubmitTx m) => SigningKey PaymentKey -> Integer -> m ()
@@ -96,12 +86,12 @@ mintTestTokens userSk numMint = do
       TxOut
         userAddress
         ( convert $
-            ( fromPlutusValue $
-                assetClassValue
+            fromPlutusValue
+              ( assetClassValue
                   testNftAssetClass
                   numMint
-            )
-              <> (lovelaceToValue $ fromInteger 3_000_000)
+              )
+              <> lovelaceToValue 3_000_000
         )
         TxOutDatumNone
         ReferenceScriptNone
@@ -139,7 +129,6 @@ awaitEitherTx eitherTx =
   case eitherTx of
     Right txId -> do
       awaitTx txId
-    -- liftIO $ putStrLn $ "Awaited " <> show txId
     Left errorMsg -> error $ "Failed to send tx: " <> ppShow errorMsg
 
 submitAndCheck :: (MonadSubmitTx m, MonadIO m) => TxSpec -> m ()
@@ -148,6 +137,18 @@ submitAndCheck spec = do
     MkSomeCEMAction (MkCEMAction _ transition) ->
       liftIO $ putStrLn $ "  --> " <> show transition
   awaitEitherTx =<< resolveTxAndSubmit spec
+
+submitCheckReturn ::
+  (MonadSubmitTx m, MonadIO m) =>
+  TxSpec ->
+  m (TxBodyContent BuildTx Era, UTxO Era)
+submitCheckReturn spec = do
+  case head $ actions spec of
+    MkSomeCEMAction (MkCEMAction _ transition) ->
+      liftIO $ putStrLn $ "  --> " <> show transition
+  ~(Right (tbc, tb, _, utxo)) <- resolveTxAndSubmitRet spec
+  awaitTx $ getTxId tb
+  pure (tbc, utxo)
 
 perTransitionStats :: (MonadBlockchainParams m) => m (Map.Map String Fees)
 perTransitionStats = do

@@ -29,7 +29,6 @@ data CEMAction script
 deriving stock instance
   (CEMScript script) => Show (CEMAction script)
 
--- FIXME: use generic Some
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.
@@ -38,7 +37,6 @@ data SomeCEMAction where
     SomeCEMAction
 
 instance Show SomeCEMAction where
-  -- FIXME: show script name
   show :: SomeCEMAction -> String
   show (MkSomeCEMAction action) = show action
 
@@ -54,8 +52,7 @@ data TxSpec = MkTxSpec
 data BlockchainParams = MkBlockchainParams
   { protocolParameters :: PParams LedgerEra
   , systemStart :: SystemStart
-  , -- FIXME: rename
-    eraHistory :: LedgerEpochInfo
+  , ledgerEpochInfo :: LedgerEpochInfo
   , stakePools :: Set PoolId
   }
   deriving stock (Show)
@@ -109,8 +106,7 @@ data ResolvedTx = MkResolvedTx
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
   , additionalSigners :: [PubKeyHash]
-  , -- FIXME
-    signer :: ~(SigningKey PaymentKey)
+  , signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 
@@ -141,6 +137,9 @@ data TxResolutionError
 -- | Ability to send transaction to chain
 class (MonadQueryUtxo m) => MonadSubmitTx m where
   submitResolvedTx :: ResolvedTx -> m (Either TxSubmittingError TxId)
+  submitResolvedTxRet ::
+    ResolvedTx ->
+    m (Either TxSubmittingError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 
 -- | Stuff needed to use monad for local testing
 class (MonadSubmitTx m) => MonadTest m where

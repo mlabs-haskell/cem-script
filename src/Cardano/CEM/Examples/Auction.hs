@@ -1,5 +1,7 @@
 {-# LANGUAGE NoPolyKinds #-}
 
+-- {-# OPTIONS_GHC -Wno-unrecognised-pragmas -ddump-splices #-}
+
 module Cardano.CEM.Examples.Auction where
 
 import PlutusTx.Prelude
