@@ -18,8 +18,8 @@ module Oura.Communication (
   Interval (MkIntervalMs, unIntervalMs),
 ) where
 
-import Prelude
-
+import Cardano.CEM.Indexing.Oura (SinkPath, SourcePath (MkSourcePath), unSinkPath)
+import Cardano.CEM.Indexing.Oura qualified as Indexing
 import Control.Concurrent (
   Chan,
   ThreadId,
@@ -31,35 +31,26 @@ import Control.Concurrent (
   threadDelay,
   writeList2Chan,
  )
-import Control.Monad (forever)
-import Data.ByteString qualified as BS
-import Data.Foldable (for_)
-import Data.Text qualified as T
-import Data.Traversable (for)
-import Network.Socket qualified as Socket
-import Network.Socket.ByteString qualified as Socket.BS
-
-import Prelude
-
-import Cardano.CEM.Indexing.Oura qualified as Indexing
-import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (Async)
 import Control.Concurrent.Async qualified as Async
-import Control.Monad (void)
+import Control.Monad (forever, void)
 import Control.Monad.Cont (ContT (ContT, runContT))
 import Control.Monad.Trans (lift)
 import Data.ByteString qualified as BS
+import Data.ByteString.Char8 qualified as BS.Char8
+import Data.Foldable (for_)
 import Data.String (IsString (fromString))
 import Data.Text qualified as T
 import Data.Text.IO qualified as T.IO
+import Data.Traversable (for)
+import Network.Socket qualified as Socket
+import Network.Socket.ByteString qualified as Socket.BS
 import System.Directory (removeFile)
 import System.Process qualified as Process
 import Toml (Table)
 import Utils (withNewFile)
 import Utils qualified
-
-import Cardano.CEM.Indexing.Oura (SinkPath, SourcePath (MkSourcePath), unSinkPath)
-import Data.ByteString.Char8 qualified as BS.Char8
+import Prelude
 
 {- | A time required for oura to start up and create a socket,
 in microseconds.

@@ -111,7 +111,7 @@ class
 type EqShow datatype =
   ( Prelude.Eq datatype
   , Prelude.Show datatype
-  -- TODO: add IsData here? (now it breaks Plutus compilation)
+  -- Shoul we add IsData here? (now it breaks Plutus compilation)
   )
 
 {- | All associated types for 'CEMScript' class defined separately to simplify
@@ -223,7 +223,7 @@ data TxFanKind
 -- | Constraint on a single tx fan
 data TxFanFilter script = MkTxFanFilter
   { address :: AddressSpec
-  , rest :: FilterDatum script -- TODO: not ideal naming
+  , datumFilter :: FilterDatum script
   }
   deriving stock (Show, Prelude.Eq)
 
@@ -252,8 +252,8 @@ bySameCEM = UnsafeBySameCEM . toBuiltinData
 
 -- | How many tx fans should satify a 'TxFansConstraint'
 data Quantifier
-  = ExactlyNFans Integer -- TODO: use natural numbers
-  | FansWithTotalValueOfAtLeast Value -- TODO: use natural numbers
+  = ExactlyNFans Integer -- Here we'd better use natural numbers
+  | FansWithTotalValueOfAtLeast Value
   deriving stock (Show)
 
 -- | A constraint on Tx inputs or Outputs.

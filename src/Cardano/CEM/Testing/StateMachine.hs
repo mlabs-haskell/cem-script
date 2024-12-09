@@ -1,27 +1,30 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{- | Generic utils for using `quickcheck-dynamic`
-FIXME: refactor and add documentation
--}
+-- | Generic utils for using `quickcheck-dynamic`
 module Cardano.CEM.Testing.StateMachine where
 
 import Prelude
 
+import Cardano.Api (PaymentKey, SigningKey, Value)
+import Cardano.CEM (CEMParams (..))
+import Cardano.CEM hiding (scriptParams)
+import Cardano.CEM.Monads (CEMAction (..), MonadSubmitTx (..), ResolvedTx (..), SomeCEMAction (..), TxSpec (..))
+import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
+import Cardano.CEM.OffChain
+import Cardano.CEM.OnChain (CEMScriptCompiled)
+import Cardano.Extras (signingKeyToPKH)
+import Clb (ClbT)
 import Control.Monad (void)
 import Control.Monad.Except (ExceptT (..), runExceptT)
 import Control.Monad.Trans (MonadIO (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Typeable)
 import Data.List (permutations)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (isJust, mapMaybe)
 import Data.Set qualified as Set
-
+import Data.Spine (HasSpine (..), deriveSpine)
 import PlutusLedgerApi.V1 (PubKeyHash)
 import PlutusTx.IsData (FromData (..))
-
-import Cardano.Api (PaymentKey, SigningKey, Value)
-
-import Clb (ClbT)
 import Test.QuickCheck
 import Test.QuickCheck.DynamicLogic (DynLogicModel)
 import Test.QuickCheck.Gen qualified as Gen
@@ -38,16 +41,6 @@ import Test.QuickCheck.StateModel (
  )
 import Text.Show.Pretty (ppShow)
 
-import Cardano.CEM (CEMParams (..))
-import Cardano.CEM hiding (scriptParams)
-import Cardano.CEM.Monads (CEMAction (..), MonadSubmitTx (..), ResolvedTx (..), SomeCEMAction (..), TxSpec (..))
-import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
-import Cardano.CEM.OffChain
-import Cardano.CEM.OnChain (CEMScriptCompiled)
-import Cardano.Extras (signingKeyToPKH)
-import Data.Spine (HasSpine (..), deriveSpine)
-
--- FIXME: add more mutations and documentation
 data TxMutation = RemoveTxFan TxFanKind | ShuffleTxFan TxFanKind Int
   deriving stock (Eq, Show)
 
@@ -180,10 +173,9 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   -- Unreachable
   precondition _ _ = False
 
-  -- XXX: Check on ScriptState and it fields is required for shrinking
-  -- FIXME: docs on QD generation hacks
+  -- Check on ScriptState and it fields is required for shrinking
   validFailingAction (ScriptState {finished, state}) (ScriptTransition _ mutation) =
-    isNegativeMutation mutation && state /= Nothing && not finished
+    isNegativeMutation mutation && isJust state && not finished
   validFailingAction _ _ = False
 
   nextState Void (SetupConfig config) _var = ConfigSet config
@@ -216,7 +208,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
             error
               "This StateModel instance support only with single-output scripts"
         outStates spec = mapMaybe decodeOutState $ constraints spec
-        decodeOutState c = case rest (txFansCFilter c) of
+        decodeOutState c = case datumFilter (txFansCFilter c) of
           UnsafeBySameCEM stateBS ->
             fromBuiltinData @(State script) stateBS
           _ -> Nothing
@@ -336,7 +328,7 @@ runActionsInClb ::
 runActionsInClb genesisValue actions =
   monadic (ioProperty . execOnIsolatedClb genesisValue) $
     void $
-      runActions @(ScriptState state) @(ClbRunner) actions
+      runActions @(ScriptState state) @ClbRunner actions
 
 -- Orphans
 

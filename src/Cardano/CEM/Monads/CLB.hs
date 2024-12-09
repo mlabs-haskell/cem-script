@@ -60,14 +60,14 @@ instance
   queryBlockchainParams = do
     protocolParameters <- gets (mockConfigProtocol . mockConfig)
     slotConfig <- gets (mockConfigSlotConfig . mockConfig)
-    eraHistory <- LedgerEpochInfo <$> getEpochInfo
+    ledgerEpochInfo <- LedgerEpochInfo <$> getEpochInfo
     let systemStart =
           SystemStart $ posixTimeToUTCTime $ scSlotZeroTime slotConfig
     return $
       MkBlockchainParams
         { protocolParameters
         , systemStart
-        , eraHistory
+        , ledgerEpochInfo
         , -- Staking is not supported
           stakePools = Set.empty
         }
