@@ -12,7 +12,6 @@ import Cardano.CEM.Indexing.Tx
 import Cardano.CEM.OnChain (CEMScriptCompiled)
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens (view, (^.))
-import Data.Bifunctor (first)
 import Data.ByteString.Base16 qualified as B16
 import Data.Data (Proxy (Proxy))
 import Data.Either.Extra (eitherToMaybe)
@@ -92,12 +91,7 @@ extractEvent network tx = do
   let mTargetSpine :: Maybe (Spine (State script)) = getSpine <$> mTargetState
 
   -- Look up the transition
-  let transitions =
-        -- first
-        -- (\(_, b, c) -> (b, c))
-        -- .
-        swap
-          <$> Map.toList (transitionStage $ Proxy @script)
+  let transitions = swap <$> Map.toList (transitionStage $ Proxy @script)
   let transSpine = lookup (mSourceSpine, mTargetSpine) transitions
 
   -- Return

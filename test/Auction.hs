@@ -21,7 +21,7 @@ import TestNFT (testNftAssetClass)
 import Utils (
   execClb,
   mintTestTokens,
-  perTransitionStats,
+  -- perTransitionStats,
   submitAndCheck,
   submitCheckReturn,
  )
