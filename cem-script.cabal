@@ -36,8 +36,8 @@ common common-lang
 
   build-depends:
     , base
-    , extra
     , containers
+    , extra
     , mtl
     , transformers
 
