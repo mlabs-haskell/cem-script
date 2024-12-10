@@ -36,7 +36,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
           , txInsCollateral =
               TxInsCollateral AlonzoEraOnwardsBabbage feeTxIns
           , txInsReference =
-              TxInsReference BabbageEraOnwardsBabbage txInsReference
+              TxInsReference BabbageEraOnwardsBabbage txInRefs
           , txOuts
           , txMintValue = toMint
           , -- Adding all keys here, cuz other way `txSignedBy` does not see those

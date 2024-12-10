@@ -6,10 +6,10 @@ module Cardano.CEM.Indexing.Event where
 import Cardano.Api qualified as C
 import Cardano.Api.ScriptData qualified as C
 import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
-import Cardano.CEM (CEMScript, CEMScriptDatum, State, Transition, transitionStage)
+import Cardano.CEM (CEMScript, CEMScriptDatum, State, Transition)
 import Cardano.CEM.Address qualified as Address
 import Cardano.CEM.Indexing.Tx
-import Cardano.CEM.OnChain (CEMScriptCompiled, CEMScriptIsData)
+import Cardano.CEM.OnChain (CEMScriptCompiled)
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens (view, (^.))
 import Data.Bifunctor (first)
@@ -71,7 +71,6 @@ during its development.
 extractEvent ::
   forall script.
   ( CEMScript script
-  , CEMScriptIsData script
   , CEMScriptCompiled script
   ) =>
   Ledger.Network ->
@@ -97,7 +96,8 @@ extractEvent network tx = do
         first
           (\(_, b, c) -> (b, c))
           . swap
-          <$> Map.toList (transitionStage $ Proxy @script)
+          -- <$> Map.toList (transitionStage $ Proxy @script)
+          <$> Map.toList (undefined $ Proxy @script) -- TODO: backport transitionStage
   let transSpine = lookup (mSourceSpine, mTargetSpine) transitions
 
   -- Return
@@ -128,7 +128,7 @@ extractState MkTxOutput {_datum = mDtm} =
                 . C.deserialiseFromCBOR C.AsHashableScriptData
                 . B16.decodeBase16Lenient -- use base64
                 . encodeUtf8
-      let ~(Just (_, _, state)) = PlutusLedgerApi.V1.fromData @(CEMScriptDatum script) datumAsData
+      let ~(Just (_, state)) = PlutusLedgerApi.V1.fromData @(CEMScriptDatum script) datumAsData
       pure state
 
 hasAddr :: C.Address C.ShelleyAddr -> TxOutput -> Bool

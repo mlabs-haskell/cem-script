@@ -23,11 +23,9 @@ import Cardano.Extras
 
 -- CEMAction and TxSpec
 
-data CEMAction script
-  = MkCEMAction (CEMParams script) (Transition script)
+data CEMAction script = MkCEMAction (Params script) (Transition script)
 
-deriving stock instance
-  (CEMScript script) => Show (CEMAction script)
+deriving stock instance (CEMScript script) => Show (CEMAction script)
 
 data SomeCEMAction where
   MkSomeCEMAction ::
@@ -101,7 +99,7 @@ class (MonadBlockchainParams m) => MonadQueryUtxo m where
 
 data ResolvedTx = MkResolvedTx
   { txIns :: [(TxIn, TxInWitness)]
-  , txInsReference :: [TxIn]
+  , txInRefs :: [TxIn]
   , txOuts :: [TxOut CtxTx Era]
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
@@ -122,16 +120,17 @@ data TxSubmittingError
 
 -- | Error occurred while trying to execute CEMScript transition
 data TransitionError
-  = StateMachineError
-      { errorMessage :: String
-      }
-  | MissingTransitionInput
+  = CannotFindTransitionInput
+  | CompilationError String
+  | SpecExecutionError {errorMessage :: String}
   deriving stock (Show, Eq)
 
 data TxResolutionError
-  = TxSpecIsIncorrect
-  | MkTransitionError SomeCEMAction TransitionError
-  | UnhandledSubmittingError TxSubmittingError
+  = CEMScriptTxInResolutionError
+  | -- FIXME: record transition and action involved
+    PerTransitionErrors [TransitionError]
+  | -- FIXME: this is weird
+    UnhandledSubmittingError TxSubmittingError
   deriving stock (Show)
 
 -- | Ability to send transaction to chain

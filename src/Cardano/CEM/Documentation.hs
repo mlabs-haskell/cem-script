@@ -7,17 +7,21 @@ import Data.Map qualified as Map
 import Data.Proxy
 
 import Cardano.CEM
+import Cardano.CEM.DSL (transitionStateSpines)
+import Data.Spine (allSpines)
 
 dotStyling :: String
 dotStyling =
   "rankdir=LR;\n"
     <> "node [shape=\"dot\",fontsize=14,fixedsize=true,width=1.5];\n"
-    <> "edge [fontsize=11];"
-    <> "\"Void In\" [color=\"orange\"];"
-    <> "\"Void Out\" [color=\"orange\"];"
+    <> "edge [fontsize=11];\n"
+    <> "\"Void In\" [color=\"orange\"];\n"
+    <> "\"Void Out\" [color=\"orange\"];\n"
 
-cemDotGraphString :: (CEMScript script) => String -> Proxy script -> String
-cemDotGraphString name proxy =
+-- FIXME: cover with golden test
+cemDotGraphString ::
+  forall script. (CEMScript script) => String -> Proxy script -> String
+cemDotGraphString name _proxy =
   "digraph "
     <> name
     <> " {\n"
@@ -30,15 +34,18 @@ cemDotGraphString name proxy =
     stripSpineSuffix = reverse . drop 5 . reverse
     edges =
       fold $
-        [ maybe "\"Void In\"" showSpine from
+        [ from
           <> " -> "
-          <> maybe "\"Void Out\"" showSpine to
+          <> to
           <> " [label=\""
           <> showSpine transition
-          <> " (stage "
-          <> show stage
-          <> ")"
           <> "\"]; \n"
-        | (transition, (stage, from, to)) <-
-            Map.assocs $ transitionStage proxy
+        | transition <- allSpines @(Transition script)
+        , from <- get In transition
+        , to <- get Out transition
         ]
+    get kind transition =
+      case transitionStateSpines kind $
+        perTransitionScriptSpec @script Map.! transition of
+        [] -> ["\"Void " <> show kind <> "\""]
+        x -> map showSpine x

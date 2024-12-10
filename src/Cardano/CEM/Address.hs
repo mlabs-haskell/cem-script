@@ -1,9 +1,9 @@
 module Cardano.CEM.Address (
+  AddressBech32 (MkAddressBech32, unAddressBech32),
+  cardanoAddressBech32,
   scriptCredential,
   scriptCardanoAddress,
-  cardanoAddressBech32,
   plutusAddressToShelleyAddress,
-  AddressBech32 (MkAddressBech32, unAddressBech32),
 ) where
 
 import Cardano.Api qualified
@@ -18,7 +18,7 @@ import Cardano.Ledger.Keys qualified as Ledger.Keys
 import Data.Proxy (Proxy)
 import Data.String (IsString)
 import Data.Text qualified as T
-import Plutus.Extras qualified
+import Plutarch.LedgerApi (scriptHash)
 import PlutusLedgerApi.V1 qualified
 import Prelude
 
@@ -47,7 +47,7 @@ scriptCredential ::
   PlutusLedgerApi.V1.Credential
 scriptCredential p =
   PlutusLedgerApi.V1.ScriptCredential
-    . Plutus.Extras.scriptValidatorHash
+    . scriptHash
     . Compiled.cemScriptCompiled
     $ p
 
@@ -78,12 +78,12 @@ plutusAddressToShelleyAddress network (PlutusLedgerApi.V1.Address payment stake)
             (PlutusLedgerApi.V1.fromBuiltin pkh)
     credentialToCardano
       ( PlutusLedgerApi.V1.ScriptCredential
-          (PlutusLedgerApi.V1.ScriptHash scriptHash)
+          (PlutusLedgerApi.V1.ScriptHash hash)
         ) =
         Cred.ScriptHashObj
           . Cardano.Ledger.Hashes.ScriptHash
           <$> Cardano.Hash.hashFromBytes
-            (PlutusLedgerApi.V1.fromBuiltin scriptHash)
+            (PlutusLedgerApi.V1.fromBuiltin hash)
 
     paymentCredential = credentialToCardano payment
     stakeCredential = case stake of

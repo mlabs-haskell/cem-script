@@ -98,7 +98,7 @@ mintTestTokens userSk numMint = do
     tx =
       MkResolvedTx
         { txIns = map withKeyWitness user1TxIns
-        , txInsReference = []
+        , txInRefs = []
         , txOuts = [out]
         , toMint =
             mintedTokens
@@ -115,7 +115,7 @@ mintTestTokens userSk numMint = do
 checkTxCreated ::
   (MonadQueryUtxo m, MonadIO m) => TxId -> m ()
 checkTxCreated txId = do
-  -- TODO: better out checks
+  -- FIXME: better checks for tests
   awaitTx txId
   let
     txIn = TxIn txId (TxIx 0)

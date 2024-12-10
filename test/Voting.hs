@@ -1,10 +1,22 @@
 module Voting (votingSpec) where
 
-import Cardano.CEM
+import Prelude hiding (readFile)
+
+import Control.Monad.IO.Class (MonadIO (..))
+import Data.Proxy
+
+import GHC.IsList
+import Text.Show.Pretty (ppShow)
+
+import Plutarch.Script
+
+import Test.Hspec (describe, it, shouldBe)
+
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Examples.Voting
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
+import Cardano.CEM.OnChain
 import Cardano.Extras (signingKeyToPKH)
 import Control.Monad.IO.Class (MonadIO (..))
 import Test.Hspec (describe, shouldBe)
@@ -12,16 +24,16 @@ import Utils
 import Prelude hiding (readFile)
 
 votingSpec = describe "Voting" $ do
-  let ignoreTest (_name :: String) = const (return ())
-
-  -- TODO: fix Voting budget
-  -- https://github.com/mlabs-haskell/cem-script/issues/108
-  -- https://github.com/mlabs-haskell/clb/issues/50
-  ignoreTest "Successfull flow" $
+  it "Serialise" $ do
+    let !script = cemScriptCompiled (Proxy :: Proxy SimpleVoting)
+    putStrLn $
+      "Script bytes: "
+        <> show (length $ toList $ serialiseScript script)
+  it "Successful flow" $
     execClb $ do
       jury1 : jury2 : creator : _ <- getTestWalletSks
       let
-        params' =
+        params =
           MkVotingParams
             { disputeDescription = "Test dispute"
             , creator = signingKeyToPKH creator
@@ -30,7 +42,6 @@ votingSpec = describe "Voting" $ do
             , abstainAllowed = True
             , drawDecision = Abstain
             }
-        params = MkCEMParams params' NoSingleStageParams
         mkAction = MkSomeCEMAction . MkCEMAction params
 
       -- Create
@@ -54,6 +65,9 @@ votingSpec = describe "Voting" $ do
           , specSigner = jury1
           }
 
+      stats <- perTransitionStats
+      liftIO $ putStrLn $ ppShow stats
+
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction $ Vote (signingKeyToPKH jury2) No]
@@ -64,8 +78,11 @@ votingSpec = describe "Voting" $ do
       submitAndCheck $
         MkTxSpec
           { actions = [mkAction Finalize]
-          , specSigner = jury2
+          , specSigner = creator
           }
+
+      stats <- perTransitionStats
+      liftIO $ putStrLn $ ppShow stats
 
       Just state <- queryScriptState params
       liftIO $ state `shouldBe` Finalized Abstain

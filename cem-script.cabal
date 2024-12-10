@@ -37,6 +37,7 @@ common common-lang
   build-depends:
     , base
     , extra
+    , containers
     , mtl
     , transformers
 
@@ -50,9 +51,10 @@ common common-lang
     GADTs
     LambdaCase
     NoImplicitPrelude
-    NoPolyKinds
+    OverloadedRecordDot
     OverloadedStrings
     PatternSynonyms
+    PolyKinds
     QuantifiedConstraints
     StrictData
     TemplateHaskell
@@ -104,11 +106,12 @@ common common-offchain
     , cardano-ledger-babbage
     , cardano-ledger-core
     , cardano-ledger-shelley
-    , containers
     , filepath
     , ouroboros-network-protocols
     , pretty-show
+    , prettyprinter
     , retry
+    , singletons-th
     , text
     , time
     , unix
@@ -120,7 +123,10 @@ common common-executable
 library data-spine
   import:          common-lang
   hs-source-dirs:  src-lib/data-spine
+
+  -- FIXME: was not meant to be dependent on Plutus...
   build-depends:
+    , plutus-tx
     , singletons
     , template-haskell
 
@@ -135,6 +141,7 @@ library cardano-extras
   build-depends:   template-haskell
   exposed-modules:
     Cardano.Extras
+    Plutarch.Extras
     Plutus.Extras
 
 library
@@ -147,6 +154,7 @@ library
     Cardano.CEM
     Cardano.CEM.Address
     Cardano.CEM.Documentation
+    Cardano.CEM.DSL
     Cardano.CEM.Examples.Auction
     Cardano.CEM.Examples.Compilation
     Cardano.CEM.Examples.Voting
