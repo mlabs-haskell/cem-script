@@ -22,9 +22,14 @@ import PlutusLedgerApi.V1.Value (assetClassValue)
 
 import Test.Hspec (describe, it, shouldBe)
 import TestNFT (testNftAssetClass)
-import Utils (
-  execClb, mintTestTokens, submitAndCheck, submitCheckReturn, perTransitionStats)
 import Text.Show.Pretty (ppShow)
+import Utils (
+  execClb,
+  mintTestTokens,
+  perTransitionStats,
+  submitAndCheck,
+  submitCheckReturn,
+ )
 
 auctionSpec = describe "AuctionSpec" $ do
   it "Serialise" $ do

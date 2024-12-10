@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use fewer imports" #-}
 
 -- | Generic utils for using `quickcheck-dynamic`
@@ -7,8 +8,19 @@ module Cardano.CEM.Testing.StateMachine where
 
 import Prelude
 
-import Cardano.Api (PaymentKey, SigningKey, Value)
-import Cardano.CEM.Monads (CEMAction (..), MonadSubmitTx (..), ResolvedTx (..), SomeCEMAction (..), TxSpec (..))
+import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
+import Cardano.CEM (CEMScript, CEMScriptTypes (Params, State, Transition), TxConstraint (TxFan), TxFanFilterNew (SameScript), TxFanKind (Out))
+import Cardano.CEM.DSL (getMainSigner)
+import Cardano.CEM.Monads (
+  BlockchainMonadEvent (..),
+  CEMAction (..),
+  MonadBlockchainParams (..),
+  MonadSubmitTx (..),
+  ResolvedTx (..),
+  SomeCEMAction (..),
+  TxResolutionError (..),
+  TxSpec (..),
+ )
 import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
 import Cardano.CEM.OffChain
 import Cardano.CEM.OnChain (CEMScriptCompiled)
@@ -24,7 +36,6 @@ import Data.Maybe (isJust, mapMaybe)
 import Data.Set qualified as Set
 import Data.Spine (HasSpine (..), deriveSpine)
 import PlutusLedgerApi.V1 (PubKeyHash)
-import Cardano.Api (TxId)
 import Test.QuickCheck
 import Test.QuickCheck.DynamicLogic (DynLogicModel)
 import Test.QuickCheck.Gen qualified as Gen
@@ -40,13 +51,6 @@ import Test.QuickCheck.StateModel (
   runActions,
  )
 import Text.Show.Pretty (ppShow)
-import Cardano.CEM.DSL (getMainSigner)
-import Cardano.CEM.Monads (
-  BlockchainMonadEvent (..),
-  MonadBlockchainParams (..),
-  TxResolutionError (..),
- )
-import Cardano.CEM (TxConstraint (TxFan), CEMScriptTypes (Params, State, Transition), CEMScript, TxFanKind (Out), TxFanFilterNew (SameScript))
 
 -- FIXME: add more mutations and documentation
 data TxMutation
