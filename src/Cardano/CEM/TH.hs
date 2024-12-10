@@ -76,7 +76,7 @@ deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
 
 compileCEM :: Bool -> Name -> Q [Dec]
 compileCEM debugBuild name = do
-  -- FIXIT: two duplicating cases on `transitionComp`
+  -- TODO: two duplicating cases on `transitionComp`
   let plutusScript =
         [|
           \a b c -> case transitionComp @($(conT name)) of

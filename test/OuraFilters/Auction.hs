@@ -8,7 +8,6 @@ import Cardano.CEM.Examples.Auction qualified as Auction
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Indexing.Oura qualified as OuraConfig
 import Cardano.CEM.Indexing.Tx qualified as Tx
-import Cardano.CEM.OnChain qualified as Compiled
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens ((%~), (.~))
 import Control.Monad ((>=>))
@@ -20,7 +19,6 @@ import Data.Data (Proxy (Proxy))
 import Data.Text qualified as T
 import Oura.Communication qualified as Oura
 import OuraFilters.Mock qualified as Mock
-import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
 import System.Process (ProcessHandle)
 import Test.Hspec (describe, focus, it, shouldBe)

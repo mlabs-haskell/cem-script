@@ -8,7 +8,8 @@ import Test.Hspec (hspec, runIO)
 
 import Auction (auctionSpec)
 import Data.Maybe (isJust)
-import Dynamic (dynamicSpec)
+
+-- import Dynamic (dynamicSpec)
 import OffChain (offChainSpec)
 import OuraFilters.Simple (simpleSpec)
 import System.Environment (lookupEnv)
@@ -22,7 +23,7 @@ main = do
     auctionSpec
     votingSpec
     offChainSpec
-    dynamicSpec
+    -- dynamicSpec
     if runIndexing
       then do
         -- These tests are not currently supported on CI

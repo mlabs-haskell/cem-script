@@ -3,20 +3,16 @@
 
 module Cardano.CEM.Examples.Auction where
 
+import Cardano.CEM
+import Cardano.CEM.TH (deriveCEMAssociatedTypes)
+import Data.Map qualified as Map
+import Data.Spine (derivePlutusSpine)
+import PlutusLedgerApi.V1.Crypto (PubKeyHash)
+import PlutusLedgerApi.V2 (Value)
 import PlutusTx.Prelude
 import Prelude qualified
 
-import Data.Map qualified as Map
-
-import PlutusLedgerApi.V1.Crypto (PubKeyHash)
-import PlutusLedgerApi.V2 (Value)
-
-import Cardano.CEM
-import Cardano.CEM.TH (deriveCEMAssociatedTypes)
-import Data.Spine
-
--- Simple no-deposit auction
-
+-- | Simple no-deposit auction
 data SimpleAuction
 
 data Bid = MkBet

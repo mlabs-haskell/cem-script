@@ -31,25 +31,23 @@ cardanoAddressBech32 = MkAddressBech32 . Cardano.Api.serialiseToBech32
 scriptCardanoAddress ::
   forall script.
   (Compiled.CEMScriptCompiled script) =>
-  Proxy script ->
   Cardano.Api.Ledger.Network ->
+  Proxy script ->
   Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
-scriptCardanoAddress p network =
+scriptCardanoAddress network =
   plutusAddressToShelleyAddress network
     . flip PlutusLedgerApi.V1.Address Nothing
     . scriptCredential
-    $ p
 
 scriptCredential ::
   forall script.
   (Compiled.CEMScriptCompiled script) =>
   Proxy script ->
   PlutusLedgerApi.V1.Credential
-scriptCredential p =
+scriptCredential =
   PlutusLedgerApi.V1.ScriptCredential
     . scriptHash
     . Compiled.cemScriptCompiled
-    $ p
 
 plutusAddressToShelleyAddress ::
   Cardano.Api.Ledger.Network ->

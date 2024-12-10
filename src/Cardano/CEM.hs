@@ -4,26 +4,18 @@
 -- FIXME: move all lib functions (`LiftPlutarch`s) to another module
 module Cardano.CEM where
 
-import Prelude
-
 import Data.Map qualified as Map
 import Data.Maybe (fromJust)
+import Data.Singletons.TH
+import Data.Spine (HasPlutusSpine, HasSpine (..), derivePlutusSpine, spineFieldsNum)
+import Data.Text (Text)
 import GHC.OverloadedLabels (IsLabel (..))
 import GHC.Records (HasField (..))
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
-import Unsafe.Coerce (unsafeCoerce)
-
--- Plutus imports
-import PlutusLedgerApi.V1.Crypto (PubKeyHash)
-import PlutusLedgerApi.V2 (ToData (..), Value)
-import PlutusTx qualified
-import PlutusTx.Builtins qualified as PlutusTx
-
-import Data.Singletons.TH
-import Data.Text (Text)
 import Plutarch (Config (..), (#))
 import Plutarch.Builtin (PIsData)
 import Plutarch.Evaluate (evalTerm)
+import Plutarch.Extras
 import Plutarch.LedgerApi (KeyGuarantees (..))
 import Plutarch.LedgerApi.Value
 import Plutarch.Lift (PUnsafeLiftDecl (..), pconstant, plift)
@@ -37,11 +29,13 @@ import Plutarch.Prelude (
   (#&&),
   (:-->),
  )
+import PlutusLedgerApi.V1.Crypto (PubKeyHash)
+import PlutusLedgerApi.V2 (ToData (..), Value)
 import PlutusLedgerApi.V2.Contexts (TxInfo)
-
--- Project imports
-import Data.Spine (HasPlutusSpine, HasSpine (..), derivePlutusSpine, spineFieldsNum)
-import Plutarch.Extras
+import PlutusTx qualified
+import PlutusTx.Builtins qualified as PlutusTx
+import Unsafe.Coerce (unsafeCoerce)
+import Prelude
 
 data CVar = CParams | CState | CTransition | CComp | CTxInfo
   deriving stock (Show)
@@ -60,18 +54,18 @@ type family DSLPattern (resolved :: Bool) script value where
 data TxFanKind = In | InRef | Out
   deriving stock (Prelude.Eq, Prelude.Show)
 
-data TxFanFilterNew (resolved :: Bool) script
+data TxFanFilter (resolved :: Bool) script
   = UserAddress (DSLValue resolved script PubKeyHash)
   | -- FIXME: should have spine been specified known statically
     SameScript (DSLValue resolved script (State script))
 
-deriving stock instance (CEMScript script) => (Show (TxFanFilterNew True script))
-deriving stock instance (Show (TxFanFilterNew False script))
+deriving stock instance (CEMScript script) => (Show (TxFanFilter True script))
+deriving stock instance (Show (TxFanFilter False script))
 
 data TxConstraint (resolved :: Bool) script
   = TxFan
       { kind :: TxFanKind
-      , cFilter :: TxFanFilterNew resolved script
+      , cFilter :: TxFanFilter resolved script
       , value :: DSLValue resolved script Value
       }
   | MainSignerCoinSelect
@@ -479,7 +473,7 @@ type CEMScriptSpec resolved script =
       [TxConstraint resolved script]
   )
 
-data CompilationConfig = MkCompilationConfig
+newtype CompilationConfig = MkCompilationConfig
   { errorCodesPrefix :: String
   }
 

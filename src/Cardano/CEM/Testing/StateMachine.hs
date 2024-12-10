@@ -9,7 +9,7 @@ module Cardano.CEM.Testing.StateMachine where
 import Prelude
 
 import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
-import Cardano.CEM (CEMScript, CEMScriptTypes (Params, State, Transition), TxConstraint (TxFan), TxFanFilterNew (SameScript), TxFanKind (Out))
+import Cardano.CEM (CEMScript, CEMScriptTypes (Params, State, Transition), TxConstraint (TxFan), TxFanFilter (SameScript), TxFanKind (Out))
 import Cardano.CEM.DSL (getMainSigner)
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),

@@ -68,7 +68,7 @@ ouraMonitoringScript p network sourcePath sinkPath =
     . pure
     . selectByAddress
     . Address.cardanoAddressBech32
-    <$> Address.scriptCardanoAddress p network
+    <$> Address.scriptCardanoAddress network p
 
 cursor :: Toml.Table
 cursor =

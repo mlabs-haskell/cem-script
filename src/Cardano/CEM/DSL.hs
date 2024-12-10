@@ -1,19 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.CEM.DSL where
 
-import Prelude
-
-import Data.Map qualified as Map
-
-import Data.Text (pack, unpack)
-import Text.Show.Pretty (ppShowList)
-
 import Cardano.CEM
+import Data.Map qualified as Map
 import Data.Maybe (listToMaybe, mapMaybe)
 import Data.Spine (HasSpine (..))
+import Data.Text (pack, unpack)
 import PlutusLedgerApi.V1 (PubKeyHash)
+import Text.Show.Pretty (ppShowList)
+import Prelude
 
 -- Generic check datatypes
 
@@ -44,11 +40,9 @@ sameScriptStateSpinesOfKind ::
   TxConstraint False script ->
   [Spine (State script)]
 sameScriptStateSpinesOfKind xKind constr = case constr of
-  TxFan kind (SameScript state) _ ->
-    if kind == xKind then [parseSpine state] else []
-  If _ t e -> recur t <> (recur e)
-  MatchBySpine _ caseSwitch ->
-    foldMap recur (Map.elems caseSwitch)
+  TxFan kind (SameScript state) _ -> [parseSpine state | kind == xKind]
+  If _ t e -> recur t <> recur e
+  MatchBySpine _ caseSwitch -> foldMap recur (Map.elems caseSwitch)
   _ -> []
   where
     recur = sameScriptStateSpinesOfKind xKind
@@ -58,8 +52,7 @@ sameScriptStateSpinesOfKind xKind constr = case constr of
     parseSpine (UnsafeOfSpine spine _) = spine
     parseSpine (UnsafeUpdateOfSpine _ spine _) = spine
     -- FIXME: yet another not-properly DSL type encoded place
-    parseSpine _ =
-      error "SameScript is too complex to statically know its spine"
+    parseSpine _ = error "SameScript is too complex to statically know its spine"
 
 isSameScriptOfKind :: TxFanKind -> TxConstraint resolved script -> CheckResult
 isSameScriptOfKind xKind constr = case constr of

@@ -76,8 +76,8 @@ extractEvent ::
   Tx ->
   IO (Maybe (IndexerEvent script))
 extractEvent network tx = do
-  -- Script payemnt credential based predicate
-  let ~(Right scriptAddr) = Address.scriptCardanoAddress (Proxy @script) network
+  -- Script payment credential based predicate
+  let ~(Right scriptAddr) = Address.scriptCardanoAddress network (Proxy @script)
   let cPred = hasAddr scriptAddr
 
   -- Source state
