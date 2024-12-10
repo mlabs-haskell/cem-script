@@ -512,6 +512,18 @@ class
 
   compilationConfig :: CompilationConfig
 
+  -- \| This is the map of all possible machine 'Transition's.
+  --          This statically associates every 'Transition' with
+  --          a 'Stage' through source/target 'State's.
+  transitionStage ::
+    Proxy script ->
+    Map.Map
+      (Spine (Transition script))
+      ( Maybe (Spine (State script)) -- source 'State'
+      , Maybe (Spine (State script)) -- target 'State'
+      )
+  transitionStage _ = Map.empty
+
 -- FIXME: No need to use type synonym anymore (was needed due to Plutus)
 type CEMScriptDatum script = (Params script, State script)
 

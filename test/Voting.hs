@@ -1,17 +1,5 @@
 module Voting (votingSpec) where
 
-import Prelude hiding (readFile)
-
-import Control.Monad.IO.Class (MonadIO (..))
-import Data.Proxy
-
-import GHC.IsList
-import Text.Show.Pretty (ppShow)
-
-import Plutarch.Script
-
-import Test.Hspec (describe, it, shouldBe)
-
 import Cardano.CEM.Examples.Compilation ()
 import Cardano.CEM.Examples.Voting
 import Cardano.CEM.Monads
@@ -19,9 +7,14 @@ import Cardano.CEM.OffChain
 import Cardano.CEM.OnChain
 import Cardano.Extras (signingKeyToPKH)
 import Control.Monad.IO.Class (MonadIO (..))
-import Test.Hspec (describe, shouldBe)
+import Data.Proxy
+import GHC.IsList
+import Plutarch.Script
+import Test.Hspec (describe, it, shouldBe)
 import Utils
 import Prelude hiding (readFile)
+
+-- import Text.Show.Pretty (ppShow)
 
 votingSpec = describe "Voting" $ do
   it "Serialise" $ do
@@ -65,8 +58,8 @@ votingSpec = describe "Voting" $ do
           , specSigner = jury1
           }
 
-      stats <- perTransitionStats
-      liftIO $ putStrLn $ ppShow stats
+      -- stats <- perTransitionStats
+      -- liftIO $ putStrLn $ ppShow stats
 
       submitAndCheck $
         MkTxSpec
@@ -81,8 +74,8 @@ votingSpec = describe "Voting" $ do
           , specSigner = creator
           }
 
-      stats <- perTransitionStats
-      liftIO $ putStrLn $ ppShow stats
+      -- stats <- perTransitionStats
+      -- liftIO $ putStrLn $ ppShow stats
 
       Just state <- queryScriptState params
       liftIO $ state `shouldBe` Finalized Abstain

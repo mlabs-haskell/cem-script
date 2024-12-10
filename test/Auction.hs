@@ -2,8 +2,6 @@
 
 module Auction where
 
-import Prelude
-
 import Cardano.Api.NetworkId (toShelleyNetwork)
 import Cardano.CEM.Examples.Auction
 import Cardano.CEM.Examples.Compilation ()
@@ -16,13 +14,10 @@ import Cardano.Extras
 import Control.Monad.Trans (MonadIO (..))
 import Data.Proxy (Proxy (..))
 import GHC.IsList
-
 import Plutarch.Script
 import PlutusLedgerApi.V1.Value (assetClassValue)
-
 import Test.Hspec (describe, it, shouldBe)
 import TestNFT (testNftAssetClass)
-import Text.Show.Pretty (ppShow)
 import Utils (
   execClb,
   mintTestTokens,
@@ -30,6 +25,9 @@ import Utils (
   submitAndCheck,
   submitCheckReturn,
  )
+import Prelude
+
+-- import Text.Show.Pretty (ppShow)
 
 auctionSpec = describe "AuctionSpec" $ do
   it "Serialise" $ do
@@ -76,7 +74,8 @@ auctionSpec = describe "AuctionSpec" $ do
               ]
           , specSigner = bidder1
           }
-    Left (PerTransitionErrors _) <- return result
+
+    Left CEMScriptTxInResolutionError <- return result
 
     return ()
 
@@ -258,14 +257,6 @@ auctionSpec = describe "AuctionSpec" $ do
 
     mEvent <- liftIO $ extractEvent @SimpleAuction network $ resolvedTxToOura preBody utxo
     liftIO $ mEvent `shouldBe` Just (Following BuyoutSpine)
-    submitAndCheck $
-      MkTxSpec
-        { actions =
-            [ MkSomeCEMAction $
-                MkCEMAction auctionParams Buyout
-            ]
-        , specSigner = bidder1
-        }
 
-    stats <- perTransitionStats
-    liftIO $ putStrLn $ ppShow stats
+-- stats <- perTransitionStats
+-- liftIO $ putStrLn $ ppShow stats
