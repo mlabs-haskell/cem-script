@@ -9,7 +9,7 @@ module Cardano.CEM.Testing.StateMachine where
 import Prelude
 
 import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
-import Cardano.CEM (CEMScript, CEMScriptTypes (Params, State, Transition), TxConstraint (TxFan), TxFanFilter (SameScript), TxFanKind (Out))
+import Cardano.CEM (CEMScript, CEMScriptTypes (Params, State, Transition), SameScriptArg (MkSameScriptArg), TxConstraint (TxFan), TxFanFilter (SameScript), TxFanKind (Out))
 import Cardano.CEM.DSL (getMainSigner)
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),
@@ -219,7 +219,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
           _ ->
             error
               "Scripts with >1 SameScript outputs are not supported by QD"
-        f (TxFan Out (SameScript outState) _) = Just outState
+        f (TxFan Out (SameScript (MkSameScriptArg outState)) _) = Just outState
         f _ = Nothing
   nextState _ _ _ = error "Unreachable"
 

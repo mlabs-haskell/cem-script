@@ -74,8 +74,8 @@ instance CEMScript SimpleAuction where
         ( CreateSpine
         ,
           [ MainSignerCoinSelect ctxParams.seller cMinLovelace cEmptyValue
-          , -- , TxFan Out (SameScript $ nullarySpine NotStartedSpine) scriptStateValue
-            TxFan Out (SameScript $ ctxState) scriptStateValue
+          , -- , TxFan Out (SameScript $ MkSameScriptArg ctxState) scriptStateValue
+            TxFan Out (SameScript $ MkSameScriptArg $ nullarySpine @SimpleAuctionState NotStartedSpine) scriptStateValue
           ]
         )
       ,
@@ -85,6 +85,7 @@ instance CEMScript SimpleAuction where
           , TxFan
               Out
               ( SameScript
+                  $ MkSameScriptArg
                   $ cOfSpine CurrentBidSpine [#bid ::= initialBid]
               )
               scriptStateValue
@@ -101,6 +102,7 @@ instance CEMScript SimpleAuction where
           , TxFan
               Out
               ( SameScript
+                  $ MkSameScriptArg
                   $ cOfSpine
                     CurrentBidSpine
                     [#bid ::= ctxTransition.bid]
@@ -116,6 +118,7 @@ instance CEMScript SimpleAuction where
           , TxFan
               Out
               ( SameScript
+                  $ MkSameScriptArg
                   $ cOfSpine WinnerSpine [#bid ::= ctxState.bid]
               )
               scriptStateValue
@@ -160,7 +163,7 @@ instance CEMScript SimpleAuction where
       ownInputInState state =
         TxFan
           In
-          (SameScript $ cUpdateOfSpine' ctxState state)
-          -- (SameScript $  ctxState)
-          -- (SameScript $ Pure $ _ state)
+          (SameScript $ MkSameScriptArg $ cUpdateOfSpine' ctxState state)
+          -- (SameScript $ MkSameScriptArg $ cOfSpine state [])
+          -- (SameScript $ MkSameScriptArg ctxState)
           scriptStateValue

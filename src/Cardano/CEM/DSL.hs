@@ -47,7 +47,7 @@ transitionStateSpines kind spec = concat $ map (sameScriptStateSpinesOfKind kind
       TxConstraint False script ->
       [Spine (State script)]
     sameScriptStateSpinesOfKind xKind constr = case constr of
-      TxFan kind (SameScript state) _ -> [parseSpine state | kind == xKind]
+      TxFan kind (SameScript (MkSameScriptArg state)) _ -> [parseSpine state | kind == xKind]
       If _ t e -> recur t <> recur e
       MatchBySpine _ caseSwitch -> foldMap recur (Map.elems caseSwitch)
       _ -> []

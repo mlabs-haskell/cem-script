@@ -155,7 +155,7 @@ genericPlutarchScript spec code =
                                 #== pfromData (pfield @"address" # txOut)
                            in
                             correctAddress
-                        SameScript expectedState ->
+                        SameScript (MkSameScriptArg expectedState) ->
                           pmatch (pfromData (pfield @"datum" # txOut)) $ \case
                             POutputDatum datum' -> P.do
                               PDatum fanDatum <-

@@ -38,6 +38,7 @@ auctionSpec = describe "AuctionSpec" $ do
   it "Wrong transition resolution error" $ execClb $ do
     seller <- (!! 0) <$> getTestWalletSks
     bidder1 <- (!! 1) <$> getTestWalletSks
+
     let
       auctionParams =
         MkAuctionParams

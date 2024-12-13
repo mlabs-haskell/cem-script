@@ -108,10 +108,18 @@ data TxFanKind
 data TxFanFilter (resolved :: Bool) script
   = UserAddress (DSLValue resolved script PubKeyHash)
   | -- FIXME: should have spine been specified known statically
-    SameScript (DSLValue resolved script (State script))
+    SameScript (SameScriptArg resolved script) -- (DSLValue resolved script (State script))
 
 deriving stock instance (CEMScript script) => (Show (TxFanFilter True script))
 deriving stock instance (Show (TxFanFilter False script))
+
+data SameScriptArg (resolved :: Bool) script where
+  MkSameScriptArg ::
+    DSLValue resolved script (State script) ->
+    SameScriptArg resolved script
+
+deriving stock instance (CEMScript script) => (Show (SameScriptArg True script))
+deriving stock instance (Show (SameScriptArg False script))
 
 -- | Constraints are the root elements of the DSL.
 
@@ -188,6 +196,8 @@ data ConstraintDSL script value where
     ConstraintDSL script sop ->
     Proxy label ->
     ConstraintDSL script value
+  -- | Builds a datatype value from the spine and field setters.
+  -- Used for Out "filters"
   UnsafeOfSpine ::
     forall script datatype spine.
     ( spine ~ Spine datatype
@@ -196,8 +206,8 @@ data ConstraintDSL script value where
     Spine datatype ->
     [RecordSetter (ConstraintDSL script) datatype] ->
     ConstraintDSL script datatype
-  -- FIXME: On-chain compilation bounds `UnsafeUpdateOfSpine` to tuple datum?
-  -- Used with In
+  -- FIXME: Шляпа шляпная
+  -- Used for  In
   UnsafeUpdateOfSpine ::
     forall script datatype spine.
     ( spine ~ Spine datatype
@@ -462,9 +472,10 @@ compileConstraint datum transition c = case c of
     compileDslRecur :: ConstraintDSL script x -> Either String x
     compileDslRecur = compileDsl @script datum transition
     recur = compileConstraint @script datum transition
+    compileFanFilter :: TxFanFilter 'False script -> Either String (TxFanFilter 'True script)
     compileFanFilter fanFilter = case fanFilter of
       UserAddress dsl -> UserAddress <$> compileDslRecur dsl
-      SameScript stateDsl -> SameScript <$> compileDslRecur stateDsl
+      SameScript (MkSameScriptArg stateDsl) -> SameScript . MkSameScriptArg <$> compileDslRecur stateDsl
 
 compileDsl ::
   forall script x.

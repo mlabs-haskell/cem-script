@@ -161,15 +161,15 @@ instance CEMScript SimpleVoting where
       [
         ( CreateSpine
         ,
-          [ TxFan Out (SameScript $ lift NotStarted) cMinLovelace
+          [ TxFan Out (SameScript $ MkSameScriptArg $ lift NotStarted) cMinLovelace
           , MainSignerNoValue ctxParams.creator
           ]
         )
       ,
         ( StartSpine
         ,
-          [ TxFan In (SameScript $ lift NotStarted) cMinLovelace
-          , TxFan Out (SameScript $ lift $ InProgress PMap.empty) cMinLovelace
+          [ TxFan In (SameScript $ MkSameScriptArg $ lift NotStarted) cMinLovelace
+          , TxFan Out (SameScript $ MkSameScriptArg $ lift $ InProgress PMap.empty) cMinLovelace
           , MainSignerNoValue ctxParams.creator
           ]
         )
@@ -185,6 +185,7 @@ instance CEMScript SimpleVoting where
                   , TxFan
                       Out
                       ( SameScript
+                          $ MkSameScriptArg
                           $ cOfSpine
                             InProgressSpine
                             [ #votes
@@ -224,6 +225,7 @@ instance CEMScript SimpleVoting where
           , TxFan
               Out
               ( SameScript
+                  $ MkSameScriptArg
                   $ cOfSpine
                     FinalizedSpine
                     [#votingResult ::= ctxComp.result]
@@ -235,4 +237,4 @@ instance CEMScript SimpleVoting where
       ]
     where
       sameScriptIncOfSpine spine =
-        TxFan In (SameScript $ cUpdateOfSpine ctxState spine []) cMinLovelace
+        TxFan In (SameScript $ MkSameScriptArg $ cUpdateOfSpine ctxState spine []) cMinLovelace

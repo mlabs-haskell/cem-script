@@ -210,7 +210,7 @@ process (MkCEMAction params transition) ec = case ec of
         txOutValue txOut == fromPlutusValue value
           && case fanFilter of
             -- FIXME: refactor DRY
-            SameScript state ->
+            SameScript (MkSameScriptArg state) ->
               cemTxOutDatum txOut
                 == Just
                   ( params
@@ -220,7 +220,7 @@ process (MkCEMAction params transition) ec = case ec of
 
       (address, outTxDatum) = case fanFilter of
         UserAddress pkh -> (pubKeyHashAddress pkh, TxOutDatumNone)
-        SameScript state ->
+        SameScript (MkSameScriptArg state) ->
           ( scriptAddress
           , mkInlineDatum
               ( params
