@@ -362,7 +362,6 @@ class
 
   compilationConfig :: CompilationConfig
 
-
 type DefaultConstraints datatype =
   ( Eq datatype
   , Show datatype

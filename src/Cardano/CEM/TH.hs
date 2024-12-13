@@ -1,59 +1,22 @@
 module Cardano.CEM.TH (
   deriveCEMAssociatedTypes,
-  resolveFamily,
   compileCEM,
-  unstableMakeIsDataSchema,
-  defaultIndex,
-  unstableMakeHasSchemaInstance,
 ) where
-
-import Prelude
-
-import Data.Data (Proxy (..))
-import Data.Map qualified as Map
-import Data.Tuple (swap)
-import GHC.Num.Natural (Natural)
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax (sequenceQ)
 
 import Cardano.CEM.Compile (preProcessForOnChainCompilation)
 import Cardano.CEM.DSL (CEMScript (..), CEMScriptTypes (..), CompilationConfig (..))
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
+import Data.Data (Proxy (..))
+import Data.Map qualified as Map
 import Data.Spine (derivePlutusSpine)
-import Language.Haskell.TH.Datatype (
-  ConstructorInfo (..),
-  DatatypeInfo (..),
-  reifyDatatype,
- )
+import Data.Tuple (swap)
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax (sequenceQ)
 import Plutarch (Config (..), LogLevel (..), TracingMode (..), compile)
 import PlutusTx qualified
-import PlutusTx.Blueprint.TH
 import PlutusTx.IsData (unsafeFromBuiltinData)
 import PlutusTx.Show (deriveShow)
-
-defaultIndex :: Name -> Q [(Name, Natural)]
-defaultIndex name = do
-  info <- reifyDatatype name
-  pure $ zip (constructorName <$> datatypeCons info) [0 ..]
-
-unstableMakeIsDataSchema :: Name -> Q [InstanceDec]
-unstableMakeIsDataSchema name = do
-  index <- defaultIndex name
-  PlutusTx.makeIsDataSchemaIndexed name index
-
-unstableMakeHasSchemaInstance :: Name -> Q [InstanceDec]
-unstableMakeHasSchemaInstance name = do
-  index <- defaultIndex name
-  dec <- makeHasSchemaInstance name index
-  return [dec]
-
--- | Get `TypeFamily Datatype` result as TH Name
-resolveFamily :: Name -> Name -> Q Name
-resolveFamily familyName argName = do
-  argType <- conT argName
-  [TySynInstD (TySynEqn _ _ (ConT name))] <-
-    reifyInstances familyName [argType]
-  return name
+import Prelude
 
 deriveCEMAssociatedTypes :: Bool -> Name -> Q [Dec]
 deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
@@ -71,6 +34,14 @@ deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
     deriveFamily deriver family = do
       name <- resolveFamily family scriptName
       deriver name
+
+    -- \| Get `TypeFamily Datatype` result as TH Name
+    resolveFamily :: Name -> Name -> Q Name
+    resolveFamily familyName argName = do
+      argType <- conT argName
+      [TySynInstD (TySynEqn _ _ (ConT name))] <-
+        reifyInstances familyName [argType]
+      return name
 
 compileCEM :: Bool -> Name -> Q [Dec]
 compileCEM debugBuild name = do
