@@ -59,14 +59,14 @@ $(deriveCEMAssociatedTypes False ''SimpleAuction)
 instance CEMScript SimpleAuction where
   compilationConfig = MkCompilationConfig "AUC"
 
-  transitionStage _ =
-    Map.fromList
-      [ (CreateSpine, (Nothing, Just NotStartedSpine))
-      , (StartSpine, (Just NotStartedSpine, Just CurrentBidSpine))
-      , (MakeBidSpine, (Just CurrentBidSpine, Just CurrentBidSpine))
-      , (CloseSpine, (Just CurrentBidSpine, Just WinnerSpine))
-      , (BuyoutSpine, (Just WinnerSpine, Nothing))
-      ]
+  -- transitionStage _ =
+  --   Map.fromList
+  --     [ (CreateSpine, (Nothing, Just NotStartedSpine))
+  --     , (StartSpine, (Just NotStartedSpine, Just CurrentBidSpine))
+  --     , (MakeBidSpine, (Just CurrentBidSpine, Just CurrentBidSpine))
+  --     , (CloseSpine, (Just CurrentBidSpine, Just WinnerSpine))
+  --     , (BuyoutSpine, (Just WinnerSpine, Nothing))
+  --     ]
 
   perTransitionScriptSpec =
     Map.fromList

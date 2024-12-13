@@ -79,7 +79,7 @@ allSpines = [Prelude.minBound .. Prelude.maxBound]
 data MaybeSpine a = JustSpine | NothingSpine
   deriving stock (Eq, Ord, Show, Bounded, Enum)
 
--- FIXME: could such types be derived?
+-- TODO: could such types be derived?
 instance HasSpine (Maybe x) where
   type Spine (Maybe x) = MaybeSpine x
   getSpine Just {} = JustSpine

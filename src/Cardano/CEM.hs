@@ -3,13 +3,10 @@ module Cardano.CEM (
 ) where
 
 -- TODO: review
-import Cardano.CEM.DSL as X
-
--- ( CEMScript (..),
---   CEMScriptTypes(..)
--- )
 
 import Cardano.CEM.Address as X (scriptCredential)
+import Cardano.CEM.Compile as X
+import Cardano.CEM.DSL as X
 import Cardano.CEM.DSLSmart as X
 import Cardano.CEM.Monads as X
 import Cardano.CEM.Monads.CLB as X

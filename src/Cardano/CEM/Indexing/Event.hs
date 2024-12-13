@@ -6,7 +6,7 @@ module Cardano.CEM.Indexing.Event where
 import Cardano.Api qualified as C
 import Cardano.Api.ScriptData qualified as C
 import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
-import Cardano.CEM (CEMScript (transitionStage), CEMScriptDatum, State, Transition)
+import Cardano.CEM (CEMScript, CEMScriptDatum, State, Transition, allTransitions)
 import Cardano.CEM.Address qualified as Address
 import Cardano.CEM.Indexing.Tx
 import Cardano.CEM.OnChain (CEMScriptCompiled)
@@ -91,7 +91,7 @@ extractEvent network tx = do
   let mTargetSpine :: Maybe (Spine (State script)) = getSpine <$> mTargetState
 
   -- Look up the transition
-  let transitions = swap <$> Map.toList (transitionStage $ Proxy @script)
+  let transitions = swap <$> Map.toList allTransitions
   let transSpine = lookup (mSourceSpine, mTargetSpine) transitions
 
   -- Return

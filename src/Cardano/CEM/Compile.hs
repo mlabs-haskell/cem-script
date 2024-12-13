@@ -1,5 +1,7 @@
 module Cardano.CEM.Compile (
+  allTransitions,
   transitionInStateSpine,
+  transitionOutStateSpine,
   transitionStateSpines,
   preProcessForOnChainCompilation,
 ) where
@@ -10,11 +12,35 @@ import Data.Spine (HasSpine (..))
 import Text.Show.Pretty (ppShowList)
 import Prelude
 
+allTransitions ::
+  forall script.
+  (CEMScript script) =>
+  Map.Map
+    (Spine (Transition script))
+    ( Maybe (Spine (State script)) -- source 'State'
+    , Maybe (Spine (State script)) -- target 'State'
+    )
+allTransitions = Map.map foo perTransitionScriptSpec
+  where
+    foo :: [TxConstraint False script] -> (Maybe (Spine (State script)), Maybe (Spine (State script)))
+    foo cs = (transitionInStateSpine cs, transitionOutStateSpine cs)
+
 transitionInStateSpine ::
   (CEMScript script) =>
   [TxConstraint False script] ->
   Maybe (Spine (State script))
 transitionInStateSpine spec = case transitionStateSpines In spec of
+  [x] -> Just x
+  [] -> Nothing
+  _ ->
+    error
+      "Transition should not have more than one SameScript In constraint"
+
+transitionOutStateSpine ::
+  (CEMScript script) =>
+  [TxConstraint False script] ->
+  Maybe (Spine (State script))
+transitionOutStateSpine spec = case transitionStateSpines Out spec of
   [x] -> Just x
   [] -> Nothing
   _ ->
@@ -47,7 +73,7 @@ transitionStateSpines kind spec = concat $ map (sameScriptStateSpinesOfKind kind
 
 -- FIXME: check MainSignerCoinSelect, ...
 
--- | Checking for errors and normaliing
+-- | Checking for errors and normalising
 preProcessForOnChainCompilation ::
   (CEMScript script, Show a) =>
   Map.Map a [TxConstraint False script] ->
