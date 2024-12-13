@@ -1,14 +1,14 @@
 module Cardano.CEM.Documentation (genCemGraph) where
 
-import Cardano.CEM (
+import Cardano.CEM.Compile (transitionStateSpines)
+import Cardano.CEM.DSL (
   CEMScript (perTransitionScriptSpec),
   CEMScriptTypes (Transition),
   TxFanKind (In, Out),
  )
-import Cardano.CEM.DSL (transitionStateSpines)
 import Data.Foldable (fold)
 import Data.Map qualified as Map
-import Data.Proxy
+import Data.Proxy (Proxy)
 import Data.Spine (allSpines)
 import Prelude
 

@@ -1,15 +1,21 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Auction where
+module CEM.Test.Auction where
 
+import CEM.Example.Auction
+import CEM.Example.Compiled ()
+import CEM.Test.TestNFT (testNftAssetClass)
+import CEM.Test.Utils (
+  execClb,
+  mintTestTokens,
+  -- perTransitionStats,
+  submitAndCheck,
+  submitCheckReturn,
+ )
 import Cardano.Api.NetworkId (toShelleyNetwork)
-import Cardano.CEM.Examples.Auction
-import Cardano.CEM.Examples.Compilation ()
+import Cardano.CEM
 import Cardano.CEM.Indexing.Event
 import Cardano.CEM.Indexing.Tx (resolvedTxToOura)
-import Cardano.CEM.Monads
-import Cardano.CEM.OffChain
-import Cardano.CEM.OnChain (CEMScriptCompiled (..))
 import Cardano.Extras
 import Control.Monad.Trans (MonadIO (..))
 import Data.Proxy (Proxy (..))
@@ -17,14 +23,6 @@ import GHC.IsList
 import Plutarch.Script
 import PlutusLedgerApi.V1.Value (assetClassValue)
 import Test.Hspec (describe, it, shouldBe)
-import TestNFT (testNftAssetClass)
-import Utils (
-  execClb,
-  mintTestTokens,
-  -- perTransitionStats,
-  submitAndCheck,
-  submitCheckReturn,
- )
 import Prelude
 
 -- import Text.Show.Pretty (ppShow)

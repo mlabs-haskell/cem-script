@@ -1,25 +1,18 @@
-module OffChain where
+module CEM.Test.OffChain where
 
-import Prelude
-
-import Data.Map (keys)
-
+import CEM.Example.Compiled ()
+import CEM.Test.Utils (awaitEitherTx, execClb)
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (ReferenceScript (..), toMaryValue)
-
-import PlutusLedgerApi.V2 (always)
-
-import Test.Hspec (describe, it)
-
-import Cardano.CEM.Examples.Compilation ()
-import Cardano.CEM.Monads
-import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Cardano.CEM
 import Cardano.Extras (
   signingKeyToAddress,
   withKeyWitness,
  )
-
-import Utils (awaitEitherTx, execClb)
+import Data.Map (keys)
+import PlutusLedgerApi.V2 (always)
+import Test.Hspec (describe, it)
+import Prelude
 
 execOn = execClb
 

@@ -4,7 +4,7 @@
 
 {-# HLINT ignore "Use fewer imports" #-}
 
-module Oura.Communication (
+module CEM.Test.Oura.Communication (
   WorkDir (MkWorkDir, unWorkDir),
   Oura (MkOura, send, receive, shutDown),
   withOura,
@@ -18,6 +18,7 @@ module Oura.Communication (
   Interval (MkIntervalMs, unIntervalMs),
 ) where
 
+import CEM.Test.Utils
 import Cardano.CEM.Indexing.Oura (SinkPath, SourcePath (MkSourcePath), unSinkPath)
 import Cardano.CEM.Indexing.Oura qualified as Indexing
 import Control.Concurrent (
@@ -48,8 +49,6 @@ import Network.Socket.ByteString qualified as Socket.BS
 import System.Directory (removeFile)
 import System.Process qualified as Process
 import Toml (Table)
-import Utils (withNewFile)
-import Utils qualified
 import Prelude
 
 {- | A time required for oura to start up and create a socket,
@@ -68,7 +67,7 @@ newtype WorkDir = MkWorkDir {unWorkDir :: T.Text}
 
 withOura ::
   WorkDir ->
-  Utils.SpotGarbage IO Process.ProcessHandle ->
+  SpotGarbage IO Process.ProcessHandle ->
   (Indexing.SourcePath -> Indexing.SinkPath -> Table) ->
   (Oura IO -> IO r) ->
   IO r
@@ -77,7 +76,7 @@ withOura spotHandle workdir makeConfig =
 
 runOura ::
   WorkDir ->
-  Utils.SpotGarbage IO Process.ProcessHandle ->
+  SpotGarbage IO Process.ProcessHandle ->
   (Indexing.SourcePath -> Indexing.SinkPath -> Table) ->
   Maybe Interval ->
   ContT r IO (Oura IO)
@@ -119,7 +118,7 @@ runOura (MkWorkDir (T.unpack -> workdir)) spotHandle makeConfig outputCheckingIn
 
 launchOura ::
   FilePath ->
-  Utils.SpotGarbage IO Process.ProcessHandle ->
+  SpotGarbage IO Process.ProcessHandle ->
   ContT r IO (Process.ProcessHandle, Async ())
 launchOura configPath spotHandle = do
   ouraHandle <- lift do

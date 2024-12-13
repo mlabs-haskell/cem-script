@@ -2,8 +2,13 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module OuraFilters.Simple (simpleSpec) where
+module CEM.Test.OuraFilters.Simple (simpleSpec) where
 
+import CEM.Test.Oura.Communication (Oura (receive, send, shutDown))
+import CEM.Test.Oura.Communication qualified as Oura
+import CEM.Test.OuraFilters.Auction qualified as Auction
+import CEM.Test.OuraFilters.Mock qualified as Mock
+import CEM.Test.Utils
 import Cardano.CEM.Indexing.Oura qualified as Config
 import Cardano.CEM.Indexing.Tx qualified as Tx
 import Control.Lens (ix, (.~))
@@ -14,13 +19,8 @@ import Data.Aeson.Types qualified as Aeson
 import Data.ByteString qualified as BS
 import Data.Function ((&))
 import Data.Text qualified as T
-import Oura.Communication (Oura (receive, send, shutDown))
-import Oura.Communication qualified as Oura
-import OuraFilters.Auction qualified
-import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified as V1
 import Test.Hspec (Spec, focus, it, shouldBe)
-import Utils qualified
 import Prelude
 
 exampleMatchingTx :: Mock.TxEvent
@@ -81,7 +81,7 @@ exampleTx =
         }
 
 simpleSpec :: Spec
-simpleSpec = Utils.killProcessesOnError do
+simpleSpec = killProcessesOnError do
   focus $ it "Oura filters match tx it have to match, and don't match other" \spotGarbage ->
     let
       tx = Mock.txToBS exampleTx
@@ -92,7 +92,7 @@ simpleSpec = Utils.killProcessesOnError do
         spotGarbage
         (Config.daemonConfig [exampleFilter])
         \oura -> do
-          Utils.withTimeout 3.0 do
+          withTimeout 3.0 do
             oura.send tx
             oura.send matchingTx
             Right outTxHash <- do
@@ -103,7 +103,7 @@ simpleSpec = Utils.killProcessesOnError do
               pure $ extractInputTxHash matchingTx
             outTxHash `shouldBe` inputTxHash
             oura.shutDown
-  OuraFilters.Auction.spec
+  Auction.spec
 
 extractInputTxHash :: BS.ByteString -> Either String T.Text
 extractInputTxHash =

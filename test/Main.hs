@@ -2,19 +2,17 @@
 
 module Main (main) where
 
+import CEM.Test.Auction (auctionSpec)
+import Data.Maybe (isJust)
+import Test.Hspec (hspec, runIO)
 import Prelude
 
-import Test.Hspec (hspec, runIO)
-
-import Auction (auctionSpec)
-import Data.Maybe (isJust)
-
--- import Dynamic (dynamicSpec)
-import OffChain (offChainSpec)
-import OuraFilters.Simple (simpleSpec)
+-- import CEM.Test.Dynamic (dynamicSpec)
+import CEM.Test.OffChain (offChainSpec)
+import CEM.Test.OuraFilters.Simple (simpleSpec)
+import CEM.Test.Utils (clearLogs)
+import CEM.Test.Voting (votingSpec)
 import System.Environment (lookupEnv)
-import Utils (clearLogs)
-import Voting (votingSpec)
 
 main :: IO ()
 main = do

@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 
-module Utils where
+module CEM.Test.Utils where
 
 import Prelude
 
@@ -10,9 +10,10 @@ import Cardano.Api.Shelley (
   ReferenceScript (..),
   toMaryValue,
  )
-import Cardano.CEM.Monads (
+import Cardano.CEM (
   BlockchainMonadEvent (..),
   CEMAction (..),
+  ClbRunner,
   Fees (..),
   MonadBlockchainParams (..),
   MonadQueryUtxo (..),
@@ -21,15 +22,15 @@ import Cardano.CEM.Monads (
   SomeCEMAction (..),
   TxSpec (..),
   UtxoQuery (..),
-  submitResolvedTx,
- )
-import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
-import Cardano.CEM.OffChain (
   awaitTx,
+  execOnIsolatedClb,
   fromPlutusAddressInMonad,
   resolveTxAndSubmit,
   resolveTxAndSubmitRet,
+  submitResolvedTx,
  )
+
+import CEM.Test.TestNFT
 import Cardano.Extras (
   Era,
   fromPlutusValue,
@@ -56,7 +57,6 @@ import System.Process qualified as Process
 import System.Timeout (timeout)
 import Test.Hspec (shouldSatisfy)
 import Test.Hspec qualified as Hspec
-import TestNFT
 import Text.Show.Pretty (ppShow)
 
 withTimeout :: (Hspec.HasCallStack) => Float -> IO a -> IO a
@@ -158,6 +158,7 @@ perTransitionStats = do
   where
     txIdFeePair (UserSpentFee {fees, txId}) = Just (txId, fees)
     txIdFeePair _ = Nothing
+    transitionFeePair :: Map.Map TxId Fees -> BlockchainMonadEvent -> Maybe (String, Fees)
     transitionFeePair feesByTxId event = case event of
       ( SubmittedTxSpec
           (MkTxSpec [MkSomeCEMAction (MkCEMAction _ transition)] _)

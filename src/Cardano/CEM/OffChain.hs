@@ -1,22 +1,11 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use fewer imports" #-}
+
 {- | User-facing utilities for querying and sending Txs
 on top of interfaces in `Monads` module
 -}
 module Cardano.CEM.OffChain where
-
-import Prelude
-
--- Haskell imports
-import Control.Concurrent (threadDelay)
-import Control.Monad (when)
-import Data.Bifunctor (Bifunctor (..))
-import Data.Data (Proxy (..))
-import Data.List (find, nub)
-import Data.Map qualified as Map
-import Data.Maybe (fromJust)
-import Data.Spine (HasSpine (getSpine))
-
-import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
-import PlutusLedgerApi.V2 (PubKeyHash, always, fromData)
 
 import Cardano.Api hiding (Address, In, Out, queryUtxo, txIns, txOuts)
 import Cardano.Api.Shelley (
@@ -25,42 +14,66 @@ import Cardano.Api.Shelley (
   toMaryValue,
   toPlutusData,
  )
-
-import Plutarch.Script (serialiseScript)
-
--- Project imports
-
-import Cardano.CEM hiding (lift)
 import Cardano.CEM.Address (cemScriptAddress)
+import Cardano.CEM.Compile (transitionInStateSpine)
 import Cardano.CEM.DSL
-import Cardano.CEM.Monads
+import Cardano.CEM.Monads (
+  BlockchainMonadEvent (AwaitedTx, SubmittedTxSpec),
+  CEMAction (..),
+  MonadBlockchainParams (askNetworkId, logEvent),
+  MonadQueryUtxo (..),
+  MonadSubmitTx (submitResolvedTxRet),
+  ResolvedTx (..),
+  SomeCEMAction (..),
+  TransitionError (
+    CannotFindTransitionInput,
+    CompilationError,
+    SpecExecutionError
+  ),
+  TxSpec (actions, specSigner),
+  TxSubmittingError,
+  UtxoQuery (ByAddresses, ByTxIns),
+ )
 import Cardano.CEM.OnChain (CEMScriptCompiled (..))
-import Cardano.Extras
-import Data.Either.Extra (mapRight)
+import Cardano.Extras (
+  Era,
+  PlutusLang,
+  TxInWitness,
+  fromPlutusAddress,
+  fromPlutusValue,
+  mTxOutDatum,
+  mkInlineDatum,
+  mkInlinedDatumScriptWitness,
+  txOutValue,
+  withKeyWitness,
+ )
+import Control.Concurrent (threadDelay)
+import Control.Monad (when)
+import Data.Bifunctor (Bifunctor (..))
+import Data.Data (Proxy (..))
+import Data.Either.Extra (mapLeft, mapRight)
+import Data.List (find, nub)
+import Data.Map qualified as Map
+import Data.Maybe (fromJust)
+import Data.Singletons (sing)
+import Data.Spine (HasSpine (..))
+import Plutarch (Config (..), (#))
+import Plutarch.Evaluate (evalTerm)
+import Plutarch.Lift (pconstant, plift)
+import Plutarch.Prelude (getField)
+import Plutarch.Script (serialiseScript)
+import PlutusLedgerApi.V1.Address (Address, pubKeyHashAddress)
+import PlutusLedgerApi.V2 (PubKeyHash, always, fromData)
+import PlutusTx qualified
+import PlutusTx.Builtins qualified as PlutusTx
+import Unsafe.Coerce (unsafeCoerce)
+import Prelude
 
 fromPlutusAddressInMonad ::
   (MonadBlockchainParams m) => Address -> m (AddressInEra Era)
 fromPlutusAddressInMonad address = do
   networkId <- askNetworkId
   return $ fromPlutusAddress networkId address
-
-checkTxIdExists :: (MonadQueryUtxo m) => TxId -> m Bool
-checkTxIdExists txId = do
-  result <- queryUtxo $ ByTxIns [TxIn txId (TxIx 0)]
-  return $ not $ Map.null $ unUTxO result
-
-awaitTx :: forall m. (MonadIO m, MonadQueryUtxo m) => TxId -> m ()
-awaitTx txId = do
-  go 5
-  where
-    go :: Integer -> m ()
-    go 0 = liftIO $ fail "Tx was not awaited." -- FIXME
-    go n = do
-      exists <- checkTxIdExists txId
-      liftIO $ threadDelay 1_000_000
-      if exists
-        then logEvent $ AwaitedTx txId
-        else go $ n - 1
 
 failLeft :: (MonadFail m, Show s) => Either s a -> m a
 failLeft (Left errorMsg) = fail $ show errorMsg
@@ -106,7 +119,7 @@ queryScriptState params = do
   return (cemTxOutState . snd =<< mTxInOut)
 
 -- FIXME: doc, naming
-data Resolution
+data OffchainTxIR
   = TxInR (TxIn, TxInWitness)
   | TxInRefR (TxIn, TxInWitness)
   | TxOutR (TxOut CtxTx Era)
@@ -114,7 +127,7 @@ data Resolution
   | NoopR
   deriving stock (Show, Eq)
 
-construct :: [Resolution] -> ResolvedTx
+construct :: [OffchainTxIR] -> ResolvedTx
 construct rs = constructGo rs emptyResolvedTx
   where
     emptyResolvedTx =
@@ -175,7 +188,7 @@ process ::
   (MonadQueryUtxo m, CEMScriptCompiled script) =>
   CEMAction script ->
   TxConstraint True script ->
-  ExceptT TxResolutionError m Resolution
+  ExceptT TxResolutionError m OffchainTxIR
 process (MkCEMAction params transition) ec = case ec of
   Noop -> return NoopR
   c@MainSignerCoinSelect {} -> do
@@ -246,9 +259,21 @@ process (MkCEMAction params transition) ec = case ec of
     script = cemScriptCompiled (Proxy :: Proxy script)
     scriptAddress = cemScriptAddress (Proxy :: Proxy script)
 
+-- -----------------------------------------------------------------------------
+-- Transaction resolving
+-- -----------------------------------------------------------------------------
+
+data TxResolutionError
+  = CEMScriptTxInResolutionError
+  | -- FIXME: record transition and action involved
+    PerTransitionErrors [TransitionError]
+  | -- FIXME: this is weird
+    UnhandledSubmittingError TxSubmittingError
+  deriving stock (Show)
+
 resolveTx ::
   forall m.
-  (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
+  (MonadQueryUtxo m) =>
   TxSpec ->
   m (Either TxResolutionError ResolvedTx)
 resolveTx spec = runExceptT $ do
@@ -257,27 +282,15 @@ resolveTx spec = runExceptT $ do
   return $ resolvedTx {signer = specSigner spec}
   where
     resolveSomeAction ::
-      SomeCEMAction -> (ExceptT TxResolutionError m) [Resolution]
+      SomeCEMAction -> (ExceptT TxResolutionError m) [OffchainTxIR]
     resolveSomeAction (MkSomeCEMAction @script action) = do
       let MkCEMAction params _ = action
       mScript <- lift $ queryScriptState params
       cs <- ExceptT $ return $ compileActionConstraints mScript action
       mapM (process action) cs
 
-resolveTxAndSubmit ::
-  (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
-  TxSpec ->
-  m (Either TxResolutionError TxId)
-resolveTxAndSubmit spec = do
-  result <- runExceptT $ do
-    resolved <- ExceptT $ resolveTx spec
-    let result = submitResolvedTx resolved
-    ExceptT $ first UnhandledSubmittingError <$> result
-  logEvent $ SubmittedTxSpec spec result
-  return result
-
 resolveTxAndSubmitRet ::
-  (MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =>
+  (MonadQueryUtxo m, MonadSubmitTx m) =>
   TxSpec ->
   m (Either TxResolutionError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 resolveTxAndSubmitRet spec = do
@@ -285,5 +298,136 @@ resolveTxAndSubmitRet spec = do
     resolved <- ExceptT $ resolveTx spec
     let result = submitResolvedTxRet resolved
     ExceptT $ first UnhandledSubmittingError <$> result
-  logEvent $ SubmittedTxSpec spec (mapRight (getTxId . (\(_, a, _, _) -> a)) result)
+  logEvent $ SubmittedTxSpec spec (mapLeft (const ()) $ mapRight (getTxId . (\(_, a, _, _) -> a)) result)
   return result
+
+resolveTxAndSubmit ::
+  (MonadQueryUtxo m, MonadSubmitTx m) =>
+  TxSpec ->
+  m (Either TxResolutionError TxId)
+resolveTxAndSubmit spec = do
+  mapRight (getTxId . (\(_, a, _, _) -> a)) <$> resolveTxAndSubmitRet spec
+
+-- move away
+
+awaitTx :: forall m. (MonadIO m, MonadQueryUtxo m) => TxId -> m ()
+awaitTx txId = do
+  go 5
+  where
+    go :: Integer -> m ()
+    go 0 = liftIO $ fail "Tx was not awaited." -- FIXME:
+    go n = do
+      exists <- checkTxIdExists
+      liftIO $ threadDelay 1_000_000
+      if exists
+        then logEvent $ AwaitedTx txId
+        else go $ n - 1
+
+    checkTxIdExists :: (MonadQueryUtxo m) => m Bool
+    checkTxIdExists = do
+      result <- queryUtxo $ ByTxIns [TxIn txId (TxIx 0)]
+      return $ not $ Map.null $ unUTxO result
+
+---
+
+-- TODO: add note on datums and transitions
+compileConstraint ::
+  forall script.
+  (CEMScript script) =>
+  CEMScriptDatum script ->
+  Transition script ->
+  TxConstraint False script ->
+  Either String (TxConstraint True script)
+compileConstraint datum transition c = case c of
+  If condDsl thenConstr elseConstr -> do
+    value <- compileDslRecur condDsl
+    if value
+      then recur thenConstr
+      else recur elseConstr
+  MatchBySpine value caseSwitch ->
+    recur . (caseSwitch Map.!) . getSpine =<< compileDslRecur value
+  MainSignerNoValue signerDsl ->
+    MainSignerNoValue <$> compileDslRecur signerDsl
+  MainSignerCoinSelect pkhDsl inValueDsl outValueDsl ->
+    MainSignerCoinSelect
+      <$> compileDslRecur pkhDsl
+      <*> compileDslRecur inValueDsl
+      <*> compileDslRecur outValueDsl
+  TxFan kind fanFilter valueDsl ->
+    TxFan kind <$> compileFanFilter fanFilter <*> compileDslRecur valueDsl
+  Noop -> Right Noop
+  -- XXX: changing resolved type param of Error
+  e@(Error {}) -> Right $ unsafeCoerce e
+  where
+    compileDslRecur :: ConstraintDSL script x -> Either String x
+    compileDslRecur = compileDsl @script datum transition
+    recur = compileConstraint @script datum transition
+    compileFanFilter :: TxFanFilter 'False script -> Either String (TxFanFilter 'True script)
+    compileFanFilter fanFilter = case fanFilter of
+      UserAddress dsl -> UserAddress <$> compileDslRecur dsl
+      SameScript (MkSameScriptArg stateDsl) -> SameScript . MkSameScriptArg <$> compileDslRecur stateDsl
+
+-- TODO: types errors
+compileDsl ::
+  forall script x.
+  (CEMScript script) =>
+  CEMScriptDatum script ->
+  Transition script ->
+  ConstraintDSL script x ->
+  Either String x
+compileDsl datum@(params, state) transition dsl = case dsl of
+  Pure x -> Right x
+  Ask @cvar @_ @dt Proxy ->
+    case sing @cvar of
+      SCParams -> Right params
+      SCState -> Right state
+      SCTransition -> Right transition
+      SCComp -> case transitionComp @script of
+        Just go -> Right $ go params state transition
+        Nothing -> error "Unreachable"
+      SCTxInfo -> raiseOnchainErrorMessage ("TxInfo reference" :: String)
+  IsOnChain -> Right False
+  GetField @label @datatype @_ @value recordDsl _ -> do
+    recordValue <- recur recordDsl
+    Right $ getField @label @datatype @value recordValue
+  Eq @v xDsl yDsl -> (==) <$> (recur @v) xDsl <*> (recur @v) yDsl
+  UnsafeOfSpine spine recs -> do
+    rs <- mapM compileRecordSetter recs
+    Right $
+      fromJust . PlutusTx.fromData . PlutusTx.builtinDataToData $
+        PlutusTx.mkConstr
+          (toInteger $ fromEnum spine)
+          rs
+    where
+      compileRecordSetter (_ ::= valueDsl) = do
+        value <- recur valueDsl
+        Right $ PlutusTx.toBuiltinData value
+  UnsafeUpdateOfSpine valueDsl _spine setters -> do
+    case setters of
+      [] -> recur valueDsl
+      _ -> error "FIXME: not implemented"
+  LiftPlutarch pterm argDsl -> do
+    arg <- recur argDsl
+    case evalTerm NoTracing $ pterm # pconstant arg of
+      Right (Right resultTerm, _, _) -> Right $ plift resultTerm
+      Right (Left message, _, _) ->
+        Left $ "Unreachable: plutach running error " <> show message
+      Left message -> Left $ "Unreachable: plutach running error " <> show message
+  LiftPlutarch2 pterm arg1Dsl arg2Dsl -> do
+    arg1 <- recur arg1Dsl
+    arg2 <- recur arg2Dsl
+    case evalTerm NoTracing $ pterm (pconstant arg1) (pconstant arg2) of
+      Right (Right resultTerm, _, _) -> Right $ plift resultTerm
+      Right (Left message, _, _) ->
+        Left $ "Unreachable: plutach running error " <> show message
+      Left message -> Left $ "Unreachable: plutach running error " <> show message
+  Anything -> raiseOnchainErrorMessage dsl
+  where
+    raiseOnchainErrorMessage :: (Show a) => a -> Either String x
+    raiseOnchainErrorMessage x =
+      Left $
+        "On-chain only feature was reached while off-chain constraints compilation "
+          <> "(should be guarded to only triggered onchain): "
+          <> show x
+    recur :: ConstraintDSL script x1 -> Either String x1
+    recur = compileDsl @script datum transition

@@ -1,17 +1,15 @@
-module Voting (votingSpec) where
+module CEM.Test.Voting (votingSpec) where
 
-import Cardano.CEM.Examples.Compilation ()
-import Cardano.CEM.Examples.Voting
-import Cardano.CEM.Monads
-import Cardano.CEM.OffChain
-import Cardano.CEM.OnChain
+import CEM.Example.Compiled ()
+import CEM.Example.Voting
+import CEM.Test.Utils
+import Cardano.CEM
 import Cardano.Extras (signingKeyToPKH)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Proxy
 import GHC.IsList
 import Plutarch.Script
 import Test.Hspec (describe, it, shouldBe)
-import Utils
 import Prelude hiding (readFile)
 
 -- import Text.Show.Pretty (ppShow)

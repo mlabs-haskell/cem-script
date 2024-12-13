@@ -17,7 +17,7 @@ import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
 import Cardano.Ledger.Shelley.API (ApplyTxError (..), Coin)
 
-import Cardano.CEM
+import Cardano.CEM.DSL
 import Cardano.CEM.OnChain
 import Cardano.Extras
 
@@ -27,6 +27,7 @@ data CEMAction script = MkCEMAction (Params script) (Transition script)
 
 deriving stock instance (CEMScript script) => Show (CEMAction script)
 
+-- TODO: can we rmove this by adding exitential type to CEMAction?
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.
@@ -38,6 +39,9 @@ instance Show SomeCEMAction where
   show :: SomeCEMAction -> String
   show (MkSomeCEMAction action) = show action
 
+{- | Transaction specification reflects the fact that a single transaction
+can involve several scripts by having an action for every script.
+-}
 data TxSpec = MkTxSpec
   { actions :: [SomeCEMAction]
   , specSigner :: SigningKey PaymentKey
@@ -63,7 +67,7 @@ data Fees = MkFees
   deriving stock (Show)
 
 data BlockchainMonadEvent
-  = SubmittedTxSpec TxSpec (Either TxResolutionError TxId)
+  = SubmittedTxSpec TxSpec (Either () TxId) -- (Either TxResolutionError TxId)
   | UserSpentFee
       { txId :: TxId
       , txSigner :: SigningKey PaymentKey
@@ -124,14 +128,6 @@ data TransitionError
   | CompilationError String
   | SpecExecutionError {errorMessage :: String}
   deriving stock (Show, Eq)
-
-data TxResolutionError
-  = CEMScriptTxInResolutionError
-  | -- FIXME: record transition and action involved
-    PerTransitionErrors [TransitionError]
-  | -- FIXME: this is weird
-    UnhandledSubmittingError TxSubmittingError
-  deriving stock (Show)
 
 -- | Ability to send transaction to chain
 class (MonadQueryUtxo m) => MonadSubmitTx m where

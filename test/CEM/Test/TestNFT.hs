@@ -1,9 +1,11 @@
-module TestNFT (testNftPolicy, testNftCurrencySymbol, testNftAssetClass, testNftTokenName) where
+module CEM.Test.TestNFT (
+  testNftPolicy,
+  testNftCurrencySymbol,
+  testNftAssetClass,
+  testNftTokenName,
+) where
 
--- Prelude imports
-import PlutusTx.Prelude
-
--- Plutus imports
+import Plutus.Extras (scriptCurrencySymbol)
 import PlutusLedgerApi.Common (SerialisedScript, serialiseCompiledCode)
 import PlutusLedgerApi.V1.Value (
   AssetClass (..),
@@ -11,9 +13,7 @@ import PlutusLedgerApi.V1.Value (
   TokenName (..),
  )
 import PlutusTx qualified
-
--- Hydra auction imports
-import Plutus.Extras (scriptCurrencySymbol)
+import PlutusTx.Prelude
 
 testNftPolicy :: SerialisedScript
 testNftPolicy =

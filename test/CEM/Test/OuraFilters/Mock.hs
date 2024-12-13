@@ -4,7 +4,7 @@
 {-# LANGUAGE NoFieldSelectors #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
-module OuraFilters.Mock where
+module CEM.Test.OuraFilters.Mock where
 
 import Cardano.CEM.Indexing.Tx (Tx, WithoutUnderscore (..))
 import Control.Lens.TH (makeLenses)

@@ -11,22 +11,114 @@ module Cardano.CEM.OnChain (
   genericPlutarchScript,
 ) where
 
-import Cardano.CEM hiding (compileDsl)
+import Cardano.CEM.DSL (
+  CEMScript,
+  CEMScriptSpec,
+  ConstraintDSL (..),
+  RecordLabel (MkRecordLabel),
+  RecordSetter ((::=)),
+  SCVar (SCComp, SCParams, SCState, SCTransition, SCTxInfo),
+  SameScriptArg (MkSameScriptArg),
+  TxConstraint (
+    Error,
+    If,
+    MainSignerCoinSelect,
+    MainSignerNoValue,
+    MatchBySpine,
+    Noop,
+    TxFan
+  ),
+  TxFanFilter (SameScript, UserAddress),
+  TxFanKind (In, InRef, Out),
+ )
 import Data.Map qualified as Map
-import Data.Singletons
-import Data.Spine
+import Data.Singletons (Proxy (..), SingI (sing))
+import Data.Spine (
+  HasPlutusSpine,
+  HasSpine (Spine),
+  fieldNum,
+  spineFieldsNum,
+ )
 import Data.String (IsString (..))
-import Plutarch
-import Plutarch.Bool
-import Plutarch.Builtin
-import Plutarch.Extras
+import Plutarch (
+  ClosedTerm,
+  Script,
+  Term,
+  pdelay,
+  perror,
+  pforce,
+  phoistAcyclic,
+  plam,
+  plet,
+  pmatch,
+  (#),
+  (#$),
+  type (:-->),
+ )
+import Plutarch.Bool (
+  PBool (..),
+  PEq ((#==)),
+  PPartialOrd ((#<=)),
+  pand',
+  pif,
+  (#&&),
+ )
+import Plutarch.Builtin (
+  PAsData,
+  PBuiltinList,
+  PData,
+  PIsData (pdataImpl, pfromDataImpl),
+  pasConstr,
+  pconstrBuiltin,
+  pdata,
+  pforgetData,
+  pfromData,
+  pfstBuiltin,
+  psndBuiltin,
+ )
+import Plutarch.Extras (
+  getOwnAddress,
+  pMkAdaOnlyValue,
+  ppkhAddress,
+ )
 import Plutarch.FFI (foreignImport)
-import Plutarch.LedgerApi
+import Plutarch.LedgerApi (
+  AmountGuarantees (NonZero),
+  KeyGuarantees (Sorted, Unsorted),
+  PDatum (PDatum),
+  POutputDatum (POutputDatum),
+  PScriptContext,
+  PTxInfo,
+  PTxOut,
+  PValue,
+ )
 import Plutarch.LedgerApi.AssocMap qualified as PMap
-import Plutarch.LedgerApi.Value
-import Plutarch.List
+import Plutarch.LedgerApi.Value (
+  passertSorted,
+  pforgetPositive,
+  pforgetSorted,
+ )
+import Plutarch.List (
+  PListLike (pcons, phead, pnil, pnull),
+  pelem,
+  pfilter,
+  pfoldr,
+  pmap,
+  ptryIndex,
+ )
 import Plutarch.Monadic qualified as P
-import Plutarch.Prelude
+import Plutarch.Prelude (
+  PInteger,
+  PUnit,
+  pconstant,
+  pfield,
+  pletFields,
+  pshow,
+  ptraceDebug,
+  ptraceInfo,
+  ptraceInfoError,
+  ptraceInfoIfFalse,
+ )
 import Plutarch.Unsafe (punsafeCoerce)
 import PlutusLedgerApi.V2 (BuiltinData)
 import PlutusTx qualified

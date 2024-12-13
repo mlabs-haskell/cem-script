@@ -1,25 +1,20 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Dynamic where
+module CEM.Test.Dynamic where
 
-import Prelude
-
-import PlutusLedgerApi.V1.Value (assetClassValue)
-
+import CEM.Example.Auction
+import CEM.Example.Compiled ()
+import CEM.Test.TestNFT (testNftAssetClass)
+import CEM.Test.Utils (execClb, mintTestTokens)
 import Cardano.Api (lovelaceToValue)
-
+import Cardano.CEM
+import Cardano.CEM.Testing.StateMachine
+import Cardano.Extras (signingKeyToPKH)
+import PlutusLedgerApi.V1.Value (assetClassValue)
 import Test.Hspec (describe, it, shouldBe)
 import Test.QuickCheck
 import Test.QuickCheck.DynamicLogic
-
-import Cardano.CEM.Examples.Auction
-import Cardano.CEM.Examples.Compilation ()
-import Cardano.CEM.Monads (MonadTest (..))
-import Cardano.CEM.Testing.StateMachine
-import Cardano.Extras (signingKeyToPKH)
-
-import TestNFT (testNftAssetClass)
-import Utils (execClb, mintTestTokens)
+import Prelude
 
 -- Defining generic instances
 

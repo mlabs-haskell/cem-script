@@ -1,11 +1,14 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module OuraFilters.Auction (spec) where
+module CEM.Test.OuraFilters.Auction (spec) where
 
-import Cardano.CEM.Address (scriptCredential)
-import Cardano.CEM.Examples.Auction qualified as Auction
-import Cardano.CEM.Examples.Compilation ()
+import CEM.Example.Auction qualified as Auction
+import CEM.Example.Compiled ()
+import CEM.Test.Oura.Communication qualified as Oura
+import CEM.Test.OuraFilters.Mock qualified as Mock
+import CEM.Test.Utils (SpotGarbage, withTimeout)
+import Cardano.CEM
 import Cardano.CEM.Indexing.Oura qualified as OuraConfig
 import Cardano.CEM.Indexing.Tx qualified as Tx
 import Cardano.Ledger.BaseTypes qualified as Ledger
@@ -17,13 +20,10 @@ import Data.Aeson.Types qualified as Aeson.Types
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (Proxy))
 import Data.Text qualified as T
-import Oura.Communication qualified as Oura
-import OuraFilters.Mock qualified as Mock
 import PlutusLedgerApi.V1 qualified
 import System.Process (ProcessHandle)
 import Test.Hspec (describe, focus, it, shouldBe)
 import Test.Hspec.Core.Spec (SpecM)
-import Utils (SpotGarbage, withTimeout)
 import Prelude
 
 spec :: SpecM (SpotGarbage IO ProcessHandle) ()

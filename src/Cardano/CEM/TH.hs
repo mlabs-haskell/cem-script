@@ -16,22 +16,20 @@ import GHC.Num.Natural (Natural)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (sequenceQ)
 
-import PlutusTx qualified
-import PlutusTx.Blueprint.TH
-import PlutusTx.IsData (unsafeFromBuiltinData)
-import PlutusTx.Show (deriveShow)
-
+import Cardano.CEM.Compile (preProcessForOnChainCompilation)
+import Cardano.CEM.DSL (CEMScript (..), CEMScriptTypes (..), CompilationConfig (..))
+import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
+import Data.Spine (derivePlutusSpine)
 import Language.Haskell.TH.Datatype (
   ConstructorInfo (..),
   DatatypeInfo (..),
   reifyDatatype,
  )
 import Plutarch (Config (..), LogLevel (..), TracingMode (..), compile)
-
-import Cardano.CEM (CEMScript (..), CEMScriptTypes (..), CompilationConfig (..))
-import Cardano.CEM.DSL
-import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
-import Data.Spine (derivePlutusSpine)
+import PlutusTx qualified
+import PlutusTx.Blueprint.TH
+import PlutusTx.IsData (unsafeFromBuiltinData)
+import PlutusTx.Show (deriveShow)
 
 defaultIndex :: Name -> Q [(Name, Natural)]
 defaultIndex name = do

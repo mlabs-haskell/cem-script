@@ -18,7 +18,6 @@ import Cardano.CEM.Monads (
   MonadSubmitTx (..),
   ResolvedTx (..),
   SomeCEMAction (..),
-  TxResolutionError (..),
   TxSpec (..),
  )
 import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
@@ -31,6 +30,7 @@ import Control.Monad.Except (ExceptT (..), runExceptT)
 import Control.Monad.Trans (MonadIO (..), MonadTrans (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Typeable)
+import Data.Either.Extra (mapLeft)
 import Data.List (permutations)
 import Data.Maybe (isJust, mapMaybe)
 import Data.Set qualified as Set
@@ -290,7 +290,7 @@ instance
               let spec = MkTxSpec [MkSomeCEMAction cemAction] specSigner
               lift $
                 logEvent $
-                  SubmittedTxSpec spec result
+                  SubmittedTxSpec spec (mapLeft (const ()) result)
               ExceptT $ return result
       (_, _) -> error "Unreachable"
 

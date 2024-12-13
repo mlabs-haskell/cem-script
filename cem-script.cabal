@@ -81,9 +81,6 @@ common common-onchain
   if !flag(dev)
     ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
 
-  -- Options for Plutus Tx compilations
-  -- (some are enabled additionaly in individual modules)
-
   ghc-options:
     -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
@@ -122,9 +119,9 @@ common common-executable
 
 library data-spine
   import:          common-lang
-  hs-source-dirs:  src-lib/data-spine
+  hs-source-dirs:  lib/data-spine
 
-  -- FIXME: was not meant to be dependent on Plutus...
+  -- TODO: Originally was not meant to be dependent on Plutus
   build-depends:
     , plutus-tx
     , singletons
@@ -137,7 +134,7 @@ library cardano-extras
     common-offchain,
     common-onchain
 
-  hs-source-dirs:  src-lib/cardano-extras
+  hs-source-dirs:  lib/cardano-extras
   build-depends:   template-haskell
   exposed-modules:
     Cardano.Extras
@@ -152,23 +149,24 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
-    Cardano.CEM.Address
-    Cardano.CEM.Documentation
-    Cardano.CEM.DSL
-    Cardano.CEM.Examples.Auction
-    Cardano.CEM.Examples.Compilation
-    Cardano.CEM.Examples.Voting
     Cardano.CEM.Indexing.Event
     Cardano.CEM.Indexing.Oura
     Cardano.CEM.Indexing.Tx
+    Cardano.CEM.Testing.StateMachine
+
+  other-modules:
+    Cardano.CEM.Address
+    Cardano.CEM.Compile
+    Cardano.CEM.Documentation
+    Cardano.CEM.DSL
+    Cardano.CEM.DSLSmart
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
+    Cardano.CEM.Monads.L1Commons
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
-    Cardano.CEM.Testing.StateMachine
     Cardano.CEM.TH
 
-  other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
     , base16
     , base64
@@ -185,7 +183,19 @@ library
     , toml-parser
     , vector
 
-test-suite cem-sdk-test
+library cem-script-example
+  import:
+    , common-lang
+    , common-onchain
+
+  hs-source-dirs:  example
+  build-depends:   cem-script
+  exposed-modules:
+    CEM.Example.Auction
+    CEM.Example.Compiled
+    CEM.Example.Voting
+
+test-suite cem-script-test
   import:
     common-onchain,
     common-offchain,
@@ -204,6 +214,7 @@ test-suite cem-sdk-test
     , cardano-ledger-core
     , cem-script
     , cem-script:cardano-extras
+    , cem-script:cem-script-example
     , cem-script:data-spine
     , clb
     , dependent-map
@@ -222,15 +233,15 @@ test-suite cem-sdk-test
 
   hs-source-dirs: test/
   other-modules:
-    Auction
-    Dynamic
-    OffChain
-    Oura.Communication
-    OuraFilters.Auction
-    OuraFilters.Mock
-    OuraFilters.Simple
-    TestNFT
-    Utils
-    Voting
+    CEM.Test.Auction
+    CEM.Test.Dynamic
+    CEM.Test.OffChain
+    CEM.Test.Oura.Communication
+    CEM.Test.OuraFilters.Auction
+    CEM.Test.OuraFilters.Mock
+    CEM.Test.OuraFilters.Simple
+    CEM.Test.TestNFT
+    CEM.Test.Utils
+    CEM.Test.Voting
 
   main-is:        Main.hs

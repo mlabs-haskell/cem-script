@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Cardano.CEM.Examples.Auction where
+-- | CEM Script Acution example
+module CEM.Example.Auction where
 
 import Cardano.CEM
-import Cardano.CEM.TH (deriveCEMAssociatedTypes)
 import Data.Map qualified as Map
-import Data.Spine (derivePlutusSpine)
+
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx.Prelude

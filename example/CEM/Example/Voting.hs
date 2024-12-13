@@ -3,22 +3,16 @@
 {-# HLINT ignore "Use when" #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Cardano.CEM.Examples.Voting where
+-- | CEM Script Voting example
+module CEM.Example.Voting where
 
-import PlutusTx.Prelude
-import Prelude qualified
-
+import Cardano.CEM
 import Data.Map qualified as Map
-
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx.AssocMap qualified as PMap
-
-import Cardano.CEM
-import Cardano.CEM.TH (deriveCEMAssociatedTypes)
-import Data.Spine
-
--- Voting
+import PlutusTx.Prelude
+import Prelude qualified
 
 data SimpleVoting
 
