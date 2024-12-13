@@ -164,7 +164,7 @@ compileActionConstraints
     runExcept $ do
       let
         uncompiled =
-          perTransitionScriptSpec @script
+          transitionSpec @script
             Map.! getSpine transition
         xSpine = transitionInStateSpine uncompiled
 

@@ -2,7 +2,7 @@ module Cardano.CEM.Documentation (genCemGraph) where
 
 import Cardano.CEM.Compile (transitionStateSpines)
 import Cardano.CEM.DSL (
-  CEMScript (perTransitionScriptSpec),
+  CEMScript (transitionSpec),
   CEMScriptTypes (Transition),
   TxFanKind (In, Out),
  )
@@ -35,7 +35,7 @@ genCemGraph name _proxy =
         ]
     get kind transition =
       case transitionStateSpines kind $
-        perTransitionScriptSpec @script Map.! transition of
+        transitionSpec @script Map.! transition of
         [] -> ["\"Void " <> show kind <> "\""]
         x -> map showSpine x
 

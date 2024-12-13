@@ -20,7 +20,7 @@ allTransitions ::
     ( Maybe (Spine (State script)) -- source 'State'
     , Maybe (Spine (State script)) -- target 'State'
     )
-allTransitions = Map.map foo perTransitionScriptSpec
+allTransitions = Map.map foo transitionSpec
   where
     foo :: [TxConstraint False script] -> (Maybe (Spine (State script)), Maybe (Spine (State script)))
     foo cs = (transitionInStateSpine cs, transitionOutStateSpine cs)

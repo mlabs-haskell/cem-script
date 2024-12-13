@@ -77,7 +77,7 @@ compileCEM debugBuild name = do
           Nothing -> Nothing
         spec' =
           preProcessForOnChainCompilation $
-            perTransitionScriptSpec @($(conT name))
+            transitionSpec @($(conT name))
         MkCompilationConfig prefix = compilationConfig @($(conT name))
         errorCodes' = parseErrorCodes prefix spec'
         spec =

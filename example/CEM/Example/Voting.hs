@@ -152,7 +152,7 @@ instance CEMScript SimpleVoting where
           _ -> NoCalc
       go _ _ _ = NoCalc
 
-  perTransitionScriptSpec =
+  transitionSpec =
     Map.fromList
       [
         ( CreateSpine

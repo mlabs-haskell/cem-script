@@ -344,7 +344,7 @@ class
   CEMScript script
   where
   -- | The crux part - a map that defines constraints for each transition via DSL
-  perTransitionScriptSpec :: CEMScriptSpec False script
+  transitionSpec :: CEMScriptSpec False script
 
   -- | Optional Plutus script to calculate things, for the cases when
   -- CEM constrainsts and/or inlining Plutarch functions are not

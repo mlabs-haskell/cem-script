@@ -62,7 +62,7 @@ $(deriveCEMAssociatedTypes False ''SimpleAuction)
 instance CEMScript SimpleAuction where
   compilationConfig = MkCompilationConfig "AUC"
 
-  perTransitionScriptSpec =
+  transitionSpec =
     let
       buyoutBid = ctxState.bid
 
