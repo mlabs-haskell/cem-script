@@ -30,10 +30,11 @@ import Plutarch.Script (serialiseScript)
 
 -- Project imports
 
-import Cardano.CEM
+import Cardano.CEM hiding (lift)
+import Cardano.CEM.Address (cemScriptAddress)
 import Cardano.CEM.DSL
 import Cardano.CEM.Monads
-import Cardano.CEM.OnChain (CEMScriptCompiled (..), cemScriptAddress)
+import Cardano.CEM.OnChain (CEMScriptCompiled (..))
 import Cardano.Extras
 import Data.Either.Extra (mapRight)
 

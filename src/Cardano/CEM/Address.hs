@@ -3,12 +3,14 @@ module Cardano.CEM.Address (
   cardanoAddressBech32,
   scriptCredential,
   scriptCardanoAddress,
+  cemScriptAddress,
   plutusAddressToShelleyAddress,
 ) where
 
 import Cardano.Api qualified
 import Cardano.Api.Address qualified
 import Cardano.Api.Ledger qualified
+import Cardano.CEM.OnChain (CEMScriptCompiled (cemScriptCompiled))
 import Cardano.CEM.OnChain qualified as Compiled
 import Cardano.Crypto.Hash qualified as Cardano.Hash
 import Cardano.Ledger.BaseTypes qualified as Ledger
@@ -19,7 +21,10 @@ import Data.Proxy (Proxy)
 import Data.String (IsString)
 import Data.Text qualified as T
 import Plutarch.LedgerApi (scriptHash)
+import Plutarch.Script (serialiseScript)
+import Plutus.Extras (scriptValidatorHash)
 import PlutusLedgerApi.V1 qualified
+import PlutusLedgerApi.V1.Address (Address, scriptHashAddress)
 import Prelude
 
 newtype AddressBech32 = MkAddressBech32 {unAddressBech32 :: T.Text}
@@ -27,6 +32,12 @@ newtype AddressBech32 = MkAddressBech32 {unAddressBech32 :: T.Text}
 
 cardanoAddressBech32 :: Cardano.Api.Address Cardano.Api.ShelleyAddr -> AddressBech32
 cardanoAddressBech32 = MkAddressBech32 . Cardano.Api.serialiseToBech32
+
+{-# INLINEABLE cemScriptAddress #-}
+cemScriptAddress ::
+  forall script. (CEMScriptCompiled script) => Proxy script -> Address
+cemScriptAddress =
+  scriptHashAddress . scriptValidatorHash . serialiseScript . cemScriptCompiled
 
 scriptCardanoAddress ::
   forall script.

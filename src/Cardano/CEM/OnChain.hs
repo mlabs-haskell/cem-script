@@ -8,18 +8,14 @@
 
 module Cardano.CEM.OnChain (
   CEMScriptCompiled (..),
-  cemScriptAddress,
   genericPlutarchScript,
 ) where
 
-import Prelude
-
-import PlutusTx qualified
-
+import Cardano.CEM hiding (compileDsl)
 import Data.Map qualified as Map
 import Data.Singletons
+import Data.Spine
 import Data.String (IsString (..))
-
 import Plutarch
 import Plutarch.Bool
 import Plutarch.Builtin
@@ -31,15 +27,11 @@ import Plutarch.LedgerApi.Value
 import Plutarch.List
 import Plutarch.Monadic qualified as P
 import Plutarch.Prelude
-import Plutarch.Script (serialiseScript)
 import Plutarch.Unsafe (punsafeCoerce)
-import Plutus.Extras (scriptValidatorHash)
-import PlutusLedgerApi.V1.Address (Address, scriptHashAddress)
 import PlutusLedgerApi.V2 (BuiltinData)
+import PlutusTx qualified
 import Text.Show.Pretty (ppShow)
-
-import Cardano.CEM hiding (compileDsl)
-import Data.Spine
+import Prelude
 
 -- Interfaces
 
@@ -50,52 +42,7 @@ class (CEMScript script) => CEMScriptCompiled script where
 
   cemScriptCompiled :: Proxy script -> Script
 
-{-# INLINEABLE cemScriptAddress #-}
-cemScriptAddress ::
-  forall script. (CEMScriptCompiled script) => Proxy script -> Address
-cemScriptAddress =
-  scriptHashAddress . scriptValidatorHash . serialiseScript . cemScriptCompiled
-
 -- Compilation
-
-commonChecks :: Term s (PTxInfo :--> PUnit)
-commonChecks = plam go
-  where
-    go :: Term s1 PTxInfo -> Term s1 PUnit
-    go txInfo =
-      pif
-        (stackingStuffDisabled txInfo)
-        (pconstant ())
-        (ptraceInfo "Stacking feature used" perror)
-    stackingStuffDisabled :: Term s1 PTxInfo -> Term s1 PBool
-    stackingStuffDisabled txInfo =
-      (pnull # pfromData (pfield @"dcert" # txInfo))
-        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
-
-compileSpineCaseSwitch ::
-  forall x sop s.
-  (HasPlutusSpine sop) =>
-  Term s PInteger ->
-  (Spine sop -> Term s x) ->
-  Term s x
-compileSpineCaseSwitch spineIndex caseSwitchFunc =
-  go [Prelude.minBound .. Prelude.maxBound]
-  where
-    go [] = perror
-    go (spine : ss) = (checkSpineIf spine) (go ss)
-    checkSpineIf !spine !cont =
-      ( pif
-          (spineIndex #== pconstant (Prelude.toInteger $ Prelude.fromEnum spine))
-          ( ptraceDebug
-              ( pconstant $
-                  fromString $
-                    "Matched spine: " <> Prelude.show spine
-              )
-              (caseSwitchFunc spine)
-          )
-          cont
-      )
-
 genericPlutarchScript ::
   forall script.
   (CEMScript script) =>
@@ -134,15 +81,14 @@ genericPlutarchScript spec code =
           where
             f = perTransitionCheck txInfo ownAddress redm comp
         perTransitionCheck txInfo ownAddress transition comp transitionSpine = P.do
-          ptraceDebug (pconstant $ fromString $ "Checking transition " <> Prelude.show transitionSpine) $
+          ptraceDebug
+            (pconstant $ fromString $ "Checking transition " <> Prelude.show transitionSpine)
             constraintChecks
           where
             -- FIXME: fold better
             constraintChecks = P.do
               pif
-                ( foldr (\x y -> pand' # x # y) (pconstant True) $
-                    map compileConstr constrs
-                )
+                (foldr ((\x y -> pand' # x # y) . compileConstr) (pconstant True) constrs)
                 (commonChecks # pfromData txInfo)
                 (ptraceInfoError "Constraint check failed")
             compileConstr :: TxConstraint False script -> Term s PBool
@@ -362,3 +308,41 @@ genericPlutarchScript spec code =
             constrs = case Map.lookup transitionSpine spec of
               Just x -> x
               Nothing -> error "Compilation error: some spine lacks spec"
+
+commonChecks :: Term s (PTxInfo :--> PUnit)
+commonChecks = plam go
+  where
+    go :: Term s1 PTxInfo -> Term s1 PUnit
+    go txInfo =
+      pif
+        (stackingStuffDisabled txInfo)
+        (pconstant ())
+        (ptraceInfo "Stacking feature used" perror)
+    stackingStuffDisabled :: Term s1 PTxInfo -> Term s1 PBool
+    stackingStuffDisabled txInfo =
+      (pnull # pfromData (pfield @"dcert" # txInfo))
+        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
+
+compileSpineCaseSwitch ::
+  forall x sop s.
+  (HasPlutusSpine sop) =>
+  Term s PInteger ->
+  (Spine sop -> Term s x) ->
+  Term s x
+compileSpineCaseSwitch spineIndex caseSwitchFunc =
+  go [Prelude.minBound .. Prelude.maxBound]
+  where
+    go [] = perror
+    go (spine : ss) = (checkSpineIf spine) (go ss)
+    checkSpineIf !spine !cont =
+      ( pif
+          (spineIndex #== pconstant (Prelude.toInteger $ Prelude.fromEnum spine))
+          ( ptraceDebug
+              ( pconstant $
+                  fromString $
+                    "Matched spine: " <> Prelude.show spine
+              )
+              (caseSwitchFunc spine)
+          )
+          cont
+      )

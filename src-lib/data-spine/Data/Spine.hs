@@ -13,8 +13,6 @@ works exaclty for functorial parameters.
 -}
 module Data.Spine where
 
-import Prelude
-
 import Data.Data (Proxy)
 import Data.List (elemIndex)
 import Data.Map qualified as Map
@@ -23,8 +21,8 @@ import GHC.Natural (Natural)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
-
 import PlutusTx (FromData, ToData, UnsafeFromData, unstableMakeIsData)
+import Prelude
 
 -- | Definitions
 

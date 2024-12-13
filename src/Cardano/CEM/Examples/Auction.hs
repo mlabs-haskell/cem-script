@@ -74,18 +74,15 @@ instance CEMScript SimpleAuction where
         ( CreateSpine
         ,
           [ MainSignerCoinSelect ctxParams.seller cMinLovelace cEmptyValue
-          , TxFan Out (SameScript $ Pure NotStarted) scriptStateValue
+          , -- , TxFan Out (SameScript $ nullarySpine NotStartedSpine) scriptStateValue
+            TxFan Out (SameScript $ ctxState) scriptStateValue
           ]
         )
       ,
         ( StartSpine
         ,
-          [ sameScriptIncOfSpine NotStartedSpine
-          , -- TxFan
-            --   In
-            --   (SameScript $ Pure NotStarted)
-            --   scriptStateValue
-            TxFan
+          [ ownInputInState NotStartedSpine
+          , TxFan
               Out
               ( SameScript
                   $ cOfSpine CurrentBidSpine [#bid ::= initialBid]
@@ -97,7 +94,7 @@ instance CEMScript SimpleAuction where
       ,
         ( MakeBidSpine
         ,
-          [ sameScriptIncOfSpine CurrentBidSpine
+          [ ownInputInState CurrentBidSpine
           , byFlagError
               (ctxTransition.bid.betAmount @<= ctxState.bid.betAmount)
               "Bid amount is less or equal to current bid"
@@ -115,7 +112,7 @@ instance CEMScript SimpleAuction where
       ,
         ( CloseSpine
         ,
-          [ sameScriptIncOfSpine CurrentBidSpine
+          [ ownInputInState CurrentBidSpine
           , TxFan
               Out
               ( SameScript
@@ -128,7 +125,7 @@ instance CEMScript SimpleAuction where
       ,
         ( BuyoutSpine
         ,
-          [ sameScriptIncOfSpine WinnerSpine
+          [ ownInputInState WinnerSpine
           , -- Example: In constraints redundant for on-chain
             offchainOnly
               ( MainSignerCoinSelect
@@ -155,11 +152,15 @@ instance CEMScript SimpleAuction where
         cOfSpine
           MkBetSpine
           [ #better ::= ctxParams.seller
-          , #betAmount ::= Pure 0
+          , #betAmount ::= lift 0
           ]
       scriptStateValue = cMinLovelace @<> ctxParams.lot
-      sameScriptIncOfSpine spine =
+
+      ownInputInState :: SimpleAuctionStateSpine -> TxConstraint False SimpleAuction
+      ownInputInState state =
         TxFan
           In
-          (SameScript $ cUpdateOfSpine ctxState spine [])
+          (SameScript $ cUpdateOfSpine' ctxState state)
+          -- (SameScript $  ctxState)
+          -- (SameScript $ Pure $ _ state)
           scriptStateValue

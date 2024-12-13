@@ -132,6 +132,13 @@ instance CEMScript SimpleVoting where
   compilationConfig = MkCompilationConfig "VOT"
 
   {-# INLINEABLE transitionComp #-}
+  transitionComp ::
+    Maybe
+      ( Params SimpleVoting ->
+        State SimpleVoting ->
+        Transition SimpleVoting ->
+        TransitionComp SimpleVoting
+      )
   transitionComp = Just go
     where
       go params (InProgress votes) transition =
@@ -154,15 +161,15 @@ instance CEMScript SimpleVoting where
       [
         ( CreateSpine
         ,
-          [ TxFan Out (SameScript $ Pure NotStarted) cMinLovelace
+          [ TxFan Out (SameScript $ lift NotStarted) cMinLovelace
           , MainSignerNoValue ctxParams.creator
           ]
         )
       ,
         ( StartSpine
         ,
-          [ TxFan In (SameScript $ Pure NotStarted) cMinLovelace
-          , TxFan Out (SameScript $ Pure $ InProgress PMap.empty) cMinLovelace
+          [ TxFan In (SameScript $ lift NotStarted) cMinLovelace
+          , TxFan Out (SameScript $ lift $ InProgress PMap.empty) cMinLovelace
           , MainSignerNoValue ctxParams.creator
           ]
         )
@@ -205,7 +212,7 @@ instance CEMScript SimpleVoting where
               "You are not allowed to vote, not on list"
           , byFlagError
               ( cNot ctxParams.abstainAllowed
-                  @&& (ctxTransition.voteValue @== Pure Abstain)
+                  @&& (ctxTransition.voteValue @== lift Abstain)
               )
               "You cannot vote Abstain in this vote"
           ]
