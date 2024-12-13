@@ -4,7 +4,13 @@ module Cardano.CEM.TH (
 ) where
 
 import Cardano.CEM.Compile (preProcessForOnChainCompilation)
-import Cardano.CEM.DSL (CEMScript (..), CEMScriptTypes (..), CompilationConfig (..))
+import Cardano.CEM.DSL (
+  CEMScript (..),
+  CEMScriptTypes (..),
+  CompilationConfig (..),
+  parseErrorCodes,
+  substErrors,
+ )
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
 import Data.Data (Proxy (..))
 import Data.Map qualified as Map

@@ -3,6 +3,7 @@
 module Cardano.CEM.DSLSmart where
 
 import Cardano.CEM.DSL
+import Data.Map (Map)
 import Data.Singletons.TH
 import Data.Spine (HasPlutusSpine, HasSpine (..), spineFieldsNum)
 import Data.Text (Text)
@@ -16,8 +17,9 @@ import Plutarch.Prelude (
   pnot,
   (#&&),
  )
-import PlutusLedgerApi.V2 (ToData (..), Value)
-import Prelude
+import PlutusLedgerApi.V2 (PubKeyHash, ToData (..), Value)
+import Prelude hiding (error)
+import Prelude qualified (error)
 
 -- -----------------------------------------------------------------------------
 -- Helpers to be used in actual definitions
@@ -70,13 +72,27 @@ cOfSpine spine setters =
   if toInteger (length setters) == toInteger (spineFieldsNum spine)
     then UnsafeOfSpine spine setters
     else
-      error $
+      Prelude.error $
         "OfSpine got less setters when number of fields ("
           <> show (spineFieldsNum spine)
           <> ")"
 
+withState ::
+  (HasPlutusSpine (State script)) =>
+  Spine (State script) ->
+  [RecordSetter (ConstraintDSL script) (State script)] ->
+  ConstraintDSL script (State script)
+withState = cOfSpine
+
 nullarySpine :: (HasPlutusSpine datatype) => Spine datatype -> ConstraintDSL script datatype
 nullarySpine spine = cOfSpine spine []
+
+-- | Specialization for State
+withNullaryState ::
+  (CEMScript script, HasPlutusSpine (State script)) =>
+  Spine (State script) ->
+  ConstraintDSL script (State script)
+withNullaryState spine = cOfSpine spine []
 
 cUpdateOfSpine ::
   (HasPlutusSpine datatype) =>
@@ -92,6 +108,13 @@ cUpdateOfSpine' ::
   Spine datatype ->
   ConstraintDSL script datatype
 cUpdateOfSpine' orig spine = UnsafeUpdateOfSpine orig spine []
+
+-- | TODO: notes on how states are compared
+inState ::
+  (HasPlutusSpine (State script)) =>
+  Spine (State script) ->
+  ConstraintDSL script (State script)
+inState spine = UnsafeUpdateOfSpine ctxState spine []
 
 (@==) ::
   (Eq x) => ConstraintDSL script x -> ConstraintDSL script x -> ConstraintDSL script Bool
@@ -162,3 +185,71 @@ offchainOnly c = If IsOnChain Noop c
 byFlagError ::
   ConstraintDSL script Bool -> Text -> TxConstraint False script
 byFlagError flag message = If flag (Error message) Noop
+
+-- tx inputs/outputs
+input ::
+  forall script.
+  () =>
+  TxFanFilter False script ->
+  DSLValue False script Value ->
+  TxConstraint False script
+input = TxFan In
+
+refInput ::
+  forall script.
+  () =>
+  TxFanFilter False script ->
+  DSLValue False script Value ->
+  TxConstraint False script
+refInput = TxFan InRef
+
+output ::
+  forall script.
+  () =>
+  TxFanFilter False script ->
+  DSLValue False script Value ->
+  TxConstraint False script
+output = TxFan Out
+
+userUtxo ::
+  forall (resolved :: Bool) script.
+  DSLValue resolved script PubKeyHash ->
+  TxFanFilter resolved script
+userUtxo = UserAddress
+
+ownUtxo ::
+  forall (resolved :: Bool) script.
+  DSLValue resolved script (State script) ->
+  TxFanFilter resolved script
+ownUtxo = SameScript . MkSameScriptArg
+
+signedBy ::
+  forall (resolved :: Bool) script.
+  DSLValue resolved script PubKeyHash ->
+  TxConstraint resolved script
+signedBy = MainSignerNoValue
+
+spentBy ::
+  forall (resolved :: Bool) script.
+  DSLValue resolved script PubKeyHash ->
+  DSLValue resolved script Value ->
+  DSLValue resolved script Value ->
+  TxConstraint resolved script
+spentBy = MainSignerCoinSelect
+
+noop :: forall (resolved :: Bool) script. TxConstraint resolved script
+noop = Noop
+
+error ::
+  forall (resolved :: Bool) script.
+  Text ->
+  TxConstraint resolved script
+error = Error
+
+match ::
+  forall (resolved :: Bool) script datatype.
+  (HasPlutusSpine datatype) =>
+  DSLPattern resolved script datatype ->
+  Map (Spine datatype) (TxConstraint resolved script) ->
+  TxConstraint resolved script
+match = MatchBySpine

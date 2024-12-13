@@ -11,9 +11,10 @@ import Data.Map qualified as Map
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx.AssocMap qualified as PMap
-import PlutusTx.Prelude
-import Prelude qualified
+import PlutusTx.Prelude hiding (error)
+import Prelude qualified hiding (error)
 
+-- | Voting example tag
 data SimpleVoting
 
 data VoteValue = Yes | No | Abstain
@@ -73,7 +74,7 @@ countVotes params votesMap = maxDecision
         LT -> No
         EQ -> drawDecision params
 
--- Other datatypes
+-- CEM Script standard datatypes
 
 data SimpleVotingParams = MkVotingParams
   { disputeDescription :: BuiltinByteString
@@ -113,13 +114,14 @@ data SimpleVotingCalc
   | NoCalc
   deriving stock (Prelude.Eq, Prelude.Show)
 
+derivePlutusSpine ''SimpleVotingCalc
+
 instance CEMScriptTypes SimpleVoting where
   type Params SimpleVoting = SimpleVotingParams
   type State SimpleVoting = SimpleVotingState
   type Transition SimpleVoting = SimpleVotingTransition
   type TransitionComp SimpleVoting = SimpleVotingCalc
 
-derivePlutusSpine ''SimpleVotingCalc
 $(deriveCEMAssociatedTypes False ''SimpleVoting)
 
 instance CEMScript SimpleVoting where
@@ -155,32 +157,31 @@ instance CEMScript SimpleVoting where
       [
         ( CreateSpine
         ,
-          [ TxFan Out (SameScript $ MkSameScriptArg $ lift NotStarted) cMinLovelace
-          , MainSignerNoValue ctxParams.creator
+          [ output (ownUtxo $ withNullaryState NotStartedSpine) cMinLovelace
+          , signedBy ctxParams.creator
           ]
         )
       ,
         ( StartSpine
         ,
-          [ TxFan In (SameScript $ MkSameScriptArg $ lift NotStarted) cMinLovelace
-          , TxFan Out (SameScript $ MkSameScriptArg $ lift $ InProgress PMap.empty) cMinLovelace
-          , MainSignerNoValue ctxParams.creator
+          [ input (ownUtxo $ inState NotStartedSpine) cMinLovelace
+          , -- TODO: lift here sounds slightly misleading
+            output (ownUtxo $ lift $ InProgress PMap.empty) cMinLovelace
+          , signedBy ctxParams.creator
           ]
         )
       ,
         ( VoteSpine
         ,
-          [ sameScriptIncOfSpine InProgressSpine
-          , MatchBySpine ctxComp.voteAddResult
+          [ input (ownUtxo $ inState InProgressSpine) cMinLovelace
+          , match ctxComp.voteAddResult
               $ Map.fromList
-                [ (DuplicateVoteSpine, Error "You already casted vote")
+                [ (DuplicateVoteSpine, error "You already casted vote")
                 ,
                   ( SuccessSpine
-                  , TxFan
-                      Out
-                      ( SameScript
-                          $ MkSameScriptArg
-                          $ cOfSpine
+                  , output
+                      ( ownUtxo
+                          $ withState
                             InProgressSpine
                             [ #votes
                                 ::= ctxComp.voteAddResult.newVoteStorage
@@ -189,18 +190,17 @@ instance CEMScript SimpleVoting where
                       cMinLovelace
                   )
                 ]
-          , MainSignerNoValue ctxTransition.votingJury
-          , MatchBySpine ctxParams.juryPolicy
+          , signedBy ctxTransition.votingJury
+          , match ctxParams.juryPolicy
               $ Map.fromList
                 [
                   ( WithTokenSpine
-                  , TxFan
-                      InRef
-                      (UserAddress ctxTransition.votingJury)
+                  , refInput
+                      (userUtxo ctxTransition.votingJury)
                       ctxParams.juryPolicy.juryAuthTokenValue
                   )
-                , (FixedJuryListSpine, Noop)
-                , (AnyoneSpine, Noop)
+                , (FixedJuryListSpine, noop)
+                , (AnyoneSpine, noop)
                 ]
           , byFlagError
               ctxComp.votingNotAllowed
@@ -215,20 +215,9 @@ instance CEMScript SimpleVoting where
       ,
         ( FinalizeSpine
         ,
-          [ sameScriptIncOfSpine InProgressSpine
-          , TxFan
-              Out
-              ( SameScript
-                  $ MkSameScriptArg
-                  $ cOfSpine
-                    FinalizedSpine
-                    [#votingResult ::= ctxComp.result]
-              )
-              cMinLovelace
-          , MainSignerNoValue ctxParams.creator
+          [ input (ownUtxo $ inState InProgressSpine) cMinLovelace
+          , output (ownUtxo $ withState FinalizedSpine [#votingResult ::= ctxComp.result]) cMinLovelace
+          , signedBy ctxParams.creator
           ]
         )
       ]
-    where
-      sameScriptIncOfSpine spine =
-        TxFan In (SameScript $ MkSameScriptArg $ cUpdateOfSpine ctxState spine []) cMinLovelace

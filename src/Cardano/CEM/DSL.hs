@@ -343,8 +343,7 @@ class
   ) =>
   CEMScript script
   where
-  -- | This map defines constraints for each transition via DSL
-  -- FIXME: name
+  -- | The crux part - a map that defines constraints for each transition via DSL
   perTransitionScriptSpec :: CEMScriptSpec False script
 
   -- | Optional Plutus script to calculate things, for the cases when

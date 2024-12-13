@@ -1,26 +1,29 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
--- | CEM Script Acution example
+-- | CEM Script Acution example -- simple no-deposit acutons
 module CEM.Example.Auction where
 
 import Cardano.CEM
 import Data.Map qualified as Map
-
 import PlutusLedgerApi.V1.Crypto (PubKeyHash)
 import PlutusLedgerApi.V2 (Value)
 import PlutusTx.Prelude
 import Prelude qualified
 
--- | Simple no-deposit auction
+-- | Tag
 data SimpleAuction
 
+-- | A bid
 data Bid = MkBet
   { better :: PubKeyHash
   , betAmount :: Integer
   }
   deriving stock (Prelude.Eq, Prelude.Show)
 
+{- | 'Bid' is the only type we need to derive HasPlutusSpine intance,
+since it's not directly referenced from 'CEMScript'.
+-}
 derivePlutusSpine ''Bid
 
 data SimpleAuctionState
@@ -60,101 +63,82 @@ instance CEMScript SimpleAuction where
   compilationConfig = MkCompilationConfig "AUC"
 
   perTransitionScriptSpec =
-    Map.fromList
-      [
-        ( CreateSpine
-        ,
-          [ MainSignerCoinSelect ctxParams.seller cMinLovelace cEmptyValue
-          , -- , TxFan Out (SameScript $ MkSameScriptArg ctxState) scriptStateValue
-            TxFan Out (SameScript $ MkSameScriptArg $ nullarySpine @SimpleAuctionState NotStartedSpine) scriptStateValue
-          ]
-        )
-      ,
-        ( StartSpine
-        ,
-          [ ownInputInState NotStartedSpine
-          , TxFan
-              Out
-              ( SameScript
-                  $ MkSameScriptArg
-                  $ cOfSpine CurrentBidSpine [#bid ::= initialBid]
-              )
-              scriptStateValue
-          , MainSignerNoValue ctxParams.seller
-          ]
-        )
-      ,
-        ( MakeBidSpine
-        ,
-          [ ownInputInState CurrentBidSpine
-          , byFlagError
-              (ctxTransition.bid.betAmount @<= ctxState.bid.betAmount)
-              "Bid amount is less or equal to current bid"
-          , TxFan
-              Out
-              ( SameScript
-                  $ MkSameScriptArg
-                  $ cOfSpine
-                    CurrentBidSpine
-                    [#bid ::= ctxTransition.bid]
-              )
-              scriptStateValue
-          , MainSignerNoValue ctxTransition.bid.better
-          ]
-        )
-      ,
-        ( CloseSpine
-        ,
-          [ ownInputInState CurrentBidSpine
-          , TxFan
-              Out
-              ( SameScript
-                  $ MkSameScriptArg
-                  $ cOfSpine WinnerSpine [#bid ::= ctxState.bid]
-              )
-              scriptStateValue
-          , MainSignerNoValue ctxParams.seller
-          ]
-        )
-      ,
-        ( BuyoutSpine
-        ,
-          [ ownInputInState WinnerSpine
-          , -- Example: In constraints redundant for on-chain
-            offchainOnly
-              ( MainSignerCoinSelect
-                  buyoutBid.better
-                  ( cMkAdaOnlyValue buyoutBid.betAmount
-                      @<> cMinLovelace
-                  )
-                  cEmptyValue
-              )
-          , TxFan
-              Out
-              (UserAddress ctxParams.seller)
-              (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.betAmount)
-          , TxFan
-              Out
-              (UserAddress buyoutBid.better)
-              (cMinLovelace @<> ctxParams.lot)
-          ]
-        )
-      ]
-    where
+    let
       buyoutBid = ctxState.bid
+
       initialBid =
         cOfSpine
           MkBetSpine
           [ #better ::= ctxParams.seller
           , #betAmount ::= lift 0
           ]
-      scriptStateValue = cMinLovelace @<> ctxParams.lot
 
-      ownInputInState :: SimpleAuctionStateSpine -> TxConstraint False SimpleAuction
-      ownInputInState state =
-        TxFan
-          In
-          (SameScript $ MkSameScriptArg $ cUpdateOfSpine' ctxState state)
-          -- (SameScript $ MkSameScriptArg $ cOfSpine state [])
-          -- (SameScript $ MkSameScriptArg ctxState)
-          scriptStateValue
+      auctionValue = cMinLovelace @<> ctxParams.lot
+     in
+      Map.fromList
+        [
+          ( CreateSpine
+          ,
+            [ spentBy ctxParams.seller cMinLovelace cEmptyValue
+            , output (ownUtxo $ withNullaryState NotStartedSpine) auctionValue
+            ]
+          )
+        ,
+          ( StartSpine
+          ,
+            [ input (ownUtxo $ inState NotStartedSpine) auctionValue
+            , output (ownUtxo $ withState CurrentBidSpine [#bid ::= initialBid]) auctionValue
+            , signedBy ctxParams.seller
+            ]
+          )
+        ,
+          ( MakeBidSpine
+          ,
+            [ input (ownUtxo $ inState CurrentBidSpine) auctionValue
+            , byFlagError
+                (ctxTransition.bid.betAmount @<= ctxState.bid.betAmount)
+                "Bid amount is less or equal to current bid"
+            , output
+                ( ownUtxo
+                    $ withState
+                      CurrentBidSpine
+                      [#bid ::= ctxTransition.bid]
+                )
+                auctionValue
+            , signedBy ctxTransition.bid.better
+            ]
+          )
+        ,
+          ( CloseSpine
+          ,
+            [ input (ownUtxo $ inState CurrentBidSpine) auctionValue
+            , output
+                ( ownUtxo
+                    $ withState WinnerSpine [#bid ::= ctxState.bid]
+                )
+                auctionValue
+            , signedBy ctxParams.seller
+            ]
+          )
+        ,
+          ( BuyoutSpine
+          ,
+            [ input (ownUtxo $ inState WinnerSpine) auctionValue
+            , -- Example: In constraints redundant for on-chain
+              offchainOnly
+                ( spentBy
+                    buyoutBid.better
+                    ( cMkAdaOnlyValue buyoutBid.betAmount
+                        @<> cMinLovelace
+                    )
+                    cEmptyValue
+                )
+            , output
+                (userUtxo ctxParams.seller)
+                (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.betAmount)
+            , output
+                (userUtxo buyoutBid.better)
+                (cMinLovelace @<> ctxParams.lot)
+            ]
+          )
+        ]
