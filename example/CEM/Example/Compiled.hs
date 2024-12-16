@@ -10,5 +10,5 @@ import CEM.Example.Voting (SimpleVoting)
 import Cardano.CEM
 import Prelude
 
-$(compileCEM True ''SimpleAuction)
-$(compileCEM False ''SimpleVoting)
+$(compileCEMOnchain True ''SimpleAuction)
+$(compileCEMOnchain False ''SimpleVoting)

@@ -1,6 +1,6 @@
 module Cardano.CEM.TH (
   deriveCEMAssociatedTypes,
-  compileCEM,
+  compileCEMOnchain,
 ) where
 
 import Cardano.CEM.Compile (preProcessForOnChainCompilation)
@@ -49,8 +49,8 @@ deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
         reifyInstances familyName [argType]
       return name
 
-compileCEM :: Bool -> Name -> Q [Dec]
-compileCEM debugBuild name = do
+compileCEMOnchain :: Bool -> Name -> Q [Dec]
+compileCEMOnchain debugBuild name = do
   -- TODO: two duplicating cases on `transitionComp`
   let plutusScript =
         [|

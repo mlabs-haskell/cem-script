@@ -72,47 +72,11 @@ transitionStateSpines kind spec = concat $ map ownUtxoState spec
     -- and smart constructors.
     parseSpine _ = error "SameScript is too complex to statically know its spine"
 
--- | Checking for errors and normalising
-preProcessForOnChainCompilation ::
-  (CEMScript script, Show a) =>
-  Map.Map a [TxConstraint False script] ->
-  Map.Map a [TxConstraint False script]
-preProcessForOnChainCompilation spec =
-  if length possibleCreators == 1
-    then
-      let
-        -- FIXME: relies on `error` inside...
-        !_ = map transitionInStateSpine $ Map.elems spec
-       in
-        spec
-    else
-      error $
-        "CEMScript should have exactly 1 creating transition, "
-          <> "while possible creators are "
-          <> ppShowList possibleCreators
-  where
-    possibleCreators = filter (maybeIsCreator . snd) (Map.toList spec)
+-- -----------------------------------------------------------------------------
+-- Some preliminary checks
+-- -----------------------------------------------------------------------------
 
-    maybeIsCreator :: [TxConstraint resolved script] -> Bool
-    maybeIsCreator constrs =
-      not (maybeHasSameScriptFanOfKind In)
-        && maybeHasSameScriptFanOfKind Out
-      where
-        maybeHasSameScriptFanOfKind kind =
-          any ((/= No) . isSameScriptOfKind kind) constrs
-
-    isSameScriptOfKind :: TxFanKind -> TxConstraint resolved script -> CheckResult
-    isSameScriptOfKind xKind constr = case constr of
-      TxFan kind (SameScript _) _ ->
-        if kind == xKind then Yes else No
-      If _ t e -> min (recur t) (recur e)
-      MatchBySpine _ caseSwitch ->
-        minimum $ map recur (Map.elems caseSwitch)
-      _ -> No
-      where
-        recur = isSameScriptOfKind xKind
-
--- | We have abstract interpretator at home
+-- Checks are based on this pseudo-lattice ordering.
 data CheckResult = Yes | No | Maybe
   deriving stock (Eq, Show)
 
@@ -129,3 +93,46 @@ instance Ord CheckResult where
   compare No No = EQ
   compare Maybe Maybe = EQ
   compare x y = opposite $ compare y x
+
+{- | Performs some preliminary checks over the CEM script specification:
+* there is only one initial transition
+* every transition has zero or one `In` state
+-}
+preProcessForOnChainCompilation ::
+  (CEMScript script, Show a) =>
+  Map.Map a [TxConstraint False script] ->
+  Map.Map a [TxConstraint False script]
+preProcessForOnChainCompilation spec =
+  if length initialTransitions == 1
+    then
+      let
+        -- PM relies on `error` inside transitionInStateSpine
+        !_ = map transitionInStateSpine $ Map.elems spec
+       in
+        spec
+    else
+      error $
+        "CEMScript must have exactly one initial transition, "
+          <> "while there are many ones: "
+          <> ppShowList initialTransitions
+  where
+    initialTransitions = filter (isInitial . snd) (Map.toList spec)
+
+    isInitial :: [TxConstraint resolved script] -> Bool
+    isInitial constrs =
+      not (maybeHasSameScriptFanOfKind In)
+        && maybeHasSameScriptFanOfKind Out
+      where
+        maybeHasSameScriptFanOfKind kind =
+          any ((/= No) . isSameScriptOfKind kind) constrs
+
+    isSameScriptOfKind :: TxFanKind -> TxConstraint resolved script -> CheckResult
+    isSameScriptOfKind xKind constr = case constr of
+      TxFan kind (SameScript _) _ ->
+        if kind == xKind then Yes else No
+      If _ t e -> min (recur t) (recur e)
+      MatchBySpine _ caseSwitch ->
+        minimum $ map recur (Map.elems caseSwitch)
+      _ -> No
+      where
+        recur = isSameScriptOfKind xKind
