@@ -26,9 +26,9 @@ import Cardano.CEM.DSL (
     MainSignerNoValue,
     MatchBySpine,
     Noop,
-    TxFan
+    Utxo
   ),
-  TxFanFilter (SameScript, UserAddress),
+  Utxo (SameScript, UserAddress),
   UtxoKind (In, InRef, Out),
  )
 import Data.Map qualified as Map
@@ -228,7 +228,7 @@ genericPlutarchScript spec code =
                               # (passertSorted #$ pMkAdaOnlyValue # 0)
                               #$ mapGetValues
                               # validTxIns
-                  TxFan fanKind fanSpec value ->
+                  Utxo fanKind fanSpec value ->
                     let
                       resolve =
                         pmap # plam (\x -> pfromData $ pfield @"resolved" # x)

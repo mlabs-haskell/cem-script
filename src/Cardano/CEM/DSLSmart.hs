@@ -190,37 +190,37 @@ byFlagError flag message = If flag (Error message) Noop
 input ::
   forall script.
   () =>
-  TxFanFilter False script ->
+  Utxo False script ->
   DSLValue False script Value ->
   TxConstraint False script
-input = TxFan In
+input = Utxo In
 
 refInput ::
   forall script.
   () =>
-  TxFanFilter False script ->
+  Utxo False script ->
   DSLValue False script Value ->
   TxConstraint False script
-refInput = TxFan InRef
+refInput = Utxo InRef
 
 output ::
   forall script.
   () =>
-  TxFanFilter False script ->
+  Utxo False script ->
   DSLValue False script Value ->
   TxConstraint False script
-output = TxFan Out
+output = Utxo Out
 
 userUtxo ::
   forall (resolved :: Bool) script.
   DSLValue resolved script PubKeyHash ->
-  TxFanFilter resolved script
+  Utxo resolved script
 userUtxo = UserAddress
 
 ownUtxo ::
   forall (resolved :: Bool) script.
   DSLValue resolved script (State script) ->
-  TxFanFilter resolved script
+  Utxo resolved script
 ownUtxo = SameScript . MkSameScriptArg
 
 signedBy ::

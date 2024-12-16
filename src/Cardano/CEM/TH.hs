@@ -8,13 +8,13 @@ import Cardano.CEM.DSL (
   CEMScript (..),
   CEMScriptTypes (..),
   CompilationConfig (..),
-  parseErrorCodes,
-  substErrors,
+  TxConstraint (Error, If, MatchBySpine),
  )
 import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
 import Data.Data (Proxy (..))
 import Data.Map qualified as Map
 import Data.Spine (derivePlutusSpine)
+import Data.Text (pack, unpack)
 import Data.Tuple (swap)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (sequenceQ)
@@ -99,3 +99,36 @@ compileCEMOnchain debugBuild name = do
       errorCodes Proxy = fst $(varE compiledName)
       cemScriptCompiled Proxy = snd $(varE compiledName)
     |]
+
+parseErrorCodes ::
+  String ->
+  Map.Map k [TxConstraint resolved script] ->
+  [(String, String)]
+parseErrorCodes prefix spec =
+  go [] $ concat $ Map.elems spec
+  where
+    go table (constraint : rest) =
+      case constraint of
+        Error message ->
+          let
+            code = prefix <> show (length table)
+           in
+            go ((code, unpack message) : table) rest
+        If _ t e -> go table (t : e : rest)
+        (MatchBySpine _ caseSwitch) ->
+          go table (Map.elems caseSwitch ++ rest)
+        _ -> go table rest
+    go table [] = reverse table
+
+substErrors ::
+  Map.Map String String ->
+  Map.Map k [TxConstraint a b] ->
+  Map.Map k [TxConstraint a b]
+substErrors mapping spec =
+  Map.map (map go) spec
+  where
+    go (Error message) = Error $ pack $ mapping Map.! unpack message
+    go (If x t e) = If x (go t) (go e)
+    go (MatchBySpine @a @b @c s caseSwitch) =
+      MatchBySpine @a @b @c s $ Map.map go caseSwitch
+    go x = x

@@ -197,7 +197,7 @@ process (MkCEMAction params transition) ec = case ec of
           map (withKeyWitness . fst) $ Map.toList $ unUTxO utxo
     -- FIXME: do actuall coin selection
     return $ TxInR $ head utxoPairs
-  (TxFan kind fanFilter value) -> do
+  (Utxo kind fanFilter value) -> do
     case kind of
       Out -> do
         let value' = convertTxOut $ fromPlutusValue value
@@ -353,8 +353,8 @@ compileConstraint datum transition c = case c of
       <$> compileDslRecur pkhDsl
       <*> compileDslRecur inValueDsl
       <*> compileDslRecur outValueDsl
-  TxFan kind fanFilter valueDsl ->
-    TxFan kind <$> compileFanFilter fanFilter <*> compileDslRecur valueDsl
+  Utxo kind fanFilter valueDsl ->
+    Utxo kind <$> compileFanFilter fanFilter <*> compileDslRecur valueDsl
   Noop -> Right Noop
   -- XXX: changing resolved type param of Error
   e@(Error {}) -> Right $ unsafeCoerce e
@@ -362,7 +362,7 @@ compileConstraint datum transition c = case c of
     compileDslRecur :: ConstraintDSL script x -> Either String x
     compileDslRecur = compileDsl @script datum transition
     recur = compileConstraint @script datum transition
-    compileFanFilter :: TxFanFilter 'False script -> Either String (TxFanFilter 'True script)
+    compileFanFilter :: Utxo 'False script -> Either String (Utxo 'True script)
     compileFanFilter fanFilter = case fanFilter of
       UserAddress dsl -> UserAddress <$> compileDslRecur dsl
       SameScript (MkSameScriptArg stateDsl) -> SameScript . MkSameScriptArg <$> compileDslRecur stateDsl

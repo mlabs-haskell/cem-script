@@ -39,7 +39,7 @@ transitionOutStateSpine = onlyTransitionStateSpine Out
 
 onlyTransitionStateSpine ::
   (CEMScript script) =>
-  TxFanKind ->
+  UtxoKind ->
   [TxConstraint False script] ->
   Maybe (Spine (State script))
 onlyTransitionStateSpine kind spec = case transitionStateSpines kind spec of
@@ -53,13 +53,13 @@ onlyTransitionStateSpine kind spec = case transitionStateSpines kind spec of
 transitionStateSpines ::
   forall script.
   (CEMScript script) =>
-  TxFanKind ->
+  UtxoKind ->
   [TxConstraint False script] ->
   [Spine (State script)]
 transitionStateSpines kind spec = concat $ map ownUtxoState spec
   where
     ownUtxoState constr = case constr of
-      TxFan kind' (SameScript (MkSameScriptArg state)) _ -> [parseSpine state | kind' == kind]
+      Utxo kind' (SameScript (MkSameScriptArg state)) _ -> [parseSpine state | kind' == kind]
       If _ t e -> ownUtxoState t <> ownUtxoState e
       MatchBySpine _ caseSwitch -> foldMap ownUtxoState (Map.elems caseSwitch)
       _ -> []
@@ -126,9 +126,9 @@ preProcessForOnChainCompilation spec =
         maybeHasSameScriptFanOfKind kind =
           any ((/= No) . isSameScriptOfKind kind) constrs
 
-    isSameScriptOfKind :: TxFanKind -> TxConstraint resolved script -> CheckResult
+    isSameScriptOfKind :: UtxoKind -> TxConstraint resolved script -> CheckResult
     isSameScriptOfKind xKind constr = case constr of
-      TxFan kind (SameScript _) _ ->
+      Utxo kind (SameScript _) _ ->
         if kind == xKind then Yes else No
       If _ t e -> min (recur t) (recur e)
       MatchBySpine _ caseSwitch ->

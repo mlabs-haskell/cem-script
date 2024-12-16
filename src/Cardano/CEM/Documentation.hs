@@ -4,7 +4,7 @@ import Cardano.CEM.Compile (transitionStateSpines)
 import Cardano.CEM.DSL (
   CEMScript (transitionSpec),
   CEMScriptTypes (Transition),
-  TxFanKind (In, Out),
+  UtxoKind (In, Out),
  )
 import Data.Foldable (fold)
 import Data.Map qualified as Map

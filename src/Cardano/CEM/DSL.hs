@@ -3,13 +3,42 @@
 
 {-# HLINT ignore "Use fewer imports" #-}
 
-module Cardano.CEM.DSL where
+module Cardano.CEM.DSL (
+  -- * Main CEM Script API
+  CEMScriptSpec,
+  CEMScript (..),
+  CEMScriptTypes (..),
+  CompilationConfig (..),
+  CEMScriptDatum,
+
+  -- * Constraints
+  TxConstraint (..),
+  Utxo (..),
+  UtxoKind (..),
+  SameScriptArg (..),
+  getMainSigner,
+
+  -- * DSL
+  ConstraintDSL (..),
+  DSLPattern,
+  DSLValue,
+  RecordSetter (..),
+  SCVar (..),
+  CParamsSym0,
+  CStateSym0,
+  CTransitionSym0,
+  CCompSym0,
+  CVar (..),
+  CVarType,
+  RecordLabel (..),
+  PlutarchData,
+) where
 
 import Data.Map qualified as Map
 import Data.Maybe (mapMaybe)
 import Data.Singletons.TH
 import Data.Spine (HasPlutusSpine, HasSpine (..))
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text)
 import GHC.OverloadedLabels (IsLabel (..))
 import GHC.Records (HasField (..))
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
@@ -27,7 +56,11 @@ import PlutusLedgerApi.V2 (ToData (..), Value)
 import PlutusTx qualified
 import Prelude
 
--- Types of variables a CEM Script operates over, can be accessed and/or
+-- -----------------------------------------------------------------------------
+-- Constraints DSL
+-- -----------------------------------------------------------------------------
+
+-- Types of variables the DSL language operates over, can be accessed and/or
 -- updated from CEM constraints, see 'TxConstraint'.
 data CVar
   = -- | CEM parameters, see 'CEMScriptTypes'
@@ -64,89 +97,6 @@ type family DSLPattern (resolved :: Bool) script value where
   DSLPattern False script value = ConstraintDSL script value
   DSLPattern True _ value = Void
 
-{- | FIXME: Everyone is confused by term "fan" here.
-TxO?
-Output?
-TxInOut
-?
--}
-data TxFanKind
-  = -- | tx inputs
-    In
-  | -- | tx reference inputs
-    InRef
-  | -- | tx outputs
-    Out
-  deriving stock (Eq, Show)
-
--- TODO: TxInOutConstraint?
--- FIXME: Wait, why Filter? These are constraints, no?
--- FIXME: Shall we add `Noop` or use Maybe (TxFanFilter resolved script) in TxConstraint?
-data TxFanFilter (resolved :: Bool) script
-  = UserAddress (DSLValue resolved script PubKeyHash)
-  | -- FIXME: should have spine been specified known statically
-    SameScript (SameScriptArg resolved script) -- (DSLValue resolved script (State script))
-
-deriving stock instance (CEMScript script) => (Show (TxFanFilter True script))
-deriving stock instance (Show (TxFanFilter False script))
-
-data SameScriptArg (resolved :: Bool) script where
-  MkSameScriptArg ::
-    DSLValue resolved script (State script) ->
-    SameScriptArg resolved script
-
-deriving stock instance (CEMScript script) => (Show (SameScriptArg True script))
-deriving stock instance (Show (SameScriptArg False script))
-
--- | Constraints are root elements of the DSL.
-
--- TODO: rename, why Tx? Transition? Just Constraint?
-data TxConstraint (resolved :: Bool) script
-  = TxFan
-      { kind :: TxFanKind
-      , cFilter :: TxFanFilter resolved script
-      , value :: DSLValue resolved script Value
-      }
-  | MainSignerCoinSelect
-      { user :: DSLValue resolved script PubKeyHash
-      , inValue :: DSLValue resolved script Value
-      , outValue :: DSLValue resolved script Value
-      }
-  | MainSignerNoValue (DSLValue resolved script PubKeyHash)
-  | Error Text
-  | If
-      -- | Condition
-      (DSLPattern resolved script Bool)
-      -- | Then block
-      (TxConstraint resolved script)
-      -- | Else block
-      (TxConstraint resolved script)
-  | forall sop.
-    (HasPlutusSpine sop) =>
-    MatchBySpine
-      -- | Value being matched by its Spine
-      (DSLPattern resolved script sop)
-      -- | Case switch
-      (Map.Map (Spine sop) (TxConstraint resolved script))
-  | -- | Dummy noop constraint
-    Noop
-
-deriving stock instance (CEMScript script) => (Show (TxConstraint True script))
-deriving stock instance (Show (TxConstraint False script))
-
--- -----------------------------------------------------------------------------
--- DSL
--- -----------------------------------------------------------------------------
-
-type HasFieldPlutus (a :: Symbol) d v =
-  ( HasField a d v
-  , HasPlutusSpine d
-  , KnownSymbol a
-  , ToData v
-  )
-
-type PlutarchData x = (PShow x, PLift x, PIsData x)
-
 -- | DSL to express constraints
 data ConstraintDSL script value where
   -- | Get access to context, see `CVarType` for available datatypes.
@@ -158,15 +108,12 @@ data ConstraintDSL script value where
     Proxy var ->
     ConstraintDSL script datatype
   -- | Lifts a Plutus value into DSL
-  -- TODO: rename to Lift/Send?
   Pure ::
     (Show value', ToData value') =>
     value' ->
     ConstraintDSL script value'
   -- | Allows to skip checks conditionally, usually for on-chain.
   IsOnChain :: ConstraintDSL script Bool
-  -- FIXME: should have Spine typechecked on DSL compilation,
-  -- see `MatchBySpine`
   GetField ::
     forall (label :: Symbol) sop script value.
     (HasFieldPlutus label sop value) =>
@@ -174,7 +121,7 @@ data ConstraintDSL script value where
     Proxy label ->
     ConstraintDSL script value
   -- | Builds a datatype value from the spine and field setters.
-  -- Used for Out "filters"
+  -- Used in Utxo Out spec.
   UnsafeOfSpine ::
     forall script datatype spine.
     ( spine ~ Spine datatype
@@ -183,8 +130,8 @@ data ConstraintDSL script value where
     Spine datatype ->
     [RecordSetter (ConstraintDSL script) datatype] ->
     ConstraintDSL script datatype
-  -- FIXME: Шляпа шляпная
-  -- Used for  In
+  -- | More like Haskell `rec {field = value}` syntax.
+  -- Used in Utxo In constraints.
   UnsafeUpdateOfSpine ::
     forall script datatype spine.
     ( spine ~ Spine datatype
@@ -196,7 +143,6 @@ data ConstraintDSL script value where
     [RecordSetter (ConstraintDSL script) datatype] ->
     ConstraintDSL script datatype
   -- Primitives
-  -- FIXME: learn Anything semantics?
   Anything :: ConstraintDSL script x
   Eq ::
     forall x script.
@@ -237,8 +183,18 @@ instance Show (ConstraintDSL x y) where
       "OfSpine " <> show spine <> show setters
     UnsafeUpdateOfSpine spine _ _ -> "UnsafeUpdateOfSpine " <> show spine
 
+type HasFieldPlutus (a :: Symbol) d v =
+  ( HasField a d v
+  , HasPlutusSpine d
+  , KnownSymbol a
+  , ToData v
+  )
+
+type PlutarchData x = (PShow x, PLift x, PIsData x)
+
 -- -----------------------------------------------------------------------------
--- Datatypes and instances for working with records, used in
+-- Datatypes and instances for working with records
+-- -----------------------------------------------------------------------------
 
 data RecordSetter f datatype where
   (::=) ::
@@ -269,6 +225,74 @@ instance
   getField recordDsl =
     GetField @label @datatype @script @value recordDsl Proxy
 
+-- -----------------------------------------------------------------------------
+-- Constraints, which are the main elements to build up a CEM Script.
+-- -----------------------------------------------------------------------------
+
+-- | Constraints are root elements of the DSL.
+data TxConstraint (resolved :: Bool) script
+  = Utxo
+      { kind :: UtxoKind
+      , spec :: Utxo resolved script
+      , value :: DSLValue resolved script Value
+      }
+  | MainSignerCoinSelect
+      { user :: DSLValue resolved script PubKeyHash
+      , inValue :: DSLValue resolved script Value
+      , outValue :: DSLValue resolved script Value
+      }
+  | MainSignerNoValue (DSLValue resolved script PubKeyHash)
+  | Error Text
+  | If
+      -- | Condition
+      (DSLPattern resolved script Bool)
+      -- | Then block
+      (TxConstraint resolved script)
+      -- | Else block
+      (TxConstraint resolved script)
+  | forall sop.
+    (HasPlutusSpine sop) =>
+    MatchBySpine
+      -- | Value being matched by its Spine
+      (DSLPattern resolved script sop)
+      -- | Case switch
+      (Map.Map (Spine sop) (TxConstraint resolved script))
+  | -- | Dummy noop constraint
+    Noop
+
+deriving stock instance (CEMScript script) => (Show (TxConstraint True script))
+deriving stock instance (Show (TxConstraint False script))
+
+{- | Every transition involves some inputs and outputs.
+We use term Utxo to refer to both, including refernce inputs.
+-}
+data Utxo (resolved :: Bool) script
+  = -- | U utxo held by a user
+    UserAddress (DSLValue resolved script PubKeyHash)
+  | -- | Own utxo held by the same CEM script
+    SameScript (SameScriptArg resolved script) -- (DSLValue resolved script (State script))
+
+deriving stock instance (CEMScript script) => (Show (Utxo True script))
+deriving stock instance (Show (Utxo False script))
+
+-- | TODO: this wrapper is not needed
+data SameScriptArg (resolved :: Bool) script where
+  MkSameScriptArg ::
+    DSLValue resolved script (State script) ->
+    SameScriptArg resolved script
+
+deriving stock instance (CEMScript script) => (Show (SameScriptArg True script))
+deriving stock instance (Show (SameScriptArg False script))
+
+data UtxoKind
+  = -- | trantision inputs
+    In
+  | -- | reference inputs used in the transition
+    InRef
+  | -- | transition outputs
+    Out
+  deriving stock (Eq, Show)
+
 getMainSigner :: [TxConstraint True script] -> PubKeyHash
 getMainSigner cs = case mapMaybe f cs of
   [pkh] -> pkh
@@ -280,46 +304,13 @@ getMainSigner cs = case mapMaybe f cs of
     f (MainSignerCoinSelect pkh _ _) = Just pkh
     f _ = Nothing
 
--- FIXME: support for reusing error message between transitions in codes
--- FIXME: add golden tests
-parseErrorCodes ::
-  String ->
-  Map.Map k [TxConstraint resolved script] ->
-  [(String, String)]
-parseErrorCodes prefix spec =
-  go [] $ concat $ Map.elems spec
-  where
-    go table (constraint : rest) =
-      case constraint of
-        Error message ->
-          let
-            code = prefix <> show (length table)
-           in
-            go ((code, unpack message) : table) rest
-        If _ t e -> go table (t : e : rest)
-        (MatchBySpine _ caseSwitch) ->
-          go table (Map.elems caseSwitch ++ rest)
-        _ -> go table rest
-    go table [] = reverse table
-
-substErrors ::
-  Map.Map String String ->
-  Map.Map k [TxConstraint a b] ->
-  Map.Map k [TxConstraint a b]
-substErrors mapping spec =
-  Map.map (map go) spec
-  where
-    go (Error message) = Error $ pack $ mapping Map.! unpack message
-    go (If x t e) = If x (go t) (go e)
-    go (MatchBySpine @a @b @c s caseSwitch) =
-      MatchBySpine @a @b @c s $ Map.map go caseSwitch
-    go x = x
-
 -- -----------------------------------------------------------------------------
 -- Main CEM Script API
 -- -----------------------------------------------------------------------------
 
--- | TODO:
+{- | CEM Script specification is a map of possible transitions with corresponding
+set of constraints. See "Data.Spine" module to get an idea what 'Spine' is.
+-}
 type CEMScriptSpec resolved script =
   ( Map.Map
       (Spine (Transition script))
@@ -339,12 +330,12 @@ class
   ) =>
   CEMScript script
   where
-  -- | The crux part - a map that defines constraints for each transition via DSL
+  -- | The crux part - a map that defines constraints for each transition via DSL.
   transitionSpec :: CEMScriptSpec False script
 
-  -- | Optional Plutus script to calculate things, for the cases when
-  -- CEM constrainsts and/or inlining Plutarch functions are not
-  -- expresisble enough.
+  -- | Optional Plutus script to calculate things, whic can be used in the cases
+  -- when CEM constrainsts and/or inlining Plutarch functions are not expresisble
+  -- enough.
   transitionComp ::
     Maybe
       ( Params script ->
@@ -383,8 +374,10 @@ class CEMScriptTypes script where
 
   type TransitionComp script = Void
 
+-- | Options used for compiling.
 newtype CompilationConfig = MkCompilationConfig
   { errorCodesPrefix :: String
   }
 
+-- | This is what CEM Scripts' datum look like.
 type CEMScriptDatum script = (Params script, State script)

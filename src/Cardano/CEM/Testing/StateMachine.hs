@@ -13,7 +13,7 @@ import Cardano.CEM (
   CEMScript,
   CEMScriptTypes (Params, State, Transition),
  )
-import Cardano.CEM.DSL (SameScriptArg (MkSameScriptArg), TxConstraint (TxFan), TxFanFilter (SameScript), TxFanKind (Out), getMainSigner)
+import Cardano.CEM.DSL (SameScriptArg (MkSameScriptArg), TxConstraint (Utxo), Utxo (SameScript), UtxoKind (Out), getMainSigner)
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),
   CEMAction (..),
@@ -222,7 +222,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
           _ ->
             error
               "Scripts with >1 SameScript outputs are not supported by QD"
-        f (TxFan Out (SameScript (MkSameScriptArg outState)) _) = Just outState
+        f (Utxo Out (SameScript (MkSameScriptArg outState)) _) = Just outState
         f _ = Nothing
   nextState _ _ _ = error "Unreachable"
 
