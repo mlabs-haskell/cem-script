@@ -20,58 +20,57 @@ allTransitions ::
     ( Maybe (Spine (State script)) -- source 'State'
     , Maybe (Spine (State script)) -- target 'State'
     )
-allTransitions = Map.map foo transitionSpec
+allTransitions = Map.map inOut transitionSpec
   where
-    foo :: [TxConstraint False script] -> (Maybe (Spine (State script)), Maybe (Spine (State script)))
-    foo cs = (transitionInStateSpine cs, transitionOutStateSpine cs)
+    inOut :: [TxConstraint False script] -> (Maybe (Spine (State script)), Maybe (Spine (State script)))
+    inOut cs = (transitionInStateSpine cs, transitionOutStateSpine cs)
 
 transitionInStateSpine ::
   (CEMScript script) =>
   [TxConstraint False script] ->
   Maybe (Spine (State script))
-transitionInStateSpine spec = case transitionStateSpines In spec of
-  [x] -> Just x
-  [] -> Nothing
-  _ ->
-    error
-      "Transition should not have more than one SameScript In constraint"
+transitionInStateSpine = onlyTransitionStateSpine In
 
 transitionOutStateSpine ::
   (CEMScript script) =>
   [TxConstraint False script] ->
   Maybe (Spine (State script))
-transitionOutStateSpine spec = case transitionStateSpines Out spec of
+transitionOutStateSpine = onlyTransitionStateSpine Out
+
+onlyTransitionStateSpine ::
+  (CEMScript script) =>
+  TxFanKind ->
+  [TxConstraint False script] ->
+  Maybe (Spine (State script))
+onlyTransitionStateSpine kind spec = case transitionStateSpines kind spec of
   [x] -> Just x
   [] -> Nothing
   _ ->
     error
-      "Transition should not have more than one SameScript In constraint"
+      "Transition should not have more than one SameScript In/Out/InRef constraint"
 
-transitionStateSpines :: (CEMScript script) => TxFanKind -> [TxConstraint False script] -> [Spine (State script)]
-transitionStateSpines kind spec = concat $ map (sameScriptStateSpinesOfKind kind) spec
+-- | Get all states for a transition constraints based on a utxo kind.
+transitionStateSpines ::
+  forall script.
+  (CEMScript script) =>
+  TxFanKind ->
+  [TxConstraint False script] ->
+  [Spine (State script)]
+transitionStateSpines kind spec = concat $ map ownUtxoState spec
   where
-    sameScriptStateSpinesOfKind ::
-      forall script.
-      (CEMScript script) =>
-      TxFanKind ->
-      TxConstraint False script ->
-      [Spine (State script)]
-    sameScriptStateSpinesOfKind xKind constr = case constr of
-      TxFan kind (SameScript (MkSameScriptArg state)) _ -> [parseSpine state | kind == xKind]
-      If _ t e -> recur t <> recur e
-      MatchBySpine _ caseSwitch -> foldMap recur (Map.elems caseSwitch)
+    ownUtxoState constr = case constr of
+      TxFan kind' (SameScript (MkSameScriptArg state)) _ -> [parseSpine state | kind' == kind]
+      If _ t e -> ownUtxoState t <> ownUtxoState e
+      MatchBySpine _ caseSwitch -> foldMap ownUtxoState (Map.elems caseSwitch)
       _ -> []
-      where
-        recur = sameScriptStateSpinesOfKind xKind
-        parseSpine ::
-          ConstraintDSL script (State script) -> Spine (State script)
-        parseSpine (Pure state) = getSpine state
-        parseSpine (UnsafeOfSpine spine _) = spine
-        parseSpine (UnsafeUpdateOfSpine _ spine _) = spine
-        -- FIXME: yet another not-properly DSL type encoded place
-        parseSpine _ = error "SameScript is too complex to statically know its spine"
 
--- FIXME: check MainSignerCoinSelect, ...
+    parseSpine :: ConstraintDSL script (State script) -> Spine (State script)
+    parseSpine (Pure state) = getSpine state
+    parseSpine (UnsafeOfSpine spine _) = spine
+    parseSpine (UnsafeUpdateOfSpine _ spine _) = spine
+    -- This should not happen anymore due to use of 'SameScriptArg'
+    -- and smart constructors.
+    parseSpine _ = error "SameScript is too complex to statically know its spine"
 
 -- | Checking for errors and normalising
 preProcessForOnChainCompilation ::
