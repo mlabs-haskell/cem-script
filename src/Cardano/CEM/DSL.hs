@@ -24,7 +24,6 @@ import Plutarch.Prelude (
  )
 import PlutusLedgerApi.V1 (PubKeyHash)
 import PlutusLedgerApi.V2 (ToData (..), Value)
-import PlutusLedgerApi.V2.Contexts (TxInfo)
 import PlutusTx qualified
 import Prelude
 
@@ -39,8 +38,6 @@ data CVar
     CTransition
   | -- | Optional custom computation, see 'transitionComp'
     CComp
-  | -- | Plutus transaction context FIXME: how do we use it? Only debugging?
-    CTxInfo
   deriving stock (Show)
 
 genSingletons [''CVar]
@@ -51,7 +48,6 @@ type family CVarType (cvar :: CVar) script where
   CVarType CState script = State script
   CVarType CTransition script = Transition script
   CVarType CComp script = TransitionComp script
-  CVarType CTxInfo script = TxInfo
 
 {- | During the initial stage of compilation DSL Values
 move from unresolved state where they are represented

@@ -385,7 +385,6 @@ compileDsl datum@(params, state) transition dsl = case dsl of
       SCComp -> case transitionComp @script of
         Just go -> Right $ go params state transition
         Nothing -> error "Unreachable"
-      SCTxInfo -> raiseOnchainErrorMessage ("TxInfo reference" :: String)
   IsOnChain -> Right False
   GetField @label @datatype @_ @value recordDsl _ -> do
     recordValue <- recur recordDsl

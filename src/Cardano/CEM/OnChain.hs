@@ -17,7 +17,7 @@ import Cardano.CEM.DSL (
   ConstraintDSL (..),
   RecordLabel (MkRecordLabel),
   RecordSetter ((::=)),
-  SCVar (SCComp, SCParams, SCState, SCTransition, SCTxInfo),
+  SCVar (SCComp, SCParams, SCState, SCTransition),
   SameScriptArg (MkSameScriptArg),
   TxConstraint (
     Error,
@@ -29,7 +29,7 @@ import Cardano.CEM.DSL (
     TxFan
   ),
   TxFanFilter (SameScript, UserAddress),
-  TxFanKind (In, InRef, Out),
+  UtxoKind (In, InRef, Out),
  )
 import Data.Map qualified as Map
 import Data.Singletons (Proxy (..), SingI (sing))
@@ -71,7 +71,6 @@ import Plutarch.Builtin (
   pasConstr,
   pconstrBuiltin,
   pdata,
-  pforgetData,
   pfromData,
   pfstBuiltin,
   psndBuiltin,
@@ -327,7 +326,6 @@ genericPlutarchScript spec code =
                   SCTransition -> transition
                   -- FIXME: is this force good?
                   SCComp -> pforce comp
-                  SCTxInfo -> pforgetData txInfo
               GetField @_ @y @_ @value valueDsl proxyLabel ->
                 getRecordField
                   (fieldNum @y proxyLabel)
