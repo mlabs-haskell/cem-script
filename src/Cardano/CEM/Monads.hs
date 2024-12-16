@@ -27,7 +27,7 @@ data CEMAction script = MkCEMAction (Params script) (Transition script)
 
 deriving stock instance (CEMScript script) => Show (CEMAction script)
 
--- TODO: can we rmove this by adding exitential type to CEMAction?
+-- TODO: can we rmove this by adding existential type to CEMAction?
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.

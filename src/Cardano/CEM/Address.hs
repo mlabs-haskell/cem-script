@@ -1,70 +1,62 @@
 module Cardano.CEM.Address (
-  AddressBech32 (MkAddressBech32, unAddressBech32),
-  cardanoAddressBech32,
-  scriptCredential,
-  scriptCardanoAddress,
   cemScriptAddress,
+  cemScriptPlutusCredential,
+  cemScriptPlutusAddress,
   plutusAddressToShelleyAddress,
 ) where
 
-import Cardano.Api qualified
-import Cardano.Api.Address qualified
-import Cardano.Api.Ledger qualified
+import Cardano.Api qualified as C
+import Cardano.Api.Address qualified as C (Address (..))
+import Cardano.Api.Ledger qualified as C
 import Cardano.CEM.OnChain (CEMScriptCompiled (cemScriptCompiled))
-import Cardano.CEM.OnChain qualified as Compiled
-import Cardano.Crypto.Hash qualified as Cardano.Hash
-import Cardano.Ledger.BaseTypes qualified as Ledger
-import Cardano.Ledger.Credential qualified as Cred
-import Cardano.Ledger.Hashes qualified
-import Cardano.Ledger.Keys qualified as Ledger.Keys
+import Cardano.Crypto.Hash qualified as Crypto
+import Cardano.Ledger.BaseTypes qualified as L
+import Cardano.Ledger.Credential qualified as L
+import Cardano.Ledger.Hashes qualified as L
+import Cardano.Ledger.Keys qualified as L
 import Data.Proxy (Proxy)
-import Data.String (IsString)
-import Data.Text qualified as T
 import Plutarch.LedgerApi (scriptHash)
 import Plutarch.Script (serialiseScript)
 import Plutus.Extras (scriptValidatorHash)
-import PlutusLedgerApi.V1 qualified
-import PlutusLedgerApi.V1.Address (Address, scriptHashAddress)
+import PlutusLedgerApi.V1 qualified as P
+import PlutusLedgerApi.V1.Address qualified as P (scriptHashAddress)
 import Prelude
 
-newtype AddressBech32 = MkAddressBech32 {unAddressBech32 :: T.Text}
-  deriving newtype (Eq, Show, IsString)
-
-cardanoAddressBech32 :: Cardano.Api.Address Cardano.Api.ShelleyAddr -> AddressBech32
-cardanoAddressBech32 = MkAddressBech32 . Cardano.Api.serialiseToBech32
-
-{-# INLINEABLE cemScriptAddress #-}
 cemScriptAddress ::
-  forall script. (CEMScriptCompiled script) => Proxy script -> Address
-cemScriptAddress =
-  scriptHashAddress . scriptValidatorHash . serialiseScript . cemScriptCompiled
-
-scriptCardanoAddress ::
   forall script.
-  (Compiled.CEMScriptCompiled script) =>
-  Cardano.Api.Ledger.Network ->
+  (CEMScriptCompiled script) =>
+  C.Network ->
   Proxy script ->
-  Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
-scriptCardanoAddress network =
+  Either String (C.Address C.ShelleyAddr)
+cemScriptAddress network =
   plutusAddressToShelleyAddress network
-    . flip PlutusLedgerApi.V1.Address Nothing
-    . scriptCredential
+    . flip P.Address Nothing
+    . cemScriptPlutusCredential
 
-scriptCredential ::
+{-# INLINEABLE cemScriptPlutusAddress #-}
+cemScriptPlutusAddress ::
+  forall script. (CEMScriptCompiled script) => Proxy script -> P.Address
+cemScriptPlutusAddress =
+  P.scriptHashAddress
+    . scriptValidatorHash
+    . serialiseScript
+    . cemScriptCompiled
+
+cemScriptPlutusCredential ::
   forall script.
-  (Compiled.CEMScriptCompiled script) =>
+  (CEMScriptCompiled script) =>
   Proxy script ->
-  PlutusLedgerApi.V1.Credential
-scriptCredential =
-  PlutusLedgerApi.V1.ScriptCredential
+  P.Credential
+cemScriptPlutusCredential =
+  P.ScriptCredential
     . scriptHash
-    . Compiled.cemScriptCompiled
+    . cemScriptCompiled
 
 plutusAddressToShelleyAddress ::
-  Cardano.Api.Ledger.Network ->
-  PlutusLedgerApi.V1.Address ->
-  Either String (Cardano.Api.Address Cardano.Api.ShelleyAddr)
-plutusAddressToShelleyAddress network (PlutusLedgerApi.V1.Address payment stake) = do
+  L.Network ->
+  P.Address ->
+  Either String (C.Address C.ShelleyAddr)
+plutusAddressToShelleyAddress network (P.Address payment stake) = do
   paymentCred <-
     maybe
       (Left "plutusAddressToShelleyAddress:can't decode payment credential")
@@ -75,36 +67,36 @@ plutusAddressToShelleyAddress network (PlutusLedgerApi.V1.Address payment stake)
       (Left "plutusAddressToShelleyAddress:can't decode stake credential")
       Right
       stakeCredential
-  pure $ Cardano.Api.Address.ShelleyAddress network paymentCred stakeCred
+  pure $ C.ShelleyAddress network paymentCred stakeCred
   where
     credentialToCardano
-      ( PlutusLedgerApi.V1.PubKeyCredential
-          (PlutusLedgerApi.V1.PubKeyHash pkh)
+      ( P.PubKeyCredential
+          (P.PubKeyHash pkh)
         ) =
-        Cred.KeyHashObj
-          . Ledger.Keys.KeyHash
-          <$> Cardano.Hash.hashFromBytes
-            (PlutusLedgerApi.V1.fromBuiltin pkh)
+        L.KeyHashObj
+          . L.KeyHash
+          <$> Crypto.hashFromBytes
+            (P.fromBuiltin pkh)
     credentialToCardano
-      ( PlutusLedgerApi.V1.ScriptCredential
-          (PlutusLedgerApi.V1.ScriptHash hash)
+      ( P.ScriptCredential
+          (P.ScriptHash hash')
         ) =
-        Cred.ScriptHashObj
-          . Cardano.Ledger.Hashes.ScriptHash
-          <$> Cardano.Hash.hashFromBytes
-            (PlutusLedgerApi.V1.fromBuiltin hash)
+        L.ScriptHashObj
+          . L.ScriptHash
+          <$> Crypto.hashFromBytes
+            (P.fromBuiltin hash')
 
     paymentCredential = credentialToCardano payment
     stakeCredential = case stake of
-      Nothing -> Just Cardano.Api.Ledger.StakeRefNull
+      Nothing -> Just L.StakeRefNull
       Just ref -> case ref of
-        PlutusLedgerApi.V1.StakingHash cred ->
-          Cardano.Api.Ledger.StakeRefBase
+        P.StakingHash cred ->
+          L.StakeRefBase
             <$> credentialToCardano cred
-        PlutusLedgerApi.V1.StakingPtr slotNo txIx sertId ->
+        P.StakingPtr slotNo txIx sertId ->
           Just $
-            Cardano.Api.Ledger.StakeRefPtr $
-              Cred.Ptr
-                (Ledger.SlotNo $ fromInteger slotNo)
-                (Ledger.TxIx $ fromInteger txIx)
-                (Ledger.CertIx $ fromInteger sertId)
+            L.StakeRefPtr $
+              L.Ptr
+                (L.SlotNo $ fromInteger slotNo)
+                (L.TxIx $ fromInteger txIx)
+                (L.CertIx $ fromInteger sertId)

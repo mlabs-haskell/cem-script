@@ -14,7 +14,7 @@ import Cardano.Api.Shelley (
   toMaryValue,
   toPlutusData,
  )
-import Cardano.CEM.Address (cemScriptAddress)
+import Cardano.CEM.Address (cemScriptPlutusAddress)
 import Cardano.CEM.Compile (transitionInStateSpine)
 import Cardano.CEM.DSL
 import Cardano.CEM.Monads (
@@ -105,7 +105,7 @@ queryScriptTxInOut params = do
           Nothing -> False -- May happen in case of changed Datum encoding
   return mScriptTxIn
   where
-    scriptAddress = cemScriptAddress (Proxy :: Proxy script)
+    scriptAddress = cemScriptPlutusAddress (Proxy :: Proxy script)
 
 queryScriptState ::
   forall m script.
@@ -257,7 +257,7 @@ process (MkCEMAction params transition) ec = case ec of
       PerTransitionErrors [SpecExecutionError $ show message]
   where
     script = cemScriptCompiled (Proxy :: Proxy script)
-    scriptAddress = cemScriptAddress (Proxy :: Proxy script)
+    scriptAddress = cemScriptPlutusAddress (Proxy :: Proxy script)
 
 -- -----------------------------------------------------------------------------
 -- Transaction resolving

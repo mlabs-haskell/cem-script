@@ -14,8 +14,7 @@ import CEM.Test.Utils (
  )
 import Cardano.Api.NetworkId (toShelleyNetwork)
 import Cardano.CEM
-import Cardano.CEM.Indexing.Event
-import Cardano.CEM.Indexing.Tx (resolvedTxToOura)
+import Cardano.CEM.Indexing
 import Cardano.Extras
 import Control.Monad.Trans (MonadIO (..))
 import Data.Proxy (Proxy (..))

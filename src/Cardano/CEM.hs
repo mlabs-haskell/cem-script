@@ -4,7 +4,7 @@ module Cardano.CEM (
 
 -- TODO: review
 
-import Cardano.CEM.Address as X (scriptCredential)
+import Cardano.CEM.Address as X (cemScriptPlutusCredential)
 import Cardano.CEM.Compile as X
 import Cardano.CEM.DSL as X (
   CEMScript (..),

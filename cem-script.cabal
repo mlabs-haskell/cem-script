@@ -149,9 +149,7 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
-    Cardano.CEM.Indexing.Event
-    Cardano.CEM.Indexing.Oura
-    Cardano.CEM.Indexing.Tx
+    Cardano.CEM.Indexing
     Cardano.CEM.Testing.StateMachine
 
   other-modules:
@@ -160,6 +158,9 @@ library
     Cardano.CEM.Documentation
     Cardano.CEM.DSL
     Cardano.CEM.DSLSmart
+    Cardano.CEM.Indexing.Event
+    Cardano.CEM.Indexing.Oura
+    Cardano.CEM.Indexing.Tx
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
     Cardano.CEM.Monads.L1Commons

@@ -9,8 +9,7 @@ import CEM.Test.Oura.Communication qualified as Oura
 import CEM.Test.OuraFilters.Mock qualified as Mock
 import CEM.Test.Utils (SpotGarbage, withTimeout)
 import Cardano.CEM hiding (error) -- FIXME:
-import Cardano.CEM.Indexing.Oura qualified as OuraConfig
-import Cardano.CEM.Indexing.Tx qualified as Tx
+import Cardano.CEM.Indexing
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens ((%~), (.~))
 import Control.Monad ((>=>))
@@ -31,29 +30,29 @@ spec =
   describe "Auction example" do
     focus $ it "Catches any Auction validator transition" \spotGarbage ->
       let
-        auctionPaymentCredential = scriptCredential $ Proxy @Auction.SimpleAuction
+        auctionPaymentCredential = cemScriptPlutusCredential $ Proxy @Auction.SimpleAuction
 
         -- we want oura to monitor just payment credential, ignoring stake credentials
         arbitraryStakeCredential = PlutusLedgerApi.V1.StakingPtr 5 3 2
 
         rightTxHash =
-          Tx.MkBlake2b255Hex
+          MkBlake2b255Hex
             "2266778888888888888888888888888888888888888888888888444444444444"
         inputFromValidator =
           emptyInputFixture auctionPaymentCredential (Just arbitraryStakeCredential)
         tx =
           Mock.txToBS
             . Mock.mkTxEvent
-            . (Tx.inputs %~ (inputFromValidator :))
-            . (Tx.hash .~ rightTxHash)
-            $ Tx.arbitraryTx
+            . (inputs %~ (inputFromValidator :))
+            . (hash .~ rightTxHash)
+            $ arbitraryTx
         unmatchingTx =
           Mock.txToBS
             . Mock.mkTxEvent
-            $ Tx.arbitraryTx
+            $ arbitraryTx
         makeConfig source sink =
           either error id $
-            OuraConfig.ouraMonitoringScript (Proxy @Auction.SimpleAuction) Ledger.Mainnet source sink
+            ouraMonitoringScript (Proxy @Auction.SimpleAuction) Ledger.Mainnet source sink
        in
         do
           Oura.withOura
@@ -68,28 +67,28 @@ spec =
                 oura.send tx
                 msg <- oura.receive
                 txHash <- either error pure $ extractTxHash msg
-                Tx.MkBlake2b255Hex txHash `shouldBe` rightTxHash
+                MkBlake2b255Hex txHash `shouldBe` rightTxHash
                 oura.shutDown
 
 emptyInputFixture ::
   PlutusLedgerApi.V1.Credential ->
   Maybe PlutusLedgerApi.V1.StakingCredential ->
-  Tx.TxInput
+  TxInput
 emptyInputFixture paymentCred mstakeCred =
-  Tx.MkTxInput
-    { Tx._as_output =
-        Tx.MkTxOutput
-          { Tx._address =
-              Tx.plutusAddressToOuraAddress $
+  MkTxInput
+    { _as_output =
+        MkTxOutput
+          { _address =
+              plutusAddressToOuraAddress $
                 PlutusLedgerApi.V1.Address paymentCred mstakeCred
-          , Tx._datum = Nothing
-          , Tx._coin = 2
-          , Tx._script = Nothing
-          , Tx._assets = mempty
+          , _datum = Nothing
+          , _coin = 2
+          , _script = Nothing
+          , _assets = mempty
           }
-    , Tx._tx_hash = Tx.MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
-    , Tx._output_index = 0
-    , Tx._redeemer = Nothing
+    , _tx_hash = MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
+    , _output_index = 0
+    , _redeemer = Nothing
     }
 
 extractTxHash :: BS.ByteString -> Either String T.Text

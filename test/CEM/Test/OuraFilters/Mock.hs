@@ -6,7 +6,7 @@
 
 module CEM.Test.OuraFilters.Mock where
 
-import Cardano.CEM.Indexing.Tx (Tx, WithoutUnderscore (..))
+import Cardano.CEM.Indexing
 import Control.Lens.TH (makeLenses)
 import Data.Aeson qualified as Aeson
 import Data.ByteString qualified as BS

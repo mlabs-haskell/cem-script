@@ -1,7 +1,10 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 -- | Indexer events, i.e. indexer outputs.
-module Cardano.CEM.Indexing.Event where
+module Cardano.CEM.Indexing.Event (
+  IndexerEvent (..),
+  extractEvent,
+) where
 
 import Cardano.Api qualified as C
 import Cardano.Api.ScriptData qualified as C
@@ -63,7 +66,7 @@ deriving stock instance
   (Eq (Spine (Transition script))) =>
   (Eq (IndexerEvent script))
 
-{- | The core function, that extracts an Event out of a Oura transaction.
+{- | The core function, that extracts an 'Event' out of a Oura transaction.
 It might be a pure function, IO here was used mostly to simplify debugging
 during its development.
 -}
@@ -77,7 +80,7 @@ extractEvent ::
   IO (Maybe (IndexerEvent script))
 extractEvent network tx = do
   -- Script payment credential based predicate
-  let ~(Right scriptAddr) = Address.scriptCardanoAddress network (Proxy @script)
+  let ~(Right scriptAddr) = Address.cemScriptAddress network (Proxy @script)
   let cPred = hasAddr scriptAddr
 
   -- Source state

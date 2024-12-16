@@ -1,6 +1,7 @@
 {- | CEM provides the building blocks to build an indexer for your dApp.
 Current implementation is based on Oura. This module provides tools to
-run Oura.
+run Oura daemon, most important being function to buil a config for Oura
+for a particular CEM Script.
 -}
 module Cardano.CEM.Indexing.Oura (
   SourcePath (MkSourcePath, unSourcePath),
@@ -10,9 +11,14 @@ module Cardano.CEM.Indexing.Oura (
   selectByAddress,
   ouraMonitoringScript,
   configToText,
+
+  -- * Addresses
+  AddressBech32 (MkAddressBech32, unAddressBech32),
+  cardanoAddressBech32,
 ) where
 
-import Cardano.CEM.Address qualified as Address
+import Cardano.Api qualified as C
+import Cardano.CEM.Address (cemScriptAddress)
 import Cardano.CEM.OnChain (CEMScriptCompiled)
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Data.Data (Proxy)
@@ -45,8 +51,8 @@ daemonConfig filters sourcePath sinkPath =
     ]
 
 -- | A oura *filter* that selects by address
-selectByAddress :: Address.AddressBech32 -> Filter
-selectByAddress (Address.MkAddressBech32 addressBech32) =
+selectByAddress :: AddressBech32 -> Filter
+selectByAddress (MkAddressBech32 addressBech32) =
   MkFilter $
     Toml.ToValue.table
       [ "predicate" .= Toml.Text addressBech32 -- "addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x"
@@ -67,8 +73,8 @@ ouraMonitoringScript p network sourcePath sinkPath =
   (\filters -> daemonConfig filters sourcePath sinkPath)
     . pure
     . selectByAddress
-    . Address.cardanoAddressBech32
-    <$> Address.scriptCardanoAddress network p
+    . cardanoAddressBech32
+    <$> cemScriptAddress network p
 
 cursor :: Toml.Table
 cursor =
@@ -108,3 +114,9 @@ source (MkSourcePath socketPath) =
 
 configToText :: Table -> T.Text
 configToText = T.pack . show . Toml.Pretty.prettyToml
+
+newtype AddressBech32 = MkAddressBech32 {unAddressBech32 :: T.Text}
+  deriving newtype (Eq, Show, IsString)
+
+cardanoAddressBech32 :: C.Address C.ShelleyAddr -> AddressBech32
+cardanoAddressBech32 = MkAddressBech32 . C.serialiseToBech32

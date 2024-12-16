@@ -5,16 +5,16 @@
 
 {-# HLINT ignore "Use fewer imports" #-}
 
--- | Indexer inputs, Txs as they are represented by Oura.
+{- | Cardano transactions as they are represented by Oura.
+Source: https://docs.rs/utxorpc-spec/latest/utxorpc_spec/utxorpc/v1alpha/cardano/struct.Tx.html
+-}
 module Cardano.CEM.Indexing.Tx where
 
-import Cardano.Api (TxIn, UTxO)
 import Cardano.Api qualified as C
 import Cardano.Api.Address qualified as C (Address (..))
-import Cardano.Api.SerialiseRaw qualified as SerialiseRaw
-import Cardano.CEM.Address qualified as Address
+import Cardano.CEM.Address (plutusAddressToShelleyAddress)
 import Cardano.Extras (Era)
-import Cardano.Ledger.BaseTypes qualified as Ledger
+import Cardano.Ledger.BaseTypes qualified as L
 import Control.Lens.TH (makeLenses, makeLensesFor)
 import Control.Monad ((<=<))
 import Data.Aeson (KeyValue ((.=)))
@@ -32,7 +32,7 @@ import Data.Text qualified as T
 import Data.Vector qualified as Vec
 import GHC.Generics (Generic (Rep))
 import GHC.Stack.Types (HasCallStack)
-import PlutusLedgerApi.V1 qualified
+import PlutusLedgerApi.V1 qualified as P
 import Safe
 import Prelude
 
@@ -249,7 +249,6 @@ arbitraryTx =
     , _hash = MkBlake2b255Hex "af6366838cfac9cc56856ffe1d595ad1dd32c9bafb1ca064a08b5c687293110f"
     }
 
--- Source: https://docs.rs/utxorpc-spec/latest/utxorpc_spec/utxorpc/v1alpha/cardano/struct.Tx.html
 data Tx = MkTx
   { _inputs :: [TxInput]
   , _outputs :: [TxOutput]
@@ -273,14 +272,14 @@ makeLensesFor [("collateral", "txCollateral")] ''Tx
 
 -- PlutusData (JSON representation) and other serialisations
 
-encodePlutusData :: PlutusLedgerApi.V1.Data -> PlutusData
+encodePlutusData :: P.Data -> PlutusData
 encodePlutusData = MkPlutusData . datumToJson
 
-datumToJson :: PlutusLedgerApi.V1.Data -> Aeson.Value
+datumToJson :: P.Data -> Aeson.Value
 {-# NOINLINE datumToJson #-}
 datumToJson =
   \case
-    PlutusLedgerApi.V1.Constr n fields ->
+    P.Constr n fields ->
       Aeson.object
         [ "constr"
             .= Aeson.object
@@ -291,7 +290,7 @@ datumToJson =
                     (Vec.fromList $ datumToJson <$> fields)
               ]
         ]
-    PlutusLedgerApi.V1.Map kvs ->
+    P.Map kvs ->
       Aeson.object
         [ "map"
             .= Aeson.object
@@ -306,7 +305,7 @@ datumToJson =
                     )
               ]
         ]
-    PlutusLedgerApi.V1.I n ->
+    P.I n ->
       Aeson.object
         [ "big_int"
             .= Aeson.object
@@ -320,7 +319,7 @@ datumToJson =
                     )
               ]
         ]
-    PlutusLedgerApi.V1.B bs ->
+    P.B bs ->
       Aeson.object
         [ "bounded_bytes"
             .= Aeson.String
@@ -328,7 +327,7 @@ datumToJson =
                   B64.encodeBase64 bs
               )
         ]
-    PlutusLedgerApi.V1.List xs ->
+    P.List xs ->
       Aeson.object
         [ "array"
             .= Aeson.object
@@ -349,39 +348,39 @@ digits base n =
 totalDigits :: forall n m. (Integral n, RealFrac m, Floating m) => n -> n -> n
 totalDigits base = round @m . logBase (fromIntegral base) . fromIntegral
 
-serialisePubKeyHash :: PlutusLedgerApi.V1.PubKeyHash -> Hash28
-serialisePubKeyHash = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.getPubKeyHash
+serialisePubKeyHash :: P.PubKeyHash -> Hash28
+serialisePubKeyHash = MkBlake2b244Hex . serialiseAsHex . P.getPubKeyHash
 
-serialiseCurrencySymbol :: PlutusLedgerApi.V1.CurrencySymbol -> Hash28
-serialiseCurrencySymbol = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.unCurrencySymbol
+serialiseCurrencySymbol :: P.CurrencySymbol -> Hash28
+serialiseCurrencySymbol = MkBlake2b244Hex . serialiseAsHex . P.unCurrencySymbol
 
-serialiseScriptHash :: PlutusLedgerApi.V1.ScriptHash -> Hash28
-serialiseScriptHash = MkBlake2b244Hex . serialiseAsHex . PlutusLedgerApi.V1.getScriptHash
+serialiseScriptHash :: P.ScriptHash -> Hash28
+serialiseScriptHash = MkBlake2b244Hex . serialiseAsHex . P.getScriptHash
 
-serialiseTxHash :: PlutusLedgerApi.V1.TxId -> Hash32
-serialiseTxHash = MkBlake2b255Hex . serialiseAsHex . PlutusLedgerApi.V1.getTxId
+serialiseTxHash :: P.TxId -> Hash32
+serialiseTxHash = MkBlake2b255Hex . serialiseAsHex . P.getTxId
 
-serialiseAsHex :: PlutusLedgerApi.V1.BuiltinByteString -> T.Text
+serialiseAsHex :: P.BuiltinByteString -> T.Text
 serialiseAsHex =
   B16.extractBase16
     . B16.encodeBase16
-    . PlutusLedgerApi.V1.fromBuiltin
+    . P.fromBuiltin
 
-plutusAddressToOuraAddress :: (HasCallStack) => PlutusLedgerApi.V1.Address -> Address
+plutusAddressToOuraAddress :: (HasCallStack) => P.Address -> Address
 plutusAddressToOuraAddress =
   MkAddressAsBase64
     . B64.extractBase64
     . B64.encodeBase64
-    . SerialiseRaw.serialiseToRawBytes
+    . C.serialiseToRawBytes
     . either error id
-    . Address.plutusAddressToShelleyAddress Ledger.Mainnet
+    . plutusAddressToShelleyAddress L.Mainnet
 
 --------------------------------------------------------------------------------
 -- CEM (cardano-api) -> Tx
 
 -- For testing: build a tx in the Oura format from a Cardano tx.
 -- We populate only fields we use, use with cautious.
-resolvedTxToOura :: C.TxBodyContent C.BuildTx Era -> UTxO Era -> Tx
+resolvedTxToOura :: C.TxBodyContent C.BuildTx Era -> C.UTxO Era -> Tx
 resolvedTxToOura tbc utxo =
   arbitraryTx
     { _inputs = oInputs
@@ -392,7 +391,7 @@ resolvedTxToOura tbc utxo =
     oOutputs = toOuraTxOutput <$> C.txOuts tbc
 
 -- | This is a partial function, use with cautious
-toOuraInput :: UTxO Era -> TxIn -> Maybe TxInput
+toOuraInput :: C.UTxO Era -> C.TxIn -> Maybe TxInput
 toOuraInput (C.UTxO utxo) txIn =
   case Map.lookup txIn utxo of
     Nothing -> Nothing
@@ -443,4 +442,4 @@ toOuraAddrress (C.AddressInEra _ addr) =
           -- . Base64.encodeBase64
           . B16.extractBase16
           . B16.encodeBase16
-          . SerialiseRaw.serialiseToRawBytes
+          . C.serialiseToRawBytes
