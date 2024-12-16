@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Cardano.CEM.DSLSmart where
+-- | Smart constructors fir DSL/constraints
+module Cardano.CEM.Smart where
 
 import Cardano.CEM.DSL
 import Data.Map (Map)

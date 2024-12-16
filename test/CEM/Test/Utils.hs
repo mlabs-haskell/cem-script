@@ -115,7 +115,6 @@ mintTestTokens userSk numMint = do
 checkTxCreated ::
   (MonadQueryUtxo m, MonadIO m) => TxId -> m ()
 checkTxCreated txId = do
-  -- FIXME: better checks for tests
   awaitTx txId
   let
     txIn = TxIn txId (TxIx 0)

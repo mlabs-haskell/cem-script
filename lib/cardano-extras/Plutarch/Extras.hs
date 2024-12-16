@@ -2,8 +2,6 @@
 
 module Plutarch.Extras where
 
-import Prelude
-
 import Plutarch
 import Plutarch.Builtin
 import Plutarch.LedgerApi
@@ -11,6 +9,7 @@ import Plutarch.LedgerApi.Value
 import Plutarch.Maybe (pfromJust)
 import Plutarch.Monadic qualified as P
 import Plutarch.Prelude
+import Prelude
 
 pMkAdaOnlyValue :: Term s (PInteger :--> PValue Unsorted NonZero)
 pMkAdaOnlyValue = phoistAcyclic $ plam $ \lovelaces ->

@@ -2,18 +2,12 @@
 
 module Cardano.CEM.Monads.CLB where
 
-import Prelude
-
-import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
-import Control.Monad.State (StateT (..), gets)
-import Data.Map qualified as Map
-import Data.Set qualified as Set
-
--- Cardano imports
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Query (fromLedgerUTxO)
-
--- Lib imports
+import Cardano.CEM.Monads
+import Cardano.CEM.Monads.L1Commons
+import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Cardano.Extras (Era)
 import Clb (
   ClbState (mockConfig),
   ClbT (..),
@@ -29,16 +23,13 @@ import Clb (
  )
 import Clb.MockConfig (defaultBabbage)
 import Clb.TimeSlot (posixTimeToUTCTime)
-
--- CEM imports
-
-import Cardano.CEM.Monads
-import Cardano.CEM.Monads.L1Commons
-import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
 import Control.Monad.Reader (MonadReader (..), ReaderT (..))
-
-import Cardano.Extras (Era)
+import Control.Monad.State (StateT (..), gets)
 import Data.Either.Extra (mapRight)
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Prelude
 
 instance (MonadReader r m) => MonadReader r (ClbT m) where
   ask = lift ask
@@ -80,7 +71,7 @@ instance
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadQueryUtxo (ClbT m) where
   queryUtxo query = do
-    utxos <- fromLedgerUTxO shelleyBasedEra <$> gets getUtxosAtState
+    utxos <- gets (fromLedgerUTxO shelleyBasedEra . getUtxosAtState)
     predicate <- mkPredicate
     return $ UTxO $ Map.filterWithKey predicate $ unUTxO utxos
     where

@@ -157,7 +157,6 @@ library
     Cardano.CEM.Compile
     Cardano.CEM.Documentation
     Cardano.CEM.DSL
-    Cardano.CEM.DSLSmart
     Cardano.CEM.Indexing.Event
     Cardano.CEM.Indexing.Oura
     Cardano.CEM.Indexing.Tx
@@ -166,6 +165,7 @@ library
     Cardano.CEM.Monads.L1Commons
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
+    Cardano.CEM.Smart
     Cardano.CEM.TH
 
   build-depends:

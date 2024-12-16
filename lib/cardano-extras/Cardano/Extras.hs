@@ -1,8 +1,6 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{- | Various utils to cope with `cardano-api` types
-Mainly stolen from `hydra-cardano-api` and some from `atlas`
--}
+-- | Various utils to cope with `cardano-api` types.
 module Cardano.Extras where
 
 import Prelude

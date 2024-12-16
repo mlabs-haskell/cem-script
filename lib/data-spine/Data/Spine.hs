@@ -3,15 +3,38 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 
-{- |
-Note about design decision on nested spines.
-`getSpine (Just Value) = JustSpine ValueSpine` - looks more usable,
-than `getSpine (Just Value) = JustSpine`.
-But it seem to break deriving for parametised types like `Maybe a`,
-and can be done with `fmap getSpine mValue`. Probably it actually
-works exaclty for functorial parameters.
+{- | Spine is datatype, which tags only constructors of ADT skipping their content.
+     TH deriving utility generates Spines which are Enums but one could introduce
+     more complex Spine datatypes manually.
+
+     Initially this module didn't depend on any cardano code, and this state of
+     things can be restored if needed. For Plutus version we attach some additional
+     information to spines.
+
+     A note on design decision on nested spines.
+
+     `getSpine (Just Value) = JustSpine ValueSpine`
+
+     seems to be more sensible than:
+
+     `getSpine (Just Value) = JustSpine`.
+
+     But it seem to break deriving for parametised types like `Maybe a`,
+     and can be done with `fmap getSpine mValue`. Probably it actually
+     works exaclty for functorial parameters.
 -}
-module Data.Spine where
+module Data.Spine (
+  -- * Common spines
+  HasSpine (..),
+  deriveSpine,
+  allSpines,
+
+  -- * Plutus Spines
+  HasPlutusSpine (..),
+  derivePlutusSpine,
+  spineFieldsNum,
+  fieldNum,
+) where
 
 import Data.Data (Proxy)
 import Data.List (elemIndex)
@@ -25,11 +48,6 @@ import PlutusTx (FromData, ToData, UnsafeFromData, unstableMakeIsData)
 import Prelude
 
 -- | Definitions
-
-{- | Spine is datatype, which tags only constructors of ADT skipping their content.
-     TH deriving utility generates Spines which are Enums but one could introduce
-     more complex Spine datatypes manually.
--}
 class
   ( Ord (Spine sop)
   , Show (Spine sop)
@@ -41,7 +59,9 @@ class
   type Spine sop = spine | spine -> sop
   getSpine :: sop -> Spine sop
 
--- | Version of `HasSpine` knowing its Plutus Data encoding
+{- | Version of `HasSpine` that knows its Plutus Data encoding and keeps
+names of fields for every constructor.
+-}
 class
   ( HasSpine sop
   , UnsafeFromData sop
@@ -59,7 +79,6 @@ spineFieldsNum :: forall sop. (HasPlutusSpine sop) => Spine sop -> Natural
 spineFieldsNum spine =
   toNat $ length $ (fieldsMap @sop) Map.! spine
 
--- FIXME: use spine do discriminate
 fieldNum ::
   forall sop label.
   (HasPlutusSpine sop, KnownSymbol label) =>
@@ -72,7 +91,7 @@ fieldNum proxyLabel =
     fieldName = symbolVal proxyLabel
     fieldIndex dict = toNat <$> elemIndex fieldName dict
 
-allSpines :: forall sop. (HasPlutusSpine sop) => [Spine sop]
+allSpines :: forall sop. (HasSpine sop) => [Spine sop]
 allSpines = [Prelude.minBound .. Prelude.maxBound]
 
 -- | Phantom type param is required for `HasSpine` injectivity
@@ -91,7 +110,6 @@ addSuffix :: Name -> String -> Name
 addSuffix (Name (OccName name) flavour) suffix =
   Name (OccName $ name <> suffix) flavour
 
--- FIXME: cleaner return type
 reifyDatatype :: Name -> Q (Name, [Name], [[Name]])
 reifyDatatype ty = do
   (TyConI tyCon) <- reify ty

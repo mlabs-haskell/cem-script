@@ -1,18 +1,16 @@
 module Plutus.Extras where
 
-import PlutusTx.Prelude
-
 import Cardano.Api (
   Script (..),
   SerialiseAsRawBytes (serialiseToRawBytes),
   hashScript,
  )
 import Cardano.Api.Shelley (PlutusScript (..))
-import PlutusLedgerApi.Common (SerialisedScript)
-import PlutusLedgerApi.V2 (ScriptHash (..), UnsafeFromData (..))
-
 import Cardano.Extras
+import PlutusLedgerApi.Common (SerialisedScript)
 import PlutusLedgerApi.V1.Value (CurrencySymbol (..))
+import PlutusLedgerApi.V2 (ScriptHash (..), UnsafeFromData (..))
+import PlutusTx.Prelude
 
 -- | Signature of an untyped validator script.
 type ValidatorType = BuiltinData -> BuiltinData -> BuiltinData -> ()

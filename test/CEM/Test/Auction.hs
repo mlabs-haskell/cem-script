@@ -8,7 +8,6 @@ import CEM.Test.TestNFT (testNftAssetClass)
 import CEM.Test.Utils (
   execClb,
   mintTestTokens,
-  -- perTransitionStats,
   submitAndCheck,
   submitCheckReturn,
  )

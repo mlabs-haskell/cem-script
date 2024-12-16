@@ -8,7 +8,7 @@ import CEM.Example.Compiled ()
 import CEM.Test.Oura.Communication qualified as Oura
 import CEM.Test.OuraFilters.Mock qualified as Mock
 import CEM.Test.Utils (SpotGarbage, withTimeout)
-import Cardano.CEM hiding (error) -- FIXME:
+import Cardano.CEM hiding (error)
 import Cardano.CEM.Indexing
 import Cardano.Ledger.BaseTypes qualified as Ledger
 import Control.Lens ((%~), (.~))
