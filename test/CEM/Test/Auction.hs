@@ -255,5 +255,72 @@ auctionSpec = describe "AuctionSpec" $ do
     mEvent <- liftIO $ extractEvent @SimpleAuction network $ resolvedTxToOura preBody utxo
     liftIO $ mEvent `shouldBe` Just (Following BuyoutSpine)
 
+  -- stats <- perTransitionStats
+  -- liftIO $ putStrLn $ ppShow stats
+
+  it "Zero bids flow" $ execClb $ do
+    seller <- (!! 0) <$> getTestWalletSks
+
+    let
+      auctionParams =
+        MkAuctionParams
+          { seller = signingKeyToPKH seller
+          , lot =
+              assetClassValue
+                testNftAssetClass
+                10
+          }
+
+    mintTestTokens seller 10
+
+    Nothing <- queryScriptState auctionParams
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $ MkCEMAction auctionParams Create
+            ]
+        , specSigner = seller
+        }
+
+    Just NotStarted <- queryScriptState auctionParams
+
+    let
+      initBid =
+        MkBet
+          { better = signingKeyToPKH seller
+          , betAmount = 0
+          }
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Start
+            ]
+        , specSigner = seller
+        }
+
+    Just (CurrentBid currentBid') <- queryScriptState auctionParams
+    liftIO $ currentBid' `shouldBe` initBid
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Close
+            ]
+        , specSigner = seller
+        }
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Buyout
+            ]
+        , specSigner = seller
+        }
+
 -- stats <- perTransitionStats
 -- liftIO $ putStrLn $ ppShow stats

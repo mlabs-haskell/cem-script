@@ -133,12 +133,23 @@ instance CEMScript SimpleAuction where
                     )
                     cEmptyValue
                 )
-            , output
-                (userUtxo ctxParams.seller)
-                (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.betAmount)
-            , output
-                (userUtxo buyoutBid.better)
-                (cMinLovelace @<> ctxParams.lot)
+            , if'
+                (ctxParams.seller `eq'` buyoutBid.better)
+                ( output
+                    (userUtxo ctxParams.seller)
+                    (cMinLovelace @<> ctxParams.lot)
+                )
+                ( output
+                    (userUtxo buyoutBid.better)
+                    (cMinLovelace @<> ctxParams.lot)
+                )
+            , if'
+                (ctxParams.seller `eq'` buyoutBid.better)
+                noop
+                ( output
+                    (userUtxo ctxParams.seller)
+                    (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.betAmount)
+                )
             ]
           )
         ]

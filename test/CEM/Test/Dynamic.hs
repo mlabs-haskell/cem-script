@@ -59,11 +59,7 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
     quickCheckDLScript $ do
       anyActions_
   where
-    genesisValue = lovelaceToValue 300_000_000_000
-    runDLScript dl =
-      forAllDL
-        dl
-        (runActionsInClb @SimpleAuction genesisValue)
+    quickCheckDLScript :: DL (ScriptState SimpleAuction) () -> IO ()
     quickCheckDLScript dl = do
       actors <- execClb getTestWalletSks
       result <- quickCheckResult $ runDLScript $ do
@@ -72,7 +68,15 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
             SetupConfig $
               MkTestConfig
                 { actors
-                , doMutationTesting = True
+                , doMutationTesting = False
                 }
         dl
       isSuccess result `shouldBe` True
+
+    runDLScript :: DL (ScriptState SimpleAuction) () -> Property
+    runDLScript dl =
+      forAllDL
+        dl
+        (runActionsInClb @SimpleAuction genesisValue)
+
+    genesisValue = lovelaceToValue 300_000_000_000

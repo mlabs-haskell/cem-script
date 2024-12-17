@@ -298,7 +298,7 @@ getMainSigner cs = case mapMaybe f cs of
   [pkh] -> pkh
   _ ->
     error
-      "Transition should have exactly one MainSignerCoinSelection constraint"
+      "Transition should have exactly one MainSigner* constraint"
   where
     f (MainSignerNoValue pkh) = Just pkh
     f (MainSignerCoinSelect pkh _ _) = Just pkh
