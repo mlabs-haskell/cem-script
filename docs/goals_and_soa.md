@@ -44,7 +44,8 @@ what we use to demonstrate problems in following:
 
 * Audited production DApps
   * Agora
-  * MinSwap
+  * [MinSwap](https://github.com/minswap/minswap-stableswap?tab=readme-ov-file#references)
+    (with spec)
   * Fracada
   * JPG Vesting Contract
   * Indigo Protocol
@@ -53,7 +54,11 @@ what we use to demonstrate problems in following:
   * POCRE
   * CNS
   * Hydra
+* Public DApp projects with specification
+  * [SundaeSwap](https://cdn.sundaeswap.finance/SundaeV3.pdf)
 * Plutonomicon patterns
+* Plutus tutorial
+  * [Game Model](https://github.com/IntersectMBO/plutus-apps/blob/dbafa0ffdc1babcf8e9143ca5a7adde78d021a9a/doc/plutus/tutorials/GameModel.hs)
 * plutus-usecases
 
 ## On-chain correctness
@@ -105,6 +110,17 @@ Example of bugs:
 
 * https://github.com/mlabs-haskell/hydra-auction/issues/146
 
+Another important case is maintaining invariants
+of token value or immutable UTxOs.
+Such kind of constraints naturally lead to script
+for which more performant implementation should
+eliminate some constraint following from others.
+Such kind of manual SMT solving exercises are
+known source for security bugs and complicated code.
+
+Checking such constraints leads to code bloat
+in form of bunch of utility functions.
+
 Making Plutus contract invariant to `TxIn` ordering
 and participation in multi-script scenarios lead to
 similar kind of complications.
@@ -117,6 +133,8 @@ Examples:
   * `2.2.2.1 Batchers Can Choose Batching Order`
   * Triggered by `2.2.4.1 "Reliance on Indexes Into ScriptContexts' txInputs and txOutputs"`
 * Multiple kind of code complication was observed in CNS audit.
+* Utilities [from Indigo](https://github.com/IndigoProtocol/indigo-smart-contracts/blob/main/src/Indigo/Utils/Spooky/Helpers.hs)
+
 
 ### Single script safety and liveliness
 
@@ -195,6 +213,9 @@ Examples:
 
 ## Logic duplication and spec subtleness
 
+There is a bunch of very common tasks shared by multiple DApps,
+which could be tackled generically in our framework.
+
 ### Human-readable specification
 
 Designing, understanding and auditing any non-trivial DApp
@@ -245,27 +266,44 @@ Example:
 * MinSwap Audit - 2.2.4.3 Large Refactoring Opportunities
 * `availableVestings` - пример чего-то подобного для SimpleAuction
 
-@todo #3: Add more off-chain code duplication examples from existing PABs.
-    Include problems with querying coin-selection, tests, retrying and errors.
+Examples of this done by hand:
+
+* [State graph for Agora](https://github.com/Liqwid-Labs/agora/blob/staging/docs/diagrams/ProposalStateMachine.png)
+
+### Computer readable spec and hashes
+
+Script hashes and sizes summary is essential
+for DApp users and testers to check on-chain script are matching.
+We provide generic implementation showing all DApp hashes via CIP.
+
+### Indexing and querying code duplication
+
+Our framework simplifies generation of common queries
+and custom indexing.
+
+Querying of current script state is required for almost any DApp,
+and they are usually implemented with bunch of boilerplate.
+
+Examples of boilerplate:
+
+* [Querying available vestings](https://github.com/geniusyield/atlas-examples/blob/main/vesting/offchain/Vesting/Api.hs#L27)
+
+Customized transaction indexing is important for providing
+data to almost any kind of custom web-backend.
+Customized indexing may reduce storage space or SaaS dependence.
+
+Indexing transactions and parsing it back to state-machine transition
+is required for delegated architectures, including many DApps and Hydra L2.
+
+Examples of boilerplate:
+
+* https://github.com/MELD-labs/cardano-defi-public/tree/eacaa527823031105eba1730f730e1b32f1470bc/lending-index/src/Lending/Index
 
 Timing ...
 
 
-### Common backend features
-
-There is a list of common tasks shared by multiple backends,
-which could be tackled generically in our framework.
-
-* Parsing transaction back to state-machine transition
-  is required for delegated architectures,
-  including almost any DApp on Hydra L2.
-* Customized transaction indexing is important for providing
-  data to almost any kind of custom web-backend.
-  Also usage of customized indexing may reduce storage space or SaaS dependence for DApp dependent on old transactions being recorded.
-  Our framework simplifies generation of custom indexing solution,
-  based on transition parsing feature.
-* Script hashes and sizes summary is essential
-  for DApp users and testers to check on-chain script are matching.
+@todo #3: Add more off-chain code duplication examples from existing PABs.
+  Include problems with coin-selection, tests, retrying and errors.
 
 # Existing solutions
 
@@ -417,12 +455,17 @@ Any kind of on-chain PL can only cover goals
 As far as we aware, none of them are trying
 to solve other goals.
 
-Known examples:
+Known examples of PLs:
 
-* Aiken
-* Helios
-* https://github.com/OpShin/opshin
-* PureScript Backend project
+* [Marlowe](https://github.com/input-output-hk/marlowe-plutus)
+  - Finance contracts DSL
+* [Aiken](https://aiken-lang.org/)
+  - OnChain PL with IDE support and testing framework
+* [Helios](https://www.hyperion-bt.org/helios-book/api/index.html)
+  - Onchain PL and frontend Tx sending library
+* [OpShin](https://github.com/OpShin/opshin)
+  - Onchain PL
+* Purs - PureScript Onchain PL
 
 Same stands for any known kind of frontend framework:
 

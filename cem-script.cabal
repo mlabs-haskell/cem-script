@@ -6,8 +6,6 @@ homepage:      https://github.com/cem-script
 author:        MLabs
 maintainer:    gregory@mlabs.city
 data-files:    README.md
-
--- @todo #3 Reproduce `cabal repl` and HLS build on another (@adamczykm) computer
 tested-with:   GHC ==9.6.3
 
 flag dev
@@ -23,73 +21,58 @@ common common-lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wredundant-constraints
-    -Wmissing-export-lists -Wmissing-deriving-strategies
-    -Wno-redundant-constraints
+    -Wmissing-deriving-strategies -Wno-redundant-constraints
 
   if !flag(dev)
     ghc-options: -Werror
 
   build-depends:
     , base
+    , containers
     , mtl
     , transformers
 
   default-extensions:
-    BangPatterns
-    BinaryLiterals
-    ConstraintKinds
     DataKinds
     DeriveAnyClass
-    DeriveFunctor
-    DeriveGeneric
-    DeriveTraversable
     DerivingStrategies
     DerivingVia
     DuplicateRecordFields
-    EmptyCase
-    FlexibleContexts
-    FlexibleInstances
     FunctionalDependencies
     GADTs
-    GeneralizedNewtypeDeriving
-    HexFloatLiterals
-    ImportQualifiedPost
-    InstanceSigs
-    KindSignatures
     LambdaCase
-    MultiParamTypeClasses
-    NamedFieldPuns
     NoImplicitPrelude
-    NumericUnderscores
+    OverloadedRecordDot
     OverloadedStrings
     PatternSynonyms
+    PolyKinds
     QuantifiedConstraints
-    RankNTypes
-    ScopedTypeVariables
-    StandaloneDeriving
     StrictData
     TemplateHaskell
-    TupleSections
-    TypeApplications
     TypeFamilies
     TypeFamilyDependencies
-    TypeOperators
-    TypeSynonymInstances
     UndecidableInstances
+    ViewPatterns
 
   if flag(dev)
     default-extensions: PartialTypeSignatures
 
-  default-language:   Haskell2010
+  default-language:   GHC2021
 
 common common-onchain
   import:        common-lang
   build-depends:
-    , plutus-ledger-api
+    , plutarch
+    , plutarch-extra
+    , plutarch-ledger-api
+    , plutus-core
+    , plutus-ledger-api    ^>=1.23.0.0
     , plutus-tx
     , plutus-tx-plugin
+    , template-haskell
+    , th-abstraction       >=0.6.0.0
 
-  if flag(dev)
+  if !flag(dev)
     ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
 
   -- Options for Plutus Tx compilations
@@ -99,16 +82,30 @@ common common-onchain
     -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -fno-specialize -fno-unbox-small-strict-fields
-    -fno-unbox-strict-fields
+    -fno-unbox-strict-fields -fno-full-laziness -fno-spec-constr
+    -fno-strictness -fno-unbox-small-strict-fields
 
 common common-offchain
   import:        common-lang
+
+  -- Cardano-api:internal required due to:
+  -- https://github.com/IntersectMBO/cardano-api/issues/502
   build-depends:
+    , aeson
     , bytestring
     , cardano-api
+    , cardano-api:internal
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
     , cardano-ledger-core
-    , containers
+    , cardano-ledger-shelley
     , filepath
+    , ouroboros-network-protocols
+    , pretty-show
+    , prettyprinter
+    , retry
+    , singletons-th
     , text
     , time
     , unix
@@ -117,6 +114,88 @@ common common-executable
   import:      common-offchain
   ghc-options: -threaded -rtsopts
 
-library cem-sdk
-  import:          common-onchain
+library data-spine
+  import:          common-lang
+  hs-source-dirs:  src-lib/data-spine
+
+  -- FIXME: was not meant to be dependent on Plutus...
+  build-depends:
+    , plutus-tx
+    , singletons
+    , template-haskell
+
+  exposed-modules: Data.Spine
+
+library cardano-extras
+  import:
+    common-offchain,
+    common-onchain
+
+  hs-source-dirs:  src-lib/cardano-extras
+  build-depends:   template-haskell
+  exposed-modules:
+    Cardano.Extras
+    Plutarch.Extras
+    Plutus.Deriving
+    Plutus.Extras
+
+library
+  import:
+    common-onchain,
+    common-offchain
+
   hs-source-dirs:  src/
+  exposed-modules:
+    Cardano.CEM
+    Cardano.CEM.Documentation
+    Cardano.CEM.DSL
+    Cardano.CEM.Examples.Auction
+    Cardano.CEM.Examples.Compilation
+    Cardano.CEM.Examples.Voting
+    Cardano.CEM.Monads
+    Cardano.CEM.Monads.CLB
+    Cardano.CEM.Monads.L1
+    Cardano.CEM.OffChain
+    Cardano.CEM.OnChain
+    Cardano.CEM.Testing.StateMachine
+    Cardano.CEM.TH
+
+  other-modules:   Cardano.CEM.Monads.L1Commons
+  build-depends:
+    , cem-script:cardano-extras
+    , cem-script:data-spine
+    , clb
+    , dependent-map
+    , ouroboros-consensus
+    , QuickCheck
+    , quickcheck-dynamic
+    , singletons-th
+
+test-suite cem-sdk-test
+  import:
+    common-onchain,
+    common-offchain,
+
+  type:           exitcode-stdio-1.0
+  ghc-options:    -Wno-missing-signatures -Wno-incomplete-uni-patterns
+  build-depends:
+    , cem-script
+    , cem-script:cardano-extras
+    , cem-script:data-spine
+    , clb
+    , dependent-map
+    , hspec
+    , QuickCheck
+    , quickcheck-dynamic
+    , random
+
+  hs-source-dirs: test/
+  other-modules:
+    Auction
+    Dynamic
+    OffChain
+    TestNFT
+    Utils
+    Voting
+
+  main-is:        Main.hs

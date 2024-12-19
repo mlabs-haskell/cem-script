@@ -1,9 +1,4 @@
-[![PDD status](https://www.0pdd.com/svg?name=mlabs-haskell/cem-script)](https://www.0pdd.com/p?name=mlabs-haskell/cem-script)
-
 # CEM SDK
-
-* @todo #3 Take decision if to change project name to CEM SDK
-* @todo #3 Found out if we can make PDD bot descriptions and mentions less noisy
 
 ## Project pitch
 
@@ -14,6 +9,48 @@ Define and reuse Cardano DApp logic via annotated CEM-machines, resulting in fre
 * Tx parsing/indexing
 * Automatically testing invariants
 * Human-readable specs
+
+## Building
+
+Building is performed with cabal.
+Building requires `libblst` and `libsodium` installed.
+
+Arch Linux has `libblst` in AUR, nix are exemplified by IOHK,
+and manual installation is described here:
+https://github.com/input-output-hk/cardano-node-wiki/blob/main/docs/getting-started/install.md#installing-blst
+
+Make sure to `cabal update` before building.
+
+The project uses `github:input-output-hk/devx` to make the development shell. See `.envrc` for details.
+
+## Running tests
+
+Tests are runned in emulated environment by default.
+
+Just run: `cabal test`.
+
+For development and fast response once could consider `ghcid`.
+
+## Starting local devnet
+
+Tests depend on localdevnet, which is runned in Docker.
+To start it do:
+
+```bash
+./prepare-devnet.sh
+docker-compose  -f docker-compose.devnet.yaml up
+sudo chown -R $USER:$USER ./devnet/
+```
+
+## Devnet stalling bug
+
+Sometimes devnet stalls, due to some bug, in that case one should restart it,
+and wipe directory `./devnet/db`. To look for stalling one could check:
+`CARDANO_NODE_SOCKET_PATH=./devnet/node.socket cardano-cli query tip --testnet-magic 42`. For properly working devnet slots should change
+and sync be marked as 100%.
+
+On this bug:
+https://forum.cardano.org/t/restarting-custom-private-networks-cardano-node-forge35/116921
 
 ## Project status
 

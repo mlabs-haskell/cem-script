@@ -1,0 +1,72 @@
+name: Haskell-CI
+on:
+  # Reusing caches requires building in `main` branch
+  - push
+  # Does not seem to work
+  - merge_group
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup DevX
+      uses: input-output-hk/actions/devx@latest
+      with:
+        platform: 'x86_64-linux'
+        compiler-nix-name: 'ghc96'
+        minimal: false
+        iog: true
+    - name: Check Nix env
+      shell: devx {0}
+      run: |
+        echo 'Running in DevX'
+        ghc --version
+        cabal --version
+    - name: Use cabal cache
+      id: cache-cabal
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+        restore-keys: ${{ runner.os }}-ghc964-
+    - name: Cabal setup
+      shell: devx {0}
+      run: |
+        cabal configure -f-dev
+        cabal update
+    - name: Install and run linters
+      shell: devx {0}
+      run: |
+        cabal install --overwrite-policy=always cabal-fmt
+        cabal install --overwrite-policy=always fourmolu
+        /home/runner/.cabal-devx/bin/cabal-fmt --check cem-script.cabal
+        /home/runner/.cabal-devx/bin/fourmolu --mode check .
+    - name: Cabal build and test
+      shell: devx {0}
+      run: |
+        cabal build
+        cabal test
+    - name: Build haddock
+      if: ${{ vars.GITHUB_REF_NAME == 'master' }}
+      shell: devx {0}
+      run: |
+        cabal haddock-project --hackage --internal
+    - name: Save cabal cache
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+    - name: Save cabal cache (generic key)
+      uses: actions/cache/save@v3
+      if: always()
+      with:
+        path: |
+          ~/.cabal-devx
+          dist-newstyle
+        key: ${{ runner.os }}-ghc964-
