@@ -49,7 +49,7 @@ what we use to demonstrate problems in following:
   * Fracada
   * JPG Vesting Contract
   * Indigo Protocol
-* DApp project we participate, audited or otherwise know it codebase
+* DApp projects we participated, audited or otherwise know their codebase
   * Hydra Auction
   * POCRE
   * CNS
@@ -60,8 +60,6 @@ what we use to demonstrate problems in following:
 * Plutus tutorial
   * [Game Model](https://github.com/IntersectMBO/plutus-apps/blob/dbafa0ffdc1babcf8e9143ca5a7adde78d021a9a/doc/plutus/tutorials/GameModel.hs)
 * plutus-usecases
-
-@todo #3: Add more links to specific bugs and code size blowups in existing DApps.
 
 ## On-chain correctness
 
@@ -82,14 +80,31 @@ taking that burden from developers and auditors.
 
 Those problems are similar to previous in that they tend to
 arise in naive Plutus implementations,
-if developer was did not make measures to prevent them.
+if developer was did not take measures to prevent them.
 
-Almost all transactions which require fungible tokens as input,
+Plutus forces developers to write TxIn/TxOut constraints from scratch,
+leading by subtle bugs from copy-pasting logic or
+trying to optimize them by hand.
+
+Examples:
+
+* Security bug in MinSwap audit - 2.2.1.3 Unauthorized Hijacking of Pools Funds
+* Non-security bug in MinSwap audit - 2.2.2.2 Batcher Is Not Allowed to Apply Their Own Order
+
+Such constraints naturally lead to conditions
+for which more performant implementation should
+omit some constraints always following from others.
+Such kind of manual SMT solving exercises are
+known source for security bugs and complicated code.
+
+One of important cases is maintaining invariants of token value.
+TODO - add explanation
+
+Most of transactions which require fungible tokens as input,
 should not depend from exact UTxO coin-change distribution.
 
 Failure to expect that leads to prohibition of correct transactions.
-On other side too broad constraint might lead to
-fund stealing.
+On other side too broad constraint might lead to fund stealing.
 
 Example of bugs:
 
@@ -114,6 +129,9 @@ Examples:
 
 * Non-security bug: https://github.com/mlabs-haskell/hydra-auction/issues/129
 * Non-security bug: https://github.com/mlabs-haskell/hydra-auction/commit/8152720c43732f8fb74181b7509de503b8371997
+* Non-intentionally under-specified behavior in MinSwap audit:
+  * `2.2.2.1 Batchers Can Choose Batching Order`
+  * Triggered by `2.2.4.1 "Reliance on Indexes Into ScriptContexts' txInputs and txOutputs"`
 * Multiple kind of code complication was observed in CNS audit.
 * Utilities [from Indigo](https://github.com/IndigoProtocol/indigo-smart-contracts/blob/main/src/Indigo/Utils/Spooky/Helpers.hs)
 
@@ -179,6 +197,19 @@ Our script stages abstraction cover all those kind of problems.
 * @todo #3: document problems with slots in Plutus/Cardano API
   * https://github.com/mlabs-haskell/hydra-auction/issues/236
 
+## Matching off-chain logic
+
+Problem of duplicating logic between on- and off-chain is twofold.
+Testing is essentially offchain, thus, you may miss that your onchain code
+is not actually enforcing part of Tx provided in tests.
+
+CEM Script is constructing Tx for submission from same specification,
+which is used for onchain script. Thus it is much harder to miss constraint
+to be checked.
+
+Examples:
+
+* MinSwap audit - 2.2.1.2 LP Tokens Can Be Duplicated
 
 ## Logic duplication and spec subtleness
 
@@ -207,6 +238,33 @@ Adding usecases scenarios generated from one specified in tests
 is much less obvious to implement,
 and out of scope of current Catalyst project,
 but it is very much possible feature as well.
+
+Examples of diagrams in DApp specifications:
+
+* ...
+* ...
+* ...
+
+### On-/Off-chain and spec logic duplication
+
+Writing on-chain contracts manually encodes non-deterministic state machine,
+which cannot be used for off-chain transaction construction.
+Thus developer need to write them again in different style in off-chain code,
+which is tedious and error prone.
+
+They should add checks for all errors possible,
+like coins being available and correct script states being present,
+to prevent cryptic errors and provide retrying strategies
+for possible utxo changes.
+
+Our project encodes scripts in deterministic machine,
+containing enough information to construct transaction automatically.
+This also gives a way to check for potential on/off-chain logic differences
+semi-automatically.
+
+Example:
+* MinSwap Audit - 2.2.4.3 Large Refactoring Opportunities
+* `availableVestings` - пример чего-то подобного для SimpleAuction
 
 Examples of this done by hand:
 
@@ -241,10 +299,8 @@ Examples of boilerplate:
 
 * https://github.com/MELD-labs/cardano-defi-public/tree/eacaa527823031105eba1730f730e1b32f1470bc/lending-index/src/Lending/Index
 
-### Correct off-chain Tx construction logic
+Timing ...
 
-A lot of on-chain problems, like timing and coin change issues
-have their counterpart on Tx submission side.
 
 @todo #3: Add more off-chain code duplication examples from existing PABs.
   Include problems with coin-selection, tests, retrying and errors.
@@ -302,12 +358,19 @@ and multiple commiters schemes (used in `hydra`).
 
 ### Atlas
 
-Atlas provides (emulate-everything) and overall more humane DX
-on top of cardano-api. But it has no feature related to goals
+Atlas provides more humane DX on top of cardano-api.
+But it has no features related to goals
 (synced-by-construction), (secure-by-construction)
 and (declarative-spec).
+(emulate-everything) is planned, but is not implemented currently.
 
-@todo #3: Add more specifics on Atlas to docs.
+Atlas includes connectors to Blockfrost and other backends,
+which our project lacks.
+
+Also our project has slight differences in API design decisions.
+Our monad interfaces is meant to be slightly more modular.
+We use much less custom type wrappers, resorting to Plutus types where possible.
+
 
 ## Testing tools
 
