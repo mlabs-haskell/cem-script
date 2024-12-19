@@ -17,6 +17,7 @@ module Cardano.CEM.DSL (
   UtxoKind (..),
   SameScriptArg (..),
   getMainSigner,
+  getMbMainSigner,
 
   -- * DSL
   ConstraintDSL (..),
@@ -296,6 +297,18 @@ data UtxoKind
 getMainSigner :: [TxConstraint True script] -> PubKeyHash
 getMainSigner cs = case mapMaybe f cs of
   [pkh] -> pkh
+  _ ->
+    error
+      "Transition should have exactly one MainSigner* constraint"
+  where
+    f (MainSignerNoValue pkh) = Just pkh
+    f (MainSignerCoinSelect pkh _ _) = Just pkh
+    f _ = Nothing
+
+getMbMainSigner :: [TxConstraint True script] -> Maybe PubKeyHash
+getMbMainSigner cs = case mapMaybe f cs of
+  [] -> Nothing
+  [pkh] -> Just pkh
   _ ->
     error
       "Transition should have exactly one MainSigner* constraint"

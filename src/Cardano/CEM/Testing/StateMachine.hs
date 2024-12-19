@@ -3,18 +3,36 @@
 
 {-# HLINT ignore "Use fewer imports" #-}
 
--- | Generic utils for using `quickcheck-dynamic`
-module Cardano.CEM.Testing.StateMachine where
+{- | Model-based testing based on `quickcheck-dynamic`.
+Main purpose of this kind of testing is to ensure that
+OnChain code works the same way OffChain code does.
+Additinally custom user invariants for OffChain code
+can be tested using 'CEMScriptRunModel' type class.
+-}
+module Cardano.CEM.Testing.StateMachine (
+  -- * Model
+  ScriptState (..),
+  ScriptStateParams (..),
+  TestConfig (..),
+  Action (..),
+  CEMScriptArbitrary (..),
+
+  -- * SUT Implementation utils
+  CEMScriptRunModel (..),
+  runActionsInClb,
+  findSkForPKH,
+) where
 
 import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
 import Cardano.CEM.DSL (
   CEMScript,
   CEMScriptTypes (Params, State, Transition),
   SameScriptArg (MkSameScriptArg),
-  TxConstraint (Utxo),
+  TxConstraint (Noop, Utxo),
   Utxo (SameScript),
   UtxoKind (Out),
   getMainSigner,
+  getMbMainSigner,
  )
 import Cardano.CEM.Monads (
   BlockchainMonadEvent (..),
@@ -27,7 +45,7 @@ import Cardano.CEM.Monads (
  )
 import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
 import Cardano.CEM.OffChain (
-  TxResolutionError (UnhandledSubmittingError),
+  TxResolutionError (CEMScriptTxInResolutionError, UnhandledSubmittingError),
   compileActionConstraints,
   construct,
   process,
@@ -69,18 +87,36 @@ import Prelude
 -- Mutations
 -- -----------------------------------------------------------------------------
 
+-- We use mutations to verify that on-chain and off-chain implementations
+-- work the same way:
+--  1. The order of constrainsts doesn't matter
+--  2. All non-noop constraints are important - if we remove them both impls stop working.
+
 data TxMutation
   = RemoveConstraint {num :: Int}
-  | ShuffleConstraints
-      {shift :: Int}
+  | ShuffleConstraints {shift :: Int}
   deriving stock (Eq, Show)
 
 deriveSpine ''TxMutation
 
-isNegativeMutation :: Maybe TxMutation -> Bool
-isNegativeMutation Nothing = False
-isNegativeMutation (Just (RemoveConstraint _)) = True
-isNegativeMutation (Just (ShuffleConstraints {})) = False
+isNegativeMutation :: Maybe TxMutation -> [TxConstraint True script] -> Bool
+isNegativeMutation Nothing _ = False
+isNegativeMutation m@(Just (RemoveConstraint {})) cs =
+  case applyMutation m cs of
+    (_, Just Noop) -> False
+    _ -> True
+isNegativeMutation (Just (ShuffleConstraints {})) _ = False
+
+applyMutation ::
+  Maybe TxMutation ->
+  [TxConstraint True script] ->
+  ([TxConstraint True script], Maybe (TxConstraint True script))
+applyMutation Nothing cs = (cs, Nothing)
+-- \| Removes num+1 element from the list of constraints
+applyMutation (Just (RemoveConstraint num)) cs =
+  (take num cs ++ tail (drop num cs), Just (cs !! num))
+applyMutation (Just (ShuffleConstraints shift)) cs =
+  (permute shift cs, Nothing)
 
 permute :: Int -> [a] -> [a]
 permute ind as =
@@ -88,16 +124,6 @@ permute ind as =
   where
     perms = permutations as
     n = length perms
-
-applyMutation ::
-  Maybe TxMutation ->
-  [TxConstraint True script] ->
-  [TxConstraint True script]
-applyMutation Nothing cs = cs
-applyMutation (Just (RemoveConstraint _num)) cs =
-  -- take num cs ++ tail (drop num cs)
-  cs
-applyMutation (Just (ShuffleConstraints shift)) cs = permute shift cs
 
 -- -----------------------------------------------------------------------------
 -- The model
@@ -144,12 +170,17 @@ instance {-# OVERLAPS #-} HasVariables (Action (ScriptState script) a) where
 -- CEMScriptArbitrary & StateModel instance
 -- -----------------------------------------------------------------------------
 
+-- | Arbitrary for a CEM Script (compiled).
 class (CEMScriptCompiled script) => CEMScriptArbitrary script where
   arbitraryParams ::
     [SigningKey PaymentKey] -> Gen (Params script)
   arbitraryTransition ::
     ScriptStateParams script -> Maybe (State script) -> Gen (Transition script)
 
+{- | StateModel, which is QD model is basically our off-chain logic.
+It delivers checks to `compileActionConstraints` from "Cardano.CEM.Offchain"
+module. So `model === offchain`.
+-}
 instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   data Action (ScriptState script) output where
     SetupConfig :: TestConfig -> Action (ScriptState script) ()
@@ -174,31 +205,40 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
     ScriptState script ->
     Gen (Any (Action (ScriptState script)))
   arbitraryAction _varCtx modelState = case modelState of
-    -- SetupConfig action should be called manually
+    -- SetupConfig action should be always called manually
     Void {} -> Gen.oneof []
     ConfigSet config -> Some . SetupParams <$> arbitraryParams (actors config)
-    ScriptState {dappParams, state} ->
-      do
-        transition <- arbitraryTransition dappParams state
-        Some <$> (ScriptTransition transition <$> genMutation transition)
-      where
-        genMutation :: Transition script -> Gen (Maybe TxMutation)
-        genMutation transition =
-          return Nothing
-
-  -- let cemAction = MkCEMAction (params dappParams) transition
-  --  in case compileActionConstraints state cemAction of
-  --       Right cs ->
-  --         Gen.oneof
-  --           [ return Nothing
-  --           , Just . RemoveConstraint
-  --               <$> Gen.chooseInt (0, length cs - 1)
-  --           , Just
-  --               <$> ( ShuffleConstraints
-  --                       <$> Gen.chooseInt (1, length cs)
-  --                   )
-  --           ]
-  --       Left _ -> return Nothing
+    ScriptState
+      { dappParams =
+        dappParams@MkScriptStateParams
+          { config = MkTestConfig {doMutationTesting}
+          }
+      , state
+      } ->
+        do
+          transition <- arbitraryTransition dappParams state
+          Some <$> (ScriptTransition transition <$> genMutation transition)
+        where
+          genMutation :: Transition script -> Gen (Maybe TxMutation)
+          genMutation transition =
+            if doMutationTesting
+              then mutate
+              else return Nothing
+            where
+              mutate =
+                let cemAction = MkCEMAction (params dappParams) transition
+                 in case compileActionConstraints state cemAction of
+                      Right cs ->
+                        Gen.oneof
+                          [ return Nothing
+                          , Just . RemoveConstraint
+                              <$> Gen.chooseInt (0, length cs - 1)
+                          , Just
+                              <$> ( ShuffleConstraints
+                                      <$> Gen.chooseInt (1, length cs)
+                                  )
+                          ]
+                      Left _ -> return Nothing
 
   precondition ::
     (CEMScriptArbitrary script) =>
@@ -215,7 +255,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
         compiled = compileActionConstraints state cemAction
        in
         case compiled of
-          Right _ -> not finished && not (isNegativeMutation mutation) -- FIXME: why not isNegative
+          Right cs -> not finished && not (isNegativeMutation mutation cs)
           Left _ -> False
   -- Unreachable
   precondition _ _ = False
@@ -262,7 +302,8 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
         f _ = Nothing
   nextState _ _ _ = error "Unreachable"
 
-  -- Precondition for filtering an Action that can meaningfully run but is supposed to fail.
+  -- Precondition for filtering an Action that can meaningfully run
+  -- but is supposed to fail.
   -- An action will run as a _negative_ action if the 'precondition' fails and
   -- 'validFailingAction' succeeds.
   -- A negative action should have _no effect_ on the model state.
@@ -273,8 +314,14 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
     ScriptState script ->
     Action (ScriptState script) a ->
     Bool
-  validFailingAction (ScriptState {finished, state}) (ScriptTransition _ mutation) =
-    isNegativeMutation mutation && isJust state && not finished
+  validFailingAction
+    (ScriptState {dappParams, finished, state})
+    (ScriptTransition transition mutation) =
+      let cemAction = MkCEMAction (params dappParams) transition
+          cs' = compileActionConstraints state cemAction
+       in case cs' of
+            Left _ -> True
+            Right cs -> isNegativeMutation mutation cs && isJust state && not finished
   validFailingAction _ _ = False
 
 instance (CEMScriptArbitrary script) => Show (Action (ScriptState script) a) where
@@ -303,6 +350,10 @@ class (CEMScriptArbitrary script) => CEMScriptRunModel script where
     Action (ScriptState script) () ->
     m ()
 
+{- | The SUT implementation is CLB-backed blockchain emulator. Here we execute
+both offchain part and the onchain part also. That way we can assume that
+`implementation === onchain`.
+-}
 instance
   ( Realized m () ~ ()
   , MonadIO m
@@ -336,20 +387,19 @@ instance
         , ScriptTransition transition mutation
         ) -> do
           _ <- performHook modelState action
-          bimap show (const ()) <$> mutatedResolveAndSubmit
+          bimap show (const ()) <$> mutateResolveAndSubmit
           where
-            -- This should work like `resolveAndSubmit`
-            -- FIXME: DRY it and move Mutations to main implementation
-            mutatedResolveAndSubmit :: m (Either TxResolutionError TxId)
-            mutatedResolveAndSubmit = runExceptT $ do
+            mutateResolveAndSubmit :: m (Either TxResolutionError TxId)
+            mutateResolveAndSubmit = runExceptT $ do
               let cemAction = MkCEMAction (params dappParams) transition
-              -- FIXME: refactor all ExceptT mess
               cs' <- ExceptT $ return $ compileActionConstraints state cemAction
               let
-                cs = applyMutation mutation cs'
-                signerPKH = getMainSigner cs
-                specSigner =
-                  findSkForPKH (actors $ config dappParams) signerPKH
+                (cs, _) = applyMutation mutation cs'
+                mbSignerPKH = getMbMainSigner cs
+              -- \| FIXME: can we delegate handling Nothing case to process/construct?
+              specSigner <- case mbSignerPKH of
+                Nothing -> ExceptT $ pure $ Left CEMScriptTxInResolutionError -- FIXME:
+                Just signerPKH -> pure $ findSkForPKH (actors $ config dappParams) signerPKH
               resolutions <- mapM (process cemAction) cs
               let resolvedTx = (construct resolutions) {signer = specSigner}
               result <-
@@ -360,7 +410,7 @@ instance
                 logEvent $
                   SubmittedTxSpec spec (mapLeft (const ()) result)
               ExceptT $ return result
-      (_, _) -> error "Unreachable"
+      (_, _) -> error "Unreachable branch of `perform`"
 
   monitoring ::
     ( Realized m () ~ ()
