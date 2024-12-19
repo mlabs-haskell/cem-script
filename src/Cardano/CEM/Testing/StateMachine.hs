@@ -1,26 +1,44 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-{- | Generic utils for using `quickcheck-dynamic`
-FIXME: refactor and add documentation
--}
+{-# HLINT ignore "Use fewer imports" #-}
+
+-- | Generic utils for using `quickcheck-dynamic`
 module Cardano.CEM.Testing.StateMachine where
 
 import Prelude
 
+import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
+import Cardano.CEM (
+  CEMScript,
+  CEMScriptTypes (Params, State, Transition),
+ )
+import Cardano.CEM.DSL (SameScriptArg (MkSameScriptArg), TxConstraint (Utxo), Utxo (SameScript), UtxoKind (Out), getMainSigner)
+import Cardano.CEM.Monads (
+  BlockchainMonadEvent (..),
+  CEMAction (..),
+  MonadBlockchainParams (..),
+  MonadSubmitTx (..),
+  ResolvedTx (..),
+  SomeCEMAction (..),
+  TxSpec (..),
+ )
+import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
+import Cardano.CEM.OffChain
+import Cardano.CEM.OnChain (CEMScriptCompiled)
+import Cardano.Extras (signingKeyToPKH)
+import Clb (ClbT)
 import Control.Monad (void)
 import Control.Monad.Except (ExceptT (..), runExceptT)
 import Control.Monad.Trans (MonadIO (..), MonadTrans (..))
 import Data.Bifunctor (Bifunctor (..))
 import Data.Data (Typeable)
+import Data.Either.Extra (mapLeft)
 import Data.List (permutations)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (isJust, mapMaybe)
 import Data.Set qualified as Set
-
+import Data.Spine (HasSpine (..), deriveSpine)
 import PlutusLedgerApi.V1 (PubKeyHash)
-
-import Cardano.Api (PaymentKey, SigningKey, TxId, Value)
-
-import Clb (ClbT)
 import Test.QuickCheck
 import Test.QuickCheck.DynamicLogic (DynLogicModel)
 import Test.QuickCheck.Gen qualified as Gen
@@ -36,24 +54,6 @@ import Test.QuickCheck.StateModel (
   runActions,
  )
 import Text.Show.Pretty (ppShow)
-
-import Cardano.CEM
-import Cardano.CEM.DSL (getMainSigner)
-import Cardano.CEM.Monads (
-  BlockchainMonadEvent (..),
-  CEMAction (..),
-  MonadBlockchainParams (..),
-  MonadSubmitTx (..),
-  ResolvedTx (..),
-  SomeCEMAction (..),
-  TxResolutionError (..),
-  TxSpec (..),
- )
-import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
-import Cardano.CEM.OffChain
-import Cardano.CEM.OnChain (CEMScriptCompiled)
-import Cardano.Extras (signingKeyToPKH)
-import Data.Spine (HasSpine (..), deriveSpine)
 
 -- FIXME: add more mutations and documentation
 data TxMutation
@@ -185,10 +185,9 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
   -- Unreachable
   precondition _ _ = False
 
-  -- XXX: Check on ScriptState and it fields is required for shrinking
-  -- FIXME: docs on QD generation hacks
+  -- Check on ScriptState and it fields is required for shrinking
   validFailingAction (ScriptState {finished, state}) (ScriptTransition _ mutation) =
-    isNegativeMutation mutation && state /= Nothing && not finished
+    isNegativeMutation mutation && isJust state && not finished
   validFailingAction _ _ = False
 
   nextState Void (SetupConfig config) _var = ConfigSet config
@@ -223,7 +222,7 @@ instance (CEMScriptArbitrary script) => StateModel (ScriptState script) where
           _ ->
             error
               "Scripts with >1 SameScript outputs are not supported by QD"
-        f (TxFan Out (SameScript outState) _) = Just outState
+        f (Utxo Out (SameScript (MkSameScriptArg outState)) _) = Just outState
         f _ = Nothing
   nextState _ _ _ = error "Unreachable"
 
@@ -294,7 +293,7 @@ instance
               let spec = MkTxSpec [MkSomeCEMAction cemAction] specSigner
               lift $
                 logEvent $
-                  SubmittedTxSpec spec result
+                  SubmittedTxSpec spec (mapLeft (const ()) result)
               ExceptT $ return result
       (_, _) -> error "Unreachable"
 
@@ -341,7 +340,7 @@ runActionsInClb ::
 runActionsInClb genesisValue actions =
   monadic (ioProperty . execOnIsolatedClb genesisValue) $
     void $
-      runActions @(ScriptState state) @(ClbRunner) actions
+      runActions @(ScriptState state) @ClbRunner actions
 
 -- Orphans
 

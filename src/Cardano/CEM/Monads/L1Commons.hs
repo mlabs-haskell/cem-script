@@ -3,31 +3,22 @@
 -- | Code common for resolving Tx of backends which use `cardano-api`
 module Cardano.CEM.Monads.L1Commons where
 
-import Prelude
-
-import Data.List (nub)
-import Data.Map qualified as Map
-
--- Cardano imports
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Shelley (LedgerProtocolParameters (..))
-
--- Project imports
 import Cardano.CEM.Monads
 import Cardano.CEM.OffChain
 import Cardano.Extras
+import Data.List (nub)
+import Data.Map qualified as Map
 import Data.Maybe (mapMaybe)
+import Prelude
 
--- Main function
-
+-- | Main function
 cardanoTxBodyFromResolvedTx ::
   (MonadQueryUtxo m, MonadBlockchainParams m) =>
   ResolvedTx ->
-  m (Either (TxBodyErrorAutoBalance Era) (TxBody Era, TxInMode))
+  m (Either (TxBodyErrorAutoBalance Era) (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
-  -- (lowerBound, upperBound) <- convertValidityBound validityBound
-
-  -- FIXME: proper fee coverage selection
   utxo <- queryUtxo $ ByAddresses [signingKeyToAddress signer]
   let
     feeTxIns = Map.keys $ unUTxO utxo
@@ -41,8 +32,7 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
 
   let preBody =
         TxBodyContent
-          { -- FIXME: duplicate TxIn for coin-selection redeemer bug
-            txIns = nub allTxIns
+          { txIns = nub allTxIns -- duplicate TxIn for coin-selection redeemer bug
           , txInsCollateral =
               TxInsCollateral AlonzoEraOnwardsBabbage feeTxIns
           , txInsReference =
@@ -93,19 +83,19 @@ cardanoTxBodyFromResolvedTx (MkResolvedTx {..}) = do
 
     lift $ recordFee txInsUtxo body
 
-    return (body, txInMode)
+    return (preBody, body, txInMode, txInsUtxo)
   where
     recordFee txInsUtxo body@(TxBody content) = do
       case txFee content of
         TxFeeExplicit era coin -> do
-          MkBlockchainParams {protocolParameters, systemStart, eraHistory} <-
+          MkBlockchainParams {protocolParameters, systemStart, ledgerEpochInfo} <-
             queryBlockchainParams
           Right report <-
             return $
               evaluateTransactionExecutionUnits
                 (shelleyBasedToCardanoEra era)
                 systemStart
-                eraHistory
+                ledgerEpochInfo
                 (LedgerProtocolParameters protocolParameters)
                 txInsUtxo
                 body
@@ -150,13 +140,13 @@ callBodyAutoBalance
   preBody
   utxo
   changeAddress = do
-    MkBlockchainParams {protocolParameters, systemStart, eraHistory, stakePools} <-
+    MkBlockchainParams {protocolParameters, systemStart, ledgerEpochInfo, stakePools} <-
       queryBlockchainParams
     let result =
           makeTransactionBodyAutoBalance @Era
             shelleyBasedEra
             systemStart
-            eraHistory
+            ledgerEpochInfo
             (LedgerProtocolParameters protocolParameters)
             stakePools
             Map.empty -- Stake credentials

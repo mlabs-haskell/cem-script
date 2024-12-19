@@ -1,10 +1,10 @@
 cabal-version: 3.8
 name:          cem-script
 version:       0.1.0
-synopsis:      Cardano DApp SDK
-homepage:      https://github.com/cem-script
+synopsis:      CEM Script - a Cardano dApp SDK
+homepage:      https://github.com/mlabs-haskell/cem-script
 author:        MLabs
-maintainer:    gregory@mlabs.city
+maintainer:    ilia@mlabs.city
 data-files:    README.md
 tested-with:   GHC ==9.6.3
 
@@ -15,9 +15,11 @@ flag dev
   default:     True
   manual:      False
 
-common common-lang
-  -- Options from MLabs styleguide
+flag force-recomp
+  description: Compile with -fforce-recomp and -Wunused-packages
+  default:     False
 
+common common-lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wredundant-constraints
@@ -26,9 +28,16 @@ common common-lang
   if !flag(dev)
     ghc-options: -Werror
 
+  if flag(dev)
+    default-extensions: PartialTypeSignatures
+
+  if flag(force-recomp)
+    ghc-options: -fforce-recomp -Wunused-packages
+
   build-depends:
     , base
     , containers
+    , extra
     , mtl
     , transformers
 
@@ -54,9 +63,6 @@ common common-lang
     UndecidableInstances
     ViewPatterns
 
-  if flag(dev)
-    default-extensions: PartialTypeSignatures
-
   default-language:   GHC2021
 
 common common-onchain
@@ -74,9 +80,6 @@ common common-onchain
 
   if !flag(dev)
     ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
-
-  -- Options for Plutus Tx compilations
-  -- (some are enabled additionaly in individual modules)
 
   ghc-options:
     -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 -fobject-code
@@ -116,9 +119,9 @@ common common-executable
 
 library data-spine
   import:          common-lang
-  hs-source-dirs:  src-lib/data-spine
+  hs-source-dirs:  lib/data-spine
 
-  -- FIXME: was not meant to be dependent on Plutus...
+  -- TODO: Originally was not meant to be dependent on Plutus
   build-depends:
     , plutus-tx
     , singletons
@@ -131,12 +134,11 @@ library cardano-extras
     common-offchain,
     common-onchain
 
-  hs-source-dirs:  src-lib/cardano-extras
+  hs-source-dirs:  lib/cardano-extras
   build-depends:   template-haskell
   exposed-modules:
     Cardano.Extras
     Plutarch.Extras
-    Plutus.Deriving
     Plutus.Extras
 
 library
@@ -147,55 +149,100 @@ library
   hs-source-dirs:  src/
   exposed-modules:
     Cardano.CEM
+    Cardano.CEM.Indexing
+    Cardano.CEM.Testing.StateMachine
+
+  other-modules:
+    Cardano.CEM.Address
+    Cardano.CEM.Compile
     Cardano.CEM.Documentation
     Cardano.CEM.DSL
-    Cardano.CEM.Examples.Auction
-    Cardano.CEM.Examples.Compilation
-    Cardano.CEM.Examples.Voting
+    Cardano.CEM.Indexing.Event
+    Cardano.CEM.Indexing.Oura
+    Cardano.CEM.Indexing.Tx
     Cardano.CEM.Monads
     Cardano.CEM.Monads.CLB
-    Cardano.CEM.Monads.L1
+    Cardano.CEM.Monads.L1Commons
     Cardano.CEM.OffChain
     Cardano.CEM.OnChain
-    Cardano.CEM.Testing.StateMachine
+    Cardano.CEM.Smart
     Cardano.CEM.TH
 
-  other-modules:   Cardano.CEM.Monads.L1Commons
   build-depends:
+    , base16
+    , base64
     , cem-script:cardano-extras
     , cem-script:data-spine
     , clb
     , dependent-map
+    , lens
     , ouroboros-consensus
     , QuickCheck
     , quickcheck-dynamic
+    , safe
     , singletons-th
+    , toml-parser
+    , vector
 
-test-suite cem-sdk-test
+library cem-script-example
+  import:
+    , common-lang
+    , common-onchain
+
+  hs-source-dirs:  example
+  build-depends:   cem-script
+  exposed-modules:
+    CEM.Example.Auction
+    CEM.Example.Compiled
+    CEM.Example.Voting
+
+test-suite cem-script-test
   import:
     common-onchain,
     common-offchain,
 
   type:           exitcode-stdio-1.0
-  ghc-options:    -Wno-missing-signatures -Wno-incomplete-uni-patterns
+  ghc-options:
+    -threaded -Wno-missing-signatures -Wno-incomplete-uni-patterns
+
   build-depends:
+    , aeson
+    , async
+    , base16
+    , base32
+    , base64
+    , cardano-api
+    , cardano-ledger-core
     , cem-script
     , cem-script:cardano-extras
+    , cem-script:cem-script-example
     , cem-script:data-spine
     , clb
     , dependent-map
+    , directory
     , hspec
+    , hspec-core
+    , lens
+    , network
+    , process
     , QuickCheck
     , quickcheck-dynamic
     , random
+    , safe
+    , toml-parser
+    , vector
 
   hs-source-dirs: test/
   other-modules:
-    Auction
-    Dynamic
-    OffChain
-    TestNFT
-    Utils
-    Voting
+    CEM.Test.Auction
+    CEM.Test.Dynamic
+    CEM.Test.OffChain
+    CEM.Test.Oura.Communication
+    CEM.Test.OuraFilters.Auction
+    CEM.Test.OuraFilters.Mock
+    CEM.Test.OuraFilters.Simple
+    CEM.Test.TestNFT
+    CEM.Test.Utils
+    CEM.Test.Voting
 
   main-is:        Main.hs

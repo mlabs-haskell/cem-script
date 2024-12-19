@@ -1,27 +1,19 @@
-module Cardano.CEM.Documentation (cemDotGraphString) where
+module Cardano.CEM.Documentation (genCemGraph) where
 
-import Prelude
-
+import Cardano.CEM.Compile (transitionStateSpines)
+import Cardano.CEM.DSL (
+  CEMScript (transitionSpec),
+  CEMScriptTypes (Transition),
+  UtxoKind (In, Out),
+ )
 import Data.Foldable (fold)
 import Data.Map qualified as Map
-import Data.Proxy
-
-import Cardano.CEM
-import Cardano.CEM.DSL (transitionStateSpines)
+import Data.Proxy (Proxy)
 import Data.Spine (allSpines)
+import Prelude
 
-dotStyling :: String
-dotStyling =
-  "rankdir=LR;\n"
-    <> "node [shape=\"dot\",fontsize=14,fixedsize=true,width=1.5];\n"
-    <> "edge [fontsize=11];\n"
-    <> "\"Void In\" [color=\"orange\"];\n"
-    <> "\"Void Out\" [color=\"orange\"];\n"
-
--- FIXME: cover with golden test
-cemDotGraphString ::
-  forall script. (CEMScript script) => String -> Proxy script -> String
-cemDotGraphString name _proxy =
+genCemGraph :: forall script. (CEMScript script) => String -> Proxy script -> String
+genCemGraph name _proxy =
   "digraph "
     <> name
     <> " {\n"
@@ -29,9 +21,6 @@ cemDotGraphString name _proxy =
     <> edges
     <> "}"
   where
-    showSpine :: (Show s) => s -> String
-    showSpine = stripSpineSuffix . show
-    stripSpineSuffix = reverse . drop 5 . reverse
     edges =
       fold $
         [ from
@@ -46,6 +35,19 @@ cemDotGraphString name _proxy =
         ]
     get kind transition =
       case transitionStateSpines kind $
-        perTransitionScriptSpec @script Map.! transition of
+        transitionSpec @script Map.! transition of
         [] -> ["\"Void " <> show kind <> "\""]
         x -> map showSpine x
+
+    showSpine :: (Show s) => s -> String
+    showSpine = stripSpineSuffix . show
+
+    stripSpineSuffix = reverse . drop 5 . reverse
+
+    dotStyling :: String
+    dotStyling =
+      "rankdir=LR;\n"
+        <> "node [shape=\"dot\",fontsize=14,fixedsize=true,width=1.5];\n"
+        <> "edge [fontsize=11];\n"
+        <> "\"Void In\" [color=\"orange\"];\n"
+        <> "\"Void Out\" [color=\"orange\"];\n"

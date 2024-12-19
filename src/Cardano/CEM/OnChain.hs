@@ -8,38 +8,121 @@
 
 module Cardano.CEM.OnChain (
   CEMScriptCompiled (..),
-  cemScriptAddress,
   genericPlutarchScript,
 ) where
 
-import Prelude
-
-import PlutusTx qualified
-
+import Cardano.CEM.DSL (
+  CEMScript,
+  CEMScriptSpec,
+  ConstraintDSL (..),
+  RecordLabel (MkRecordLabel),
+  RecordSetter ((::=)),
+  SCVar (SCComp, SCParams, SCState, SCTransition),
+  SameScriptArg (MkSameScriptArg),
+  TxConstraint (
+    Error,
+    If,
+    MainSignerCoinSelect,
+    MainSignerNoValue,
+    MatchBySpine,
+    Noop,
+    Utxo
+  ),
+  Utxo (SameScript, UserAddress),
+  UtxoKind (In, InRef, Out),
+ )
 import Data.Map qualified as Map
-import Data.Singletons
+import Data.Singletons (Proxy (..), SingI (sing))
+import Data.Spine (
+  HasPlutusSpine,
+  HasSpine (Spine),
+  fieldNum,
+  spineFieldsNum,
+ )
 import Data.String (IsString (..))
-
-import Plutarch
-import Plutarch.Bool
-import Plutarch.Builtin
-import Plutarch.Extras
+import Plutarch (
+  ClosedTerm,
+  Script,
+  Term,
+  pdelay,
+  perror,
+  pforce,
+  phoistAcyclic,
+  plam,
+  plet,
+  pmatch,
+  (#),
+  (#$),
+  type (:-->),
+ )
+import Plutarch.Bool (
+  PBool (..),
+  PEq ((#==)),
+  PPartialOrd ((#<=)),
+  pand',
+  pif,
+  (#&&),
+ )
+import Plutarch.Builtin (
+  PAsData,
+  PBuiltinList,
+  PData,
+  PIsData (pdataImpl, pfromDataImpl),
+  pasConstr,
+  pconstrBuiltin,
+  pdata,
+  pfromData,
+  pfstBuiltin,
+  psndBuiltin,
+ )
+import Plutarch.Extras (
+  getOwnAddress,
+  pMkAdaOnlyValue,
+  ppkhAddress,
+ )
 import Plutarch.FFI (foreignImport)
-import Plutarch.LedgerApi
+import Plutarch.LedgerApi (
+  AmountGuarantees (NonZero),
+  KeyGuarantees (Sorted, Unsorted),
+  PDatum (PDatum),
+  POutputDatum (POutputDatum),
+  PScriptContext,
+  PTxInfo,
+  PTxOut,
+  PValue,
+ )
 import Plutarch.LedgerApi.AssocMap qualified as PMap
-import Plutarch.LedgerApi.Value
-import Plutarch.List
+import Plutarch.LedgerApi.Value (
+  passertSorted,
+  pforgetPositive,
+  pforgetSorted,
+ )
+import Plutarch.List (
+  PListLike (pcons, phead, pnil, pnull),
+  pelem,
+  pfilter,
+  pfoldr,
+  pmap,
+  ptryIndex,
+ )
 import Plutarch.Monadic qualified as P
-import Plutarch.Prelude
-import Plutarch.Script (serialiseScript)
+import Plutarch.Prelude (
+  PInteger,
+  PUnit,
+  pconstant,
+  pfield,
+  pletFields,
+  pshow,
+  ptraceDebug,
+  ptraceInfo,
+  ptraceInfoError,
+  ptraceInfoIfFalse,
+ )
 import Plutarch.Unsafe (punsafeCoerce)
-import Plutus.Extras (scriptValidatorHash)
-import PlutusLedgerApi.V1.Address (Address, scriptHashAddress)
 import PlutusLedgerApi.V2 (BuiltinData)
+import PlutusTx qualified
 import Text.Show.Pretty (ppShow)
-
-import Cardano.CEM hiding (compileDsl)
-import Data.Spine
+import Prelude
 
 -- Interfaces
 
@@ -50,52 +133,7 @@ class (CEMScript script) => CEMScriptCompiled script where
 
   cemScriptCompiled :: Proxy script -> Script
 
-{-# INLINEABLE cemScriptAddress #-}
-cemScriptAddress ::
-  forall script. (CEMScriptCompiled script) => Proxy script -> Address
-cemScriptAddress =
-  scriptHashAddress . scriptValidatorHash . serialiseScript . cemScriptCompiled
-
 -- Compilation
-
-commonChecks :: Term s (PTxInfo :--> PUnit)
-commonChecks = plam go
-  where
-    go :: Term s1 PTxInfo -> Term s1 PUnit
-    go txInfo =
-      pif
-        (stackingStuffDisabled txInfo)
-        (pconstant ())
-        (ptraceInfo "Stacking feature used" perror)
-    stackingStuffDisabled :: Term s1 PTxInfo -> Term s1 PBool
-    stackingStuffDisabled txInfo =
-      (pnull # pfromData (pfield @"dcert" # txInfo))
-        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
-
-compileSpineCaseSwitch ::
-  forall x sop s.
-  (HasPlutusSpine sop) =>
-  Term s PInteger ->
-  (Spine sop -> Term s x) ->
-  Term s x
-compileSpineCaseSwitch spineIndex caseSwitchFunc =
-  go [Prelude.minBound .. Prelude.maxBound]
-  where
-    go [] = perror
-    go (spine : ss) = (checkSpineIf spine) (go ss)
-    checkSpineIf !spine !cont =
-      ( pif
-          (spineIndex #== pconstant (Prelude.toInteger $ Prelude.fromEnum spine))
-          ( ptraceDebug
-              ( pconstant $
-                  fromString $
-                    "Matched spine: " <> Prelude.show spine
-              )
-              (caseSwitchFunc spine)
-          )
-          cont
-      )
-
 genericPlutarchScript ::
   forall script.
   (CEMScript script) =>
@@ -134,15 +172,14 @@ genericPlutarchScript spec code =
           where
             f = perTransitionCheck txInfo ownAddress redm comp
         perTransitionCheck txInfo ownAddress transition comp transitionSpine = P.do
-          ptraceDebug (pconstant $ fromString $ "Checking transition " <> Prelude.show transitionSpine) $
+          ptraceDebug
+            (pconstant $ fromString $ "Checking transition " <> Prelude.show transitionSpine)
             constraintChecks
           where
             -- FIXME: fold better
             constraintChecks = P.do
               pif
-                ( foldr (\x y -> pand' # x # y) (pconstant True) $
-                    map compileConstr constrs
-                )
+                (foldr ((\x y -> pand' # x # y) . compileConstr) (pconstant True) constrs)
                 (commonChecks # pfromData txInfo)
                 (ptraceInfoError "Constraint check failed")
             compileConstr :: TxConstraint False script -> Term s PBool
@@ -191,7 +228,7 @@ genericPlutarchScript spec code =
                               # (passertSorted #$ pMkAdaOnlyValue # 0)
                               #$ mapGetValues
                               # validTxIns
-                  TxFan fanKind fanSpec value ->
+                  Utxo fanKind fanSpec value ->
                     let
                       resolve =
                         pmap # plam (\x -> pfromData $ pfield @"resolved" # x)
@@ -209,7 +246,7 @@ genericPlutarchScript spec code =
                                 #== pfromData (pfield @"address" # txOut)
                            in
                             correctAddress
-                        SameScript expectedState ->
+                        SameScript (MkSameScriptArg expectedState) ->
                           pmatch (pfromData (pfield @"datum" # txOut)) $ \case
                             POutputDatum datum' -> P.do
                               PDatum fanDatum <-
@@ -289,7 +326,6 @@ genericPlutarchScript spec code =
                   SCTransition -> transition
                   -- FIXME: is this force good?
                   SCComp -> pforce comp
-                  SCTxInfo -> pforgetData txInfo
               GetField @_ @y @_ @value valueDsl proxyLabel ->
                 getRecordField
                   (fieldNum @y proxyLabel)
@@ -362,3 +398,41 @@ genericPlutarchScript spec code =
             constrs = case Map.lookup transitionSpine spec of
               Just x -> x
               Nothing -> error "Compilation error: some spine lacks spec"
+
+commonChecks :: Term s (PTxInfo :--> PUnit)
+commonChecks = plam go
+  where
+    go :: Term s1 PTxInfo -> Term s1 PUnit
+    go txInfo =
+      pif
+        (stackingStuffDisabled txInfo)
+        (pconstant ())
+        (ptraceInfo "Stacking feature used" perror)
+    stackingStuffDisabled :: Term s1 PTxInfo -> Term s1 PBool
+    stackingStuffDisabled txInfo =
+      (pnull # pfromData (pfield @"dcert" # txInfo))
+        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
+
+compileSpineCaseSwitch ::
+  forall x sop s.
+  (HasPlutusSpine sop) =>
+  Term s PInteger ->
+  (Spine sop -> Term s x) ->
+  Term s x
+compileSpineCaseSwitch spineIndex caseSwitchFunc =
+  go [Prelude.minBound .. Prelude.maxBound]
+  where
+    go [] = perror
+    go (spine : ss) = (checkSpineIf spine) (go ss)
+    checkSpineIf !spine !cont =
+      ( pif
+          (spineIndex #== pconstant (Prelude.toInteger $ Prelude.fromEnum spine))
+          ( ptraceDebug
+              ( pconstant $
+                  fromString $
+                    "Matched spine: " <> Prelude.show spine
+              )
+              (caseSwitchFunc spine)
+          )
+          cont
+      )
