@@ -57,7 +57,6 @@ import Data.Map qualified as Map
 import Data.Maybe (fromJust)
 import Data.Singletons (sing)
 import Data.Spine (HasSpine (..))
-import Debug.Trace (traceShowId)
 import Plutarch (Config (..), (#))
 import Plutarch.Evaluate (evalTerm)
 import Plutarch.Lift (pconstant, plift)
@@ -265,11 +264,11 @@ process (MkCEMAction params transition) ec = case ec of
 -- -----------------------------------------------------------------------------
 
 data TxResolutionError
-  = CEMScriptTxInResolutionError
-  | -- FIXME: record transition and action involved
+  = NoSignerError
+  | CEMScriptTxInResolutionError
+  | -- TODO: record transition and action involved
     PerTransitionErrors [TransitionError]
-  | -- FIXME: this is weird
-    UnhandledSubmittingError TxSubmittingError
+  | UnhandledSubmittingError TxSubmittingError
   deriving stock (Show)
 
 resolveTx ::

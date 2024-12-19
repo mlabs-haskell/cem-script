@@ -45,7 +45,7 @@ import Cardano.CEM.Monads (
  )
 import Cardano.CEM.Monads.CLB (ClbRunner, execOnIsolatedClb)
 import Cardano.CEM.OffChain (
-  TxResolutionError (CEMScriptTxInResolutionError, UnhandledSubmittingError),
+  TxResolutionError (NoSignerError, UnhandledSubmittingError),
   compileActionConstraints,
   construct,
   process,
@@ -396,9 +396,9 @@ instance
               let
                 (cs, _) = applyMutation mutation cs'
                 mbSignerPKH = getMbMainSigner cs
-              -- \| FIXME: can we delegate handling Nothing case to process/construct?
+              -- \| TODO: can we delegate handling Nothing case to process/construct?
               specSigner <- case mbSignerPKH of
-                Nothing -> ExceptT $ pure $ Left CEMScriptTxInResolutionError -- FIXME:
+                Nothing -> ExceptT $ pure $ Left NoSignerError
                 Just signerPKH -> pure $ findSkForPKH (actors $ config dappParams) signerPKH
               resolutions <- mapM (process cemAction) cs
               let resolvedTx = (construct resolutions) {signer = specSigner}
