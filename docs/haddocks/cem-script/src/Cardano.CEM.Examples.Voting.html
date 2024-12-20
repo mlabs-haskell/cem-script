@@ -1,0 +1,623 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679558993"><span id="local-6989586621679558994"><span id="local-6989586621679558995"><span id="local-6989586621679558996"></span></span></span></span><span class="hs-pragma">{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# HLINT ignore &quot;Use when&quot; #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Examples.Voting</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Prelude.html"><span class="hs-identifier">PlutusTx.Prelude</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html"><span class="hs-identifier">PlutusLedgerApi.V1.Crypto</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier">PubKeyHash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V2.html"><span class="hs-identifier">PlutusLedgerApi.V2</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier">Value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.html"><span class="hs-identifier">PlutusTx</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html"><span class="hs-identifier">PlutusTx.AssocMap</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">PMap</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html"><span class="hs-identifier">PlutusTx.Show.TH</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Show.TH.html#deriveShow"><span class="hs-identifier">deriveShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.html"><span class="hs-identifier">Cardano.CEM</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html"><span class="hs-identifier">Cardano.CEM.Stages</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html"><span class="hs-identifier">Data.Spine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#deriveSpine"><span class="hs-identifier">deriveSpine</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Voting</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleVoting"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-var">SimpleVoting</span></a></span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="VoteValue"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-var">VoteValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Yes"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Yes"><span class="hs-identifier hs-var">Yes</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="No"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#No"><span class="hs-identifier hs-var">No</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Abstain"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Abstain"><span class="hs-identifier hs-var">Abstain</span></a></span></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559003"><span id="local-6989586621679559005"><span id="local-6989586621679559009"><span class="annot"><span class="annottext">Int -&gt; VoteValue -&gt; ShowS
+[VoteValue] -&gt; ShowS
+VoteValue -&gt; String
+(Int -&gt; VoteValue -&gt; ShowS)
+-&gt; (VoteValue -&gt; String)
+-&gt; ([VoteValue] -&gt; ShowS)
+-&gt; Show VoteValue
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; VoteValue -&gt; ShowS
+showsPrec :: Int -&gt; VoteValue -&gt; ShowS
+$cshow :: VoteValue -&gt; String
+show :: VoteValue -&gt; String
+$cshowList :: [VoteValue] -&gt; ShowS
+showList :: [VoteValue] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559013"><span id="local-6989586621679559015"><span class="annot"><span class="annottext">VoteValue -&gt; VoteValue -&gt; Bool
+(VoteValue -&gt; VoteValue -&gt; Bool)
+-&gt; (VoteValue -&gt; VoteValue -&gt; Bool) -&gt; Eq VoteValue
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: VoteValue -&gt; VoteValue -&gt; Bool
+== :: VoteValue -&gt; VoteValue -&gt; Bool
+$c/= :: VoteValue -&gt; VoteValue -&gt; Bool
+/= :: VoteValue -&gt; VoteValue -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Eq.html#Eq"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Yes"><span class="hs-identifier hs-var">Yes</span></a></span><span> </span><span id="local-6989586621679559022"><span class="annot"><span class="annottext">== :: VoteValue -&gt; VoteValue -&gt; Bool
+</span><a href="#local-6989586621679559022"><span class="hs-operator hs-var hs-var hs-var hs-var">==</span></a></span></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Yes"><span class="hs-identifier hs-var">Yes</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#No"><span class="hs-identifier hs-var">No</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Eq.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#No"><span class="hs-identifier hs-var">No</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Abstain"><span class="hs-identifier hs-var">Abstain</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Eq.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Abstain"><span class="hs-identifier hs-var">Abstain</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><span class="annottext">VoteValue
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Eq.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span class="annot"><span class="hs-comment">-- | Policy determinig who can vote</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">data</span><span> </span><span id="JuryPolicy"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#JuryPolicy"><span class="hs-identifier hs-var">JuryPolicy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Anyone"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Anyone"><span class="hs-identifier hs-var">Anyone</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="FixedJuryList"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#FixedJuryList"><span class="hs-identifier hs-var">FixedJuryList</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="WithToken"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#WithToken"><span class="hs-identifier hs-var">WithToken</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Value.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559028"><span id="local-6989586621679559038"><span id="local-6989586621679559042"><span class="annot"><span class="annottext">Int -&gt; JuryPolicy -&gt; ShowS
+[JuryPolicy] -&gt; ShowS
+JuryPolicy -&gt; String
+(Int -&gt; JuryPolicy -&gt; ShowS)
+-&gt; (JuryPolicy -&gt; String)
+-&gt; ([JuryPolicy] -&gt; ShowS)
+-&gt; Show JuryPolicy
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; JuryPolicy -&gt; ShowS
+showsPrec :: Int -&gt; JuryPolicy -&gt; ShowS
+$cshow :: JuryPolicy -&gt; String
+show :: JuryPolicy -&gt; String
+$cshowList :: [JuryPolicy] -&gt; ShowS
+showList :: [JuryPolicy] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559046"><span id="local-6989586621679559053"><span class="annot"><span class="annottext">JuryPolicy -&gt; JuryPolicy -&gt; Bool
+(JuryPolicy -&gt; JuryPolicy -&gt; Bool)
+-&gt; (JuryPolicy -&gt; JuryPolicy -&gt; Bool) -&gt; Eq JuryPolicy
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: JuryPolicy -&gt; JuryPolicy -&gt; Bool
+== :: JuryPolicy -&gt; JuryPolicy -&gt; Bool
+$c/= :: JuryPolicy -&gt; JuryPolicy -&gt; Bool
+/= :: JuryPolicy -&gt; JuryPolicy -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- Votes storage</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><span class="hs-comment">-- | Map from jury to their decision</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">type</span><span> </span><span id="VoteStorage"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteStorage"><span class="hs-identifier hs-var">VoteStorage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html#Map"><span class="hs-identifier hs-type">PMap.Map</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#addVote"><span class="hs-identifier hs-type">addVote</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteStorage"><span class="hs-identifier hs-type">VoteStorage</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.Internal.html#BuiltinString"><span class="hs-identifier hs-type">BuiltinString</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteStorage"><span class="hs-identifier hs-type">VoteStorage</span></a></span><span>
+</span><span id="line-45"></span><span id="addVote"><span class="annot"><span class="annottext">addVote :: PubKeyHash
+-&gt; VoteValue -&gt; VoteStorage -&gt; Either BuiltinString VoteStorage
+</span><a href="Cardano.CEM.Examples.Voting.html#addVote"><span class="hs-identifier hs-var hs-var">addVote</span></a></span></span><span> </span><span id="local-6989586621679559058"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559058"><span class="hs-identifier hs-var">jury</span></a></span></span><span> </span><span id="local-6989586621679559059"><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559059"><span class="hs-identifier hs-var">vote</span></a></span></span><span> </span><span id="local-6989586621679559060"><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559060"><span class="hs-identifier hs-var">storage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; VoteStorage -&gt; Maybe VoteValue
+forall k v. Eq k =&gt; k -&gt; Map k v -&gt; Maybe v
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html#lookup"><span class="hs-identifier hs-var">PMap.lookup</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559058"><span class="hs-identifier hs-var">jury</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559060"><span class="hs-identifier hs-var">storage</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BuiltinString -&gt; Either BuiltinString VoteStorage
+forall a. BuiltinString -&gt; a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Trace.html#traceError"><span class="hs-identifier hs-var">traceError</span></a></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;You already casted vote&quot;</span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><span class="annottext">Maybe VoteValue
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">VoteStorage -&gt; Either BuiltinString VoteStorage
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(VoteStorage -&gt; Either BuiltinString VoteStorage)
+-&gt; VoteStorage -&gt; Either BuiltinString VoteStorage
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; VoteValue -&gt; VoteStorage -&gt; VoteStorage
+forall k v. Eq k =&gt; k -&gt; v -&gt; Map k v -&gt; Map k v
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html#insert"><span class="hs-identifier hs-var">PMap.insert</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559058"><span class="hs-identifier hs-var">jury</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559059"><span class="hs-identifier hs-var">vote</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559060"><span class="hs-identifier hs-var">storage</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#countVotes"><span class="hs-pragma hs-type">countVotes</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#countVotes"><span class="hs-identifier hs-type">countVotes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingParams"><span class="hs-identifier hs-type">SimpleVotingParams</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteStorage"><span class="hs-identifier hs-type">VoteStorage</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span>
+</span><span id="line-51"></span><span id="countVotes"><span class="annot"><span class="annottext">countVotes :: SimpleVotingParams -&gt; VoteStorage -&gt; VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#countVotes"><span class="hs-identifier hs-var hs-var">countVotes</span></a></span></span><span> </span><span id="local-6989586621679559066"><span class="annot"><span class="annottext">SimpleVotingParams
+</span><a href="#local-6989586621679559066"><span class="hs-identifier hs-var">params</span></a></span></span><span> </span><span id="local-6989586621679559067"><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559067"><span class="hs-identifier hs-var">votesMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559068"><span class="hs-identifier hs-var">maxDecision</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>    </span><span id="local-6989586621679559075"><span class="annot"><span class="annottext">votesFor :: (Integer, Integer) -&gt; [VoteValue] -&gt; (Integer, Integer)
+</span><a href="#local-6989586621679559075"><span class="hs-identifier hs-var hs-var">votesFor</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559076"><span class="annot"><span class="annottext">(Integer, Integer)
+</span><a href="#local-6989586621679559076"><span class="hs-identifier hs-var">accum</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer, Integer)
+</span><a href="#local-6989586621679559076"><span class="hs-identifier hs-var">accum</span></a></span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><a href="#local-6989586621679559075"><span class="hs-identifier hs-var">votesFor</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559077"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559077"><span class="hs-identifier hs-var">yesCount</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559078"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559078"><span class="hs-identifier hs-var">noCount</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559079"><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559079"><span class="hs-identifier hs-var">vote</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679559080"><span class="annot"><span class="annottext">[VoteValue]
+</span><a href="#local-6989586621679559080"><span class="hs-identifier hs-var">vs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559079"><span class="hs-identifier hs-var">vote</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-55"></span><span>      </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Yes"><span class="hs-identifier hs-var">Yes</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Integer, Integer) -&gt; [VoteValue] -&gt; (Integer, Integer)
+</span><a href="#local-6989586621679559075"><span class="hs-identifier hs-var">votesFor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559077"><span class="hs-identifier hs-var">yesCount</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. AdditiveSemigroup a =&gt; a -&gt; a -&gt; a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Numeric.html#%2B"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559078"><span class="hs-identifier hs-var">noCount</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[VoteValue]
+</span><a href="#local-6989586621679559080"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-56"></span><span>      </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#No"><span class="hs-identifier hs-var">No</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Integer, Integer) -&gt; [VoteValue] -&gt; (Integer, Integer)
+</span><a href="#local-6989586621679559075"><span class="hs-identifier hs-var">votesFor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559077"><span class="hs-identifier hs-var">yesCount</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559078"><span class="hs-identifier hs-var">noCount</span></a></span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Integer
+forall a. AdditiveSemigroup a =&gt; a -&gt; a -&gt; a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Numeric.html#%2B"><span class="hs-operator hs-var">+</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[VoteValue]
+</span><a href="#local-6989586621679559080"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-57"></span><span>      </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Abstain"><span class="hs-identifier hs-var">Abstain</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Integer, Integer) -&gt; [VoteValue] -&gt; (Integer, Integer)
+</span><a href="#local-6989586621679559075"><span class="hs-identifier hs-var">votesFor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559077"><span class="hs-identifier hs-var">yesCount</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559078"><span class="hs-identifier hs-var">noCount</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[VoteValue]
+</span><a href="#local-6989586621679559080"><span class="hs-identifier hs-var">vs</span></a></span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679559082"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559082"><span class="hs-identifier hs-var">votesYes</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559083"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559083"><span class="hs-identifier hs-var">votesNo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Integer, Integer) -&gt; [VoteValue] -&gt; (Integer, Integer)
+</span><a href="#local-6989586621679559075"><span class="hs-identifier hs-var">votesFor</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([VoteValue] -&gt; (Integer, Integer))
+-&gt; [VoteValue] -&gt; (Integer, Integer)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage -&gt; [VoteValue]
+forall k v. Map k v -&gt; [v]
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html#elems"><span class="hs-identifier hs-var">PMap.elems</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559067"><span class="hs-identifier hs-var">votesMap</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span id="local-6989586621679559068"><span class="annot"><span class="annottext">maxDecision :: VoteValue
+</span><a href="#local-6989586621679559068"><span class="hs-identifier hs-var hs-var">maxDecision</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-60"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Integer -&gt; Integer -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Ord.html#compare"><span class="hs-identifier hs-var">compare</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559082"><span class="hs-identifier hs-var">votesYes</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679559083"><span class="hs-identifier hs-var">votesNo</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-61"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Yes"><span class="hs-identifier hs-var">Yes</span></a></span><span>
+</span><span id="line-62"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#No"><span class="hs-identifier hs-var">No</span></a></span><span>
+</span><span id="line-63"></span><span>        </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AdrawDecision%3AMkVotingParams"><span class="hs-identifier hs-var">drawDecision</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleVotingParams
+</span><a href="#local-6989586621679559066"><span class="hs-identifier hs-var">params</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- Other datatypes</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleVotingParams"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingParams"><span class="hs-identifier hs-var">SimpleVotingParams</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkVotingParams"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#MkVotingParams"><span class="hs-identifier hs-var">MkVotingParams</span></a></span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AdisputeDescription%3AMkVotingParams"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; BuiltinByteString
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AdisputeDescription%3AMkVotingParams"><span class="hs-identifier hs-var hs-var">disputeDescription</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Builtins.Internal.html#BuiltinByteString"><span class="hs-identifier hs-type">BuiltinByteString</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Acreator%3AMkVotingParams"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3Acreator%3AMkVotingParams"><span class="hs-identifier hs-var hs-var">creator</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AjuryPolicy%3AMkVotingParams"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; JuryPolicy
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AjuryPolicy%3AMkVotingParams"><span class="hs-identifier hs-var hs-var">juryPolicy</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#JuryPolicy"><span class="hs-identifier hs-type">JuryPolicy</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AabstainAllowed%3AMkVotingParams"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; Bool
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AabstainAllowed%3AMkVotingParams"><span class="hs-identifier hs-var hs-var">abstainAllowed</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AdrawDecision%3AMkVotingParams"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AdrawDecision%3AMkVotingParams"><span class="hs-identifier hs-var hs-var">drawDecision</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559093"><span id="local-6989586621679559103"><span id="local-6989586621679559107"><span class="annot"><span class="annottext">Int -&gt; SimpleVotingParams -&gt; ShowS
+[SimpleVotingParams] -&gt; ShowS
+SimpleVotingParams -&gt; String
+(Int -&gt; SimpleVotingParams -&gt; ShowS)
+-&gt; (SimpleVotingParams -&gt; String)
+-&gt; ([SimpleVotingParams] -&gt; ShowS)
+-&gt; Show SimpleVotingParams
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleVotingParams -&gt; ShowS
+showsPrec :: Int -&gt; SimpleVotingParams -&gt; ShowS
+$cshow :: SimpleVotingParams -&gt; String
+show :: SimpleVotingParams -&gt; String
+$cshowList :: [SimpleVotingParams] -&gt; ShowS
+showList :: [SimpleVotingParams] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559110"><span id="local-6989586621679559119"><span class="annot"><span class="annottext">SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool
+(SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool)
+-&gt; (SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool)
+-&gt; Eq SimpleVotingParams
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool
+== :: SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool
+$c/= :: SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool
+/= :: SimpleVotingParams -&gt; SimpleVotingParams -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleVotingState"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingState"><span class="hs-identifier hs-var">SimpleVotingState</span></a></span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="NotStarted"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="InProgress"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#InProgress"><span class="hs-identifier hs-var">InProgress</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteStorage"><span class="hs-identifier hs-type">VoteStorage</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Finalized"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Finalized"><span class="hs-identifier hs-var">Finalized</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559126"><span id="local-6989586621679559135"><span id="local-6989586621679559139"><span class="annot"><span class="annottext">Int -&gt; SimpleVotingState -&gt; ShowS
+[SimpleVotingState] -&gt; ShowS
+SimpleVotingState -&gt; String
+(Int -&gt; SimpleVotingState -&gt; ShowS)
+-&gt; (SimpleVotingState -&gt; String)
+-&gt; ([SimpleVotingState] -&gt; ShowS)
+-&gt; Show SimpleVotingState
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleVotingState -&gt; ShowS
+showsPrec :: Int -&gt; SimpleVotingState -&gt; ShowS
+$cshow :: SimpleVotingState -&gt; String
+show :: SimpleVotingState -&gt; String
+$cshowList :: [SimpleVotingState] -&gt; ShowS
+showList :: [SimpleVotingState] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559142"><span id="local-6989586621679559149"><span class="annot"><span class="annottext">SimpleVotingState -&gt; SimpleVotingState -&gt; Bool
+(SimpleVotingState -&gt; SimpleVotingState -&gt; Bool)
+-&gt; (SimpleVotingState -&gt; SimpleVotingState -&gt; Bool)
+-&gt; Eq SimpleVotingState
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleVotingState -&gt; SimpleVotingState -&gt; Bool
+== :: SimpleVotingState -&gt; SimpleVotingState -&gt; Bool
+$c/= :: SimpleVotingState -&gt; SimpleVotingState -&gt; Bool
+/= :: SimpleVotingState -&gt; SimpleVotingState -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">data</span><span> </span><span id="SimpleVotingTransition"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingTransition"><span class="hs-identifier hs-var">SimpleVotingTransition</span></a></span></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Create"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Create"><span class="hs-identifier hs-var">Create</span></a></span></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Start"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Start"><span class="hs-identifier hs-var">Start</span></a></span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Vote"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Vote"><span class="hs-identifier hs-var">Vote</span></a></span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#VoteValue"><span class="hs-identifier hs-type">VoteValue</span></a></span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Finalize"><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Finalize"><span class="hs-identifier hs-var">Finalize</span></a></span></span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679559157"><span id="local-6989586621679559162"><span id="local-6989586621679559166"><span class="annot"><span class="annottext">Int -&gt; SimpleVotingTransition -&gt; ShowS
+[SimpleVotingTransition] -&gt; ShowS
+SimpleVotingTransition -&gt; String
+(Int -&gt; SimpleVotingTransition -&gt; ShowS)
+-&gt; (SimpleVotingTransition -&gt; String)
+-&gt; ([SimpleVotingTransition] -&gt; ShowS)
+-&gt; Show SimpleVotingTransition
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SimpleVotingTransition -&gt; ShowS
+showsPrec :: Int -&gt; SimpleVotingTransition -&gt; ShowS
+$cshow :: SimpleVotingTransition -&gt; String
+show :: SimpleVotingTransition -&gt; String
+$cshowList :: [SimpleVotingTransition] -&gt; ShowS
+showList :: [SimpleVotingTransition] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679559169"><span id="local-6989586621679559173"><span class="annot"><span class="annottext">SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool
+(SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool)
+-&gt; (SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool)
+-&gt; Eq SimpleVotingTransition
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool
+== :: SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool
+$c/= :: SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool
+/= :: SimpleVotingTransition -&gt; SimpleVotingTransition -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Prelude.Eq</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span id="local-6989586621679559177"><span id="local-6989586621679559183"><span id="local-6989586621679559185"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">VoteValue</span></span></span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621679559216"><span id="local-6989586621679559226"><span id="local-6989586621679559228"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">JuryPolicy</span></span></span></span><span>
+</span><span id="line-91"></span><span id="local-6989586621679559266"><span id="local-6989586621679559276"><span id="local-6989586621679559278"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVotingState</span></span></span></span><span>
+</span><span id="line-92"></span><span id="local-6989586621679559310"><span id="local-6989586621679559320"><span id="local-6989586621679559322"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVotingParams</span></span></span></span><span>
+</span><span id="line-93"></span><span id="local-6989586621679559367"><span id="local-6989586621679559375"><span id="local-6989586621679559377"><span class="hs-identifier">PlutusTx.unstableMakeIsData</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVotingTransition</span></span></span></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621679559404"><span id="local-6989586621679559406"><span class="hs-identifier">deriveShow</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVoting</span></span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span id="SimpleVotingTransitionSpine"><span id="Spine"><span id="local-6989586621679559414"><span id="local-6989586621679559416"><span id="local-6989586621679559422"><span id="local-6989586621679559424"><span id="local-6989586621679559426"><span id="local-6989586621679559430"><span id="local-6989586621679559433"><span id="local-6989586621679559436"><span id="local-6989586621679559439"><span id="local-6989586621679559442"><span id="local-6989586621679559450"><span id="local-6989586621679559456"><span id="local-6989586621679559469"><span id="local-6989586621679559471"><span id="local-6989586621679559475"><span id="local-6989586621679559479"><span id="local-6989586621679559483"><span id="local-6989586621679559486"><span id="local-6989586621679559488"><span id="local-6989586621679559492"><span id="local-6989586621679559501"><span id="CreateSpine"><span id="StartSpine"><span id="VoteSpine"><span id="FinalizeSpine"><span class="hs-identifier">deriveSpine</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVotingTransition</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-98"></span><span id="SimpleVotingStateSpine"><span id="Spine"><span id="local-6989586621679559512"><span id="local-6989586621679559514"><span id="local-6989586621679559520"><span id="local-6989586621679559522"><span id="local-6989586621679559524"><span id="local-6989586621679559528"><span id="local-6989586621679559531"><span id="local-6989586621679559534"><span id="local-6989586621679559537"><span id="local-6989586621679559540"><span id="local-6989586621679559546"><span id="local-6989586621679559552"><span id="local-6989586621679559563"><span id="local-6989586621679559565"><span id="local-6989586621679559568"><span id="local-6989586621679559572"><span id="local-6989586621679559576"><span id="local-6989586621679559579"><span id="local-6989586621679559581"><span id="local-6989586621679559585"><span id="local-6989586621679559594"><span id="NotStartedSpine"><span id="InProgressSpine"><span id="FinalizedSpine"><span class="hs-identifier">deriveSpine</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SimpleVotingState</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Cardano.CEM.html#CEMScript"><span class="hs-identifier hs-type">CEMScript</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-type">SimpleVoting</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Stage"><span class="annot"><a href="Cardano.CEM.html#Stage"><span class="hs-identifier hs-var">Stage</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-type">SimpleVoting</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Stages.html#SingleStage"><span class="hs-identifier hs-type">SingleStage</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Params"><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-var">Params</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-type">SimpleVoting</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingParams"><span class="hs-identifier hs-type">SimpleVotingParams</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="State"><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-type">SimpleVoting</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingState"><span class="hs-identifier hs-type">SimpleVotingState</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Transition"><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-var">Transition</span></a></span></span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVoting"><span class="hs-identifier hs-type">SimpleVoting</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#SimpleVotingTransition"><span class="hs-identifier hs-type">SimpleVotingTransition</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span>  </span><span id="local-6989586621679559618"><span class="annot"><span class="annottext">transitionStage :: Proxy SimpleVoting
+-&gt; Map
+     (Spine (Transition SimpleVoting))
+     (Stage SimpleVoting, Maybe (Spine (State SimpleVoting)),
+      Maybe (Spine (State SimpleVoting)))
+</span><a href="#local-6989586621679559618"><span class="hs-identifier hs-var hs-var hs-var hs-var">transitionStage</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy SimpleVoting
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="annottext">[(SimpleVotingTransitionSpine,
+  (SingleStage, Maybe SimpleVotingStateSpine,
+   Maybe SimpleVotingStateSpine))]
+-&gt; Map
+     SimpleVotingTransitionSpine
+     (SingleStage, Maybe SimpleVotingStateSpine,
+      Maybe SimpleVotingStateSpine)
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span>
+</span><span id="line-108"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingTransitionSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#CreateSpine"><span class="hs-identifier hs-var">CreateSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe SimpleVotingStateSpine
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#NotStartedSpine"><span class="hs-identifier hs-var">NotStartedSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingTransitionSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#StartSpine"><span class="hs-identifier hs-var">StartSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#NotStartedSpine"><span class="hs-identifier hs-var">NotStartedSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgressSpine"><span class="hs-identifier hs-var">InProgressSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingTransitionSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#VoteSpine"><span class="hs-identifier hs-var">VoteSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgressSpine"><span class="hs-identifier hs-var">InProgressSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgressSpine"><span class="hs-identifier hs-var">InProgressSpine</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingTransitionSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#FinalizeSpine"><span class="hs-identifier hs-var">FinalizeSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleStage
+</span><a href="Cardano.CEM.Stages.html#Always"><span class="hs-identifier hs-var">Always</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine -&gt; Maybe SimpleVotingStateSpine
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingStateSpine
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgressSpine"><span class="hs-identifier hs-var">InProgressSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Maybe SimpleVotingStateSpine
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Cardano.CEM.html#transitionSpec"><span class="hs-pragma hs-type">transitionSpec</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621679559644"><span class="annot"><span class="annottext">transitionSpec :: Params SimpleVoting
+-&gt; Maybe (State SimpleVoting)
+-&gt; Transition SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+</span><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-var hs-var hs-var hs-var">transitionSpec</span></a></span></span><span> </span><span id="local-6989586621679559645"><span class="annot"><span class="annottext">Params SimpleVoting
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span></span><span> </span><span id="local-6989586621679559646"><span class="annot"><span class="annottext">Maybe (State SimpleVoting)
+</span><a href="#local-6989586621679559646"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span id="local-6989586621679559647"><span class="annot"><span class="annottext">Transition SimpleVoting
+</span><a href="#local-6989586621679559647"><span class="hs-identifier hs-var">transition</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-116"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe (State SimpleVoting)
+Maybe SimpleVotingState
+</span><a href="#local-6989586621679559646"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Transition SimpleVoting
+SimpleVotingTransition
+</span><a href="#local-6989586621679559647"><span class="hs-identifier hs-var">transition</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-117"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe SimpleVotingState
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingTransition
+</span><a href="Cardano.CEM.Examples.Voting.html#Create"><span class="hs-identifier hs-var">Create</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-118"></span><span>        </span><span class="annot"><span class="annottext">TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-119"></span><span>          </span><span class="annot"><span class="annottext">(TransitionSpec SimpleVoting
+ -&gt; Either BuiltinString (TransitionSpec SimpleVoting))
+-&gt; TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-120"></span><span>            </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559649"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State SimpleVoting -&gt; TxFanConstraint SimpleVoting
+forall {script}.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanConstraint script
+</span><a href="#local-6989586621679559650"><span class="hs-identifier hs-var">nextScriptState</span></a></span><span> </span><span class="annot"><span class="annottext">State SimpleVoting
+SimpleVotingState
+</span><a href="Cardano.CEM.Examples.Voting.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-121"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679559651"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3Acreator%3AMkVotingParams"><span class="hs-identifier hs-var">creator</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-122"></span><span>            </span><span class="hs-special">}</span><span>
+</span><span id="line-123"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">SimpleVotingState
+</span><a href="Cardano.CEM.Examples.Voting.html#NotStarted"><span class="hs-identifier hs-var">NotStarted</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingTransition
+</span><a href="Cardano.CEM.Examples.Voting.html#Start"><span class="hs-identifier hs-var">Start</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-124"></span><span>        </span><span class="annot"><span class="annottext">TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-125"></span><span>          </span><span class="annot"><span class="annottext">(TransitionSpec SimpleVoting
+ -&gt; Either BuiltinString (TransitionSpec SimpleVoting))
+-&gt; TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-126"></span><span>            </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559649"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State SimpleVoting -&gt; TxFanConstraint SimpleVoting
+forall {script}.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanConstraint script
+</span><a href="#local-6989586621679559650"><span class="hs-identifier hs-var">nextScriptState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VoteStorage -&gt; SimpleVotingState
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgress"><span class="hs-identifier hs-var">InProgress</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+forall k v. Map k v
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.AssocMap.html#empty"><span class="hs-identifier hs-var">PMap.empty</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-127"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679559651"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3Acreator%3AMkVotingParams"><span class="hs-identifier hs-var">creator</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-128"></span><span>            </span><span class="hs-special">}</span><span>
+</span><span id="line-129"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#InProgress"><span class="hs-identifier hs-type">InProgress</span></a></span><span> </span><span id="local-6989586621679559653"><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559653"><span class="hs-identifier hs-var">votes</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#Vote"><span class="hs-identifier hs-type">Vote</span></a></span><span> </span><span id="local-6989586621679559654"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559654"><span class="hs-identifier hs-var">jury</span></a></span></span><span> </span><span id="local-6989586621679559655"><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559655"><span class="hs-identifier hs-var">vote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-130"></span><span>        </span><span class="hs-comment">-- Check if you can vote</span><span>
+</span><span id="line-131"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; JuryPolicy
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AjuryPolicy%3AMkVotingParams"><span class="hs-identifier hs-var">juryPolicy</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-132"></span><span>          </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#FixedJuryList"><span class="hs-identifier hs-type">FixedJuryList</span></a></span><span> </span><span id="local-6989586621679559656"><span class="annot"><span class="annottext">[PubKeyHash]
+</span><a href="#local-6989586621679559656"><span class="hs-identifier hs-var">allowedJury</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-133"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559654"><span class="hs-identifier hs-var">jury</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; [PubKeyHash] -&gt; Bool
+forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.List.html#notElem"><span class="hs-operator hs-var">`notElem`</span></a></span><span> </span><span class="annot"><span class="annottext">[PubKeyHash]
+</span><a href="#local-6989586621679559656"><span class="hs-identifier hs-var">allowedJury</span></a></span><span>
+</span><span id="line-134"></span><span>              </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">BuiltinString -&gt; Either BuiltinString ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;You are not allowed to vote, not on list&quot;</span></span><span>
+</span><span id="line-135"></span><span>              </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">() -&gt; Either BuiltinString ()
+forall a. a -&gt; Either BuiltinString a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>          </span><span class="annot"><span class="annottext">JuryPolicy
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; Either BuiltinString ()
+forall a. a -&gt; Either BuiltinString a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Bool.html#not"><span class="hs-identifier hs-var">not</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; Bool
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AabstainAllowed%3AMkVotingParams"><span class="hs-identifier hs-var">abstainAllowed</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Bool.html#%26%26"><span class="hs-operator hs-var">&amp;&amp;</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559655"><span class="hs-identifier hs-var">vote</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue -&gt; VoteValue -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Eq.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#Abstain"><span class="hs-identifier hs-var">Abstain</span></a></span><span>
+</span><span id="line-138"></span><span>          </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">BuiltinString -&gt; Either BuiltinString ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;You cannot vote Abstain in this vote&quot;</span></span><span>
+</span><span id="line-139"></span><span>          </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">() -&gt; Either BuiltinString ()
+forall a. a -&gt; Either BuiltinString a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679559660"><span class="annot"><span class="annottext">allowedToVoteConstraints :: [TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559660"><span class="hs-identifier hs-var hs-var">allowedToVoteConstraints</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-142"></span><span>              </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; JuryPolicy
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3AjuryPolicy%3AMkVotingParams"><span class="hs-identifier hs-var">juryPolicy</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-143"></span><span>                </span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#WithToken"><span class="hs-identifier hs-type">WithToken</span></a></span><span> </span><span id="local-6989586621679559661"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679559661"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-144"></span><span>                  </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter SimpleVoting
+-&gt; Quantor
+-&gt; TxFanConstraint SimpleVoting
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span>
+</span><span id="line-145"></span><span>                      </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#InRef"><span class="hs-identifier hs-var">InRef</span></a></span><span>
+</span><span id="line-146"></span><span>                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec
+-&gt; TxFanFilter' SimpleVoting -&gt; TxFanFilter SimpleVoting
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">PubKeyHash -&gt; AddressSpec
+</span><a href="Cardano.CEM.html#ByPubKey"><span class="hs-identifier hs-var">ByPubKey</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559654"><span class="hs-identifier hs-var">jury</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">TxFanFilter' SimpleVoting
+forall script. TxFanFilter' script
+</span><a href="Cardano.CEM.html#Anything"><span class="hs-identifier hs-var">Anything</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Value -&gt; Quantor
+</span><a href="Cardano.CEM.html#SumValueEq"><span class="hs-identifier hs-var">SumValueEq</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679559661"><span class="hs-identifier hs-var">value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>                  </span><span class="hs-special">]</span><span>
+</span><span id="line-149"></span><span>                </span><span class="annot"><span class="annottext">JuryPolicy
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span>        </span><span class="hs-comment">-- Update state</span><span>
+</span><span id="line-152"></span><span>        </span><span id="local-6989586621679559668"><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559668"><span class="hs-identifier hs-var">newVoteStorage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+-&gt; VoteValue -&gt; VoteStorage -&gt; Either BuiltinString VoteStorage
+</span><a href="Cardano.CEM.Examples.Voting.html#addVote"><span class="hs-identifier hs-var">addVote</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559654"><span class="hs-identifier hs-var">jury</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue
+</span><a href="#local-6989586621679559655"><span class="hs-identifier hs-var">vote</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559653"><span class="hs-identifier hs-var">votes</span></a></span><span>
+</span><span id="line-153"></span><span>        </span><span class="annot"><span class="annottext">TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-154"></span><span>          </span><span class="annot"><span class="annottext">(TransitionSpec SimpleVoting
+ -&gt; Either BuiltinString (TransitionSpec SimpleVoting))
+-&gt; TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-155"></span><span>            </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559649"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-156"></span><span>                </span><span class="annot"><span class="annottext">State SimpleVoting -&gt; TxFanConstraint SimpleVoting
+forall {script}.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanConstraint script
+</span><a href="#local-6989586621679559650"><span class="hs-identifier hs-var">nextScriptState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">VoteStorage -&gt; SimpleVotingState
+</span><a href="Cardano.CEM.Examples.Voting.html#InProgress"><span class="hs-identifier hs-var">InProgress</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559668"><span class="hs-identifier hs-var">newVoteStorage</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span>                  </span><span class="annot"><span class="annottext">TxFanConstraint SimpleVoting
+-&gt; [TxFanConstraint SimpleVoting] -&gt; [TxFanConstraint SimpleVoting]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559660"><span class="hs-identifier hs-var">allowedToVoteConstraints</span></a></span><span>
+</span><span id="line-158"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679559651"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679559654"><span class="hs-identifier hs-var">jury</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-159"></span><span>            </span><span class="hs-special">}</span><span>
+</span><span id="line-160"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Examples.Voting.html#InProgress"><span class="hs-identifier hs-type">InProgress</span></a></span><span> </span><span id="local-6989586621679559669"><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559669"><span class="hs-identifier hs-var">votes</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SimpleVotingTransition
+</span><a href="Cardano.CEM.Examples.Voting.html#Finalize"><span class="hs-identifier hs-var">Finalize</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-161"></span><span>        </span><span class="annot"><span class="annottext">TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span>
+</span><span id="line-162"></span><span>          </span><span class="annot"><span class="annottext">(TransitionSpec SimpleVoting
+ -&gt; Either BuiltinString (TransitionSpec SimpleVoting))
+-&gt; TransitionSpec SimpleVoting
+-&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.html#MkTransitionSpec"><span class="hs-identifier hs-type">MkTransitionSpec</span></a></span><span>
+</span><span id="line-163"></span><span>            </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:constraints:MkTransitionSpec :: [TxFanConstraint SimpleVoting]
+</span><a href="#local-6989586621679559649"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-164"></span><span>                </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State SimpleVoting -&gt; TxFanConstraint SimpleVoting
+SimpleVotingState -&gt; TxFanConstraint SimpleVoting
+forall {script}.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanConstraint script
+</span><a href="#local-6989586621679559650"><span class="hs-identifier hs-var">nextScriptState</span></a></span><span> </span><span class="annot"><span class="annottext">(SimpleVotingState -&gt; TxFanConstraint SimpleVoting)
+-&gt; SimpleVotingState -&gt; TxFanConstraint SimpleVoting
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">VoteValue -&gt; SimpleVotingState
+</span><a href="Cardano.CEM.Examples.Voting.html#Finalized"><span class="hs-identifier hs-var">Finalized</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; VoteStorage -&gt; VoteValue
+</span><a href="Cardano.CEM.Examples.Voting.html#countVotes"><span class="hs-identifier hs-var">countVotes</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="annot"><span class="annottext">VoteStorage
+</span><a href="#local-6989586621679559669"><span class="hs-identifier hs-var">votes</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-165"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:signers:MkTransitionSpec :: [PubKeyHash]
+</span><a href="#local-6989586621679559651"><span class="hs-identifier hs-var">signers</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">SimpleVotingParams -&gt; PubKeyHash
+</span><a href="Cardano.CEM.Examples.Voting.html#%24sel%3Acreator%3AMkVotingParams"><span class="hs-identifier hs-var">creator</span></a></span><span> </span><span class="annot"><span class="annottext">Params SimpleVoting
+SimpleVotingParams
+</span><a href="#local-6989586621679559645"><span class="hs-identifier hs-var">params</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-166"></span><span>            </span><span class="hs-special">}</span><span>
+</span><span id="line-167"></span><span>      </span><span class="annot"><span class="annottext">(Maybe SimpleVotingState, SimpleVotingTransition)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BuiltinString -&gt; Either BuiltinString (TransitionSpec SimpleVoting)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-string">&quot;Wrong state transition&quot;</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-168"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-169"></span><span>      </span><span id="local-6989586621679559650"><span class="annot"><span class="annottext">nextScriptState :: State script -&gt; TxFanConstraint script
+</span><a href="#local-6989586621679559650"><span class="hs-identifier hs-var hs-var">nextScriptState</span></a></span></span><span> </span><span id="local-6989586621679559701"><span class="annot"><span class="annottext">State script
+</span><a href="#local-6989586621679559701"><span class="hs-identifier hs-var">state'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-170"></span><span>        </span><span class="annot"><span class="annottext">TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+forall script.
+TxFanKind
+-&gt; TxFanFilter script -&gt; Quantor -&gt; TxFanConstraint script
+</span><a href="Cardano.CEM.html#MkTxFanC"><span class="hs-identifier hs-var">MkTxFanC</span></a></span><span> </span><span class="annot"><span class="annottext">TxFanKind
+</span><a href="Cardano.CEM.html#Out"><span class="hs-identifier hs-var">Out</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+forall script.
+AddressSpec -&gt; TxFanFilter' script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#MkTxFanFilter"><span class="hs-identifier hs-var">MkTxFanFilter</span></a></span><span> </span><span class="annot"><span class="annottext">AddressSpec
+</span><a href="Cardano.CEM.html#BySameScript"><span class="hs-identifier hs-var">BySameScript</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State script -&gt; TxFanFilter' script
+forall script.
+(ToData (State script), CEMScript script) =&gt;
+State script -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#bySameCEM"><span class="hs-identifier hs-var">bySameCEM</span></a></span><span> </span><span class="annot"><span class="annottext">State script
+</span><a href="#local-6989586621679559701"><span class="hs-identifier hs-var">state'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer -&gt; Quantor
+</span><a href="Cardano.CEM.html#Exist"><span class="hs-identifier hs-var">Exist</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-171"></span></pre></body></html>

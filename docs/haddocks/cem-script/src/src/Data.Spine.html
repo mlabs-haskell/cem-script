@@ -1,0 +1,303 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE AllowAmbiguousTypes #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE DataKinds #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE DefaultSignatures #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE PolyKinds #-}</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Spine</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Spine.html#deriveSpine"><span class="hs-identifier">deriveSpine</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Spine.html#OfSpine"><span class="hs-identifier">OfSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH.Syntax</span></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><span class="hs-comment">-- | Definitions</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><span class="hs-comment">{- | Spine is datatype, which tags constructors of ADT.
+| TH deriving utility generates Spines, which are Enums,
+| but one could introduce more complex Spine datatypes manually.
+-}</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">class</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-23"></span><span>  </span><span id="HasSpine"><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-var">HasSpine</span></a></span></span><span> </span><span id="local-6989586621679038611"><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Spine"><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-var">Spine</span></a></span></span><span> </span><span id="local-6989586621679038611"><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span></span><span>
+</span><span id="line-26"></span><span>  </span><span id="getSpine"><span class="annot"><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-type">getSpine</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038611"><span class="hs-identifier hs-type">sop</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679038620"><span id="local-6989586621679038621"><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038620"><span class="hs-identifier hs-type">sop1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038621"><span class="hs-identifier hs-type">sop2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679038620"><span class="hs-identifier hs-type">sop1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679038621"><span class="hs-identifier hs-type">sop2</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Spine"><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-var">Spine</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679038620"><span class="hs-identifier hs-type">sop1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679038621"><span class="hs-identifier hs-type">sop2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038620"><span class="hs-identifier hs-type">sop1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038621"><span class="hs-identifier hs-type">sop2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>  </span><span id="local-6989586621679038721"><span class="annot"><span class="annottext">getSpine :: (sop1, sop2) -&gt; Spine (sop1, sop2)
+</span><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var hs-var hs-var hs-var">getSpine</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679038722"><span class="annot"><span class="annottext">sop1
+</span><a href="#local-6989586621679038722"><span class="hs-identifier hs-var">d1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679038723"><span class="annot"><span class="annottext">sop2
+</span><a href="#local-6989586621679038723"><span class="hs-identifier hs-var">d2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">sop1 -&gt; Spine sop1
+forall sop. HasSpine sop =&gt; sop -&gt; Spine sop
+</span><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var">getSpine</span></a></span><span> </span><span class="annot"><span class="annottext">sop1
+</span><a href="#local-6989586621679038722"><span class="hs-identifier hs-var">d1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">sop2 -&gt; Spine sop2
+forall sop. HasSpine sop =&gt; sop -&gt; Spine sop
+</span><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var">getSpine</span></a></span><span> </span><span class="annot"><span class="annottext">sop2
+</span><a href="#local-6989586621679038723"><span class="hs-identifier hs-var">d2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679038625"><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038625"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679038625"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Spine"><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-var">Spine</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679038625"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038625"><span class="hs-identifier hs-type">sop</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>  </span><span id="local-6989586621679038740"><span class="annot"><span class="annottext">getSpine :: Maybe sop -&gt; Spine (Maybe sop)
+</span><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var hs-var hs-var hs-var">getSpine</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(sop -&gt; Spine sop) -&gt; Maybe sop -&gt; Maybe (Spine sop)
+forall a b. (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">sop -&gt; Spine sop
+forall sop. HasSpine sop =&gt; sop -&gt; Spine sop
+</span><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var">getSpine</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><span class="hs-comment">-- | Newtype encoding sop value of fixed known spine</span></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">newtype</span><span> </span><span id="OfSpine"><span class="annot"><a href="Data.Spine.html#OfSpine"><span class="hs-identifier hs-var">OfSpine</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679038629"><span id="local-6989586621679038630"><span class="annot"><a href="#local-6989586621679038630"><span class="hs-identifier hs-type">x</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-type">Spine</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679038629"><span class="hs-identifier hs-type">datatype</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span id="UnsafeMkOfSpine"><span class="annot"><a href="Data.Spine.html#UnsafeMkOfSpine"><span class="hs-identifier hs-var">UnsafeMkOfSpine</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3AgetValue%3AUnsafeMkOfSpine"><span class="annot"><span class="annottext">forall datatype (x :: Spine datatype). OfSpine x -&gt; datatype
+</span><a href="Data.Spine.html#%24sel%3AgetValue%3AUnsafeMkOfSpine"><span class="hs-identifier hs-var hs-var">getValue</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679038629"><span class="hs-identifier hs-type">datatype</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><span class="hs-comment">-- | Deriving utils</span></span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-type">addSuffix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span>
+</span><span id="line-41"></span><span id="addSuffix"><span class="annot"><span class="annottext">addSuffix :: Name -&gt; String -&gt; Name
+</span><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-var hs-var">addSuffix</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">OccName</span></span><span> </span><span id="local-6989586621679038746"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038746"><span class="hs-identifier hs-var">name</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679038747"><span class="annot"><span class="annottext">NameFlavour
+</span><a href="#local-6989586621679038747"><span class="hs-identifier hs-var">flavour</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679038748"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038748"><span class="hs-identifier hs-var">suffix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><span class="annottext">OccName -&gt; NameFlavour -&gt; Name
+</span><span class="hs-identifier hs-var">Name</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; OccName
+</span><span class="hs-identifier hs-var">OccName</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; OccName) -&gt; String -&gt; OccName
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038746"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038748"><span class="hs-identifier hs-var">suffix</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">NameFlavour
+</span><a href="#local-6989586621679038747"><span class="hs-identifier hs-var">flavour</span></a></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Data.Spine.html#reifyDatatype"><span class="hs-identifier hs-type">reifyDatatype</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span id="reifyDatatype"><span class="annot"><span class="annottext">reifyDatatype :: Name -&gt; Q (Name, [Name])
+</span><a href="Data.Spine.html#reifyDatatype"><span class="hs-identifier hs-var hs-var">reifyDatatype</span></a></span></span><span> </span><span id="local-6989586621679038750"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038750"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TyConI</span></span><span> </span><span id="local-6989586621679038752"><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679038752"><span class="hs-identifier hs-var">tyCon</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Q Info
+</span><span class="hs-identifier hs-var">reify</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038750"><span class="hs-identifier hs-var">ty</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621679038754"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038754"><span class="hs-identifier hs-var">name</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679038755"><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679038755"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679038752"><span class="hs-identifier hs-var">tyCon</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-49"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">DataD</span></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679038757"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038757"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Kind
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679038758"><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679038758"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="annot"><span class="annottext">[DerivClause]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Name, [Con]) -&gt; Q (Name, [Con])
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038757"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679038758"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">NewtypeD</span></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679038760"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038760"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr ()]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe Kind
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679038761"><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679038761"><span class="hs-identifier hs-var">cs</span></a></span></span><span> </span><span class="annot"><span class="annottext">[DerivClause]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Name, [Con]) -&gt; Q (Name, [Con])
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038760"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679038761"><span class="hs-identifier hs-var">cs</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>      </span><span class="annot"><span class="annottext">Dec
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Q (Name, [Con])
+forall a. String -&gt; Q a
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;deriveTags: only 'data' and 'newtype' are supported&quot;</span></span><span>
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621679038762"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038762"><span class="hs-identifier hs-var">csNames</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Con -&gt; Q Name) -&gt; [Con] -&gt; Q [Name]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; [a] -&gt; m [b]
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">Con -&gt; Q Name
+forall (m :: * -&gt; *). MonadFail m =&gt; Con -&gt; m Name
+</span><a href="Data.Spine.html#consName"><span class="hs-identifier hs-var">consName</span></a></span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679038755"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">(Name, [Name]) -&gt; Q (Name, [Name])
+forall a. a -&gt; Q a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038754"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038762"><span class="hs-identifier hs-var">csNames</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span id="local-6989586621679038651"><span class="annot"><a href="Data.Spine.html#consName"><span class="hs-identifier hs-type">consName</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadFail</span></span><span> </span><span class="annot"><a href="#local-6989586621679038651"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679038651"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span></span><span>
+</span><span id="line-56"></span><span id="consName"><span class="annot"><span class="annottext">consName :: forall (m :: * -&gt; *). MonadFail m =&gt; Con -&gt; m Name
+</span><a href="Data.Spine.html#consName"><span class="hs-identifier hs-var hs-var">consName</span></a></span></span><span> </span><span id="local-6989586621679038771"><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679038771"><span class="hs-identifier hs-var">cons</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679038771"><span class="hs-identifier hs-var">cons</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">NormalC</span></span><span> </span><span id="local-6989586621679038773"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038773"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">[BangType]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; m Name
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038773"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">RecC</span></span><span> </span><span id="local-6989586621679038775"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038775"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="annot"><span class="annottext">[VarBangType]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; m Name
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038775"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><span class="annottext">Con
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; m Name
+forall a. String -&gt; m a
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;deriveTags: constructor names must be NormalC or RecC (See https://hackage.haskell.org/package/template-haskell-2.20.0.0/docs/src/Language.Haskell.TH.Syntax.html#Con)&quot;</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Data.Spine.html#deriveTags"><span class="hs-identifier hs-type">deriveTags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Dec</span></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span id="deriveTags"><span class="annot"><span class="annottext">deriveTags :: Name -&gt; String -&gt; [Name] -&gt; Q [Dec]
+</span><a href="Data.Spine.html#deriveTags"><span class="hs-identifier hs-var hs-var">deriveTags</span></a></span></span><span> </span><span id="local-6989586621679038777"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038777"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span id="local-6989586621679038778"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038778"><span class="hs-identifier hs-var">suff</span></a></span></span><span> </span><span id="local-6989586621679038779"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038779"><span class="hs-identifier hs-var">classes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621679038780"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038780"><span class="hs-identifier hs-var">tyName</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679038781"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038781"><span class="hs-identifier hs-var">csNames</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Q (Name, [Name])
+</span><a href="Data.Spine.html#reifyDatatype"><span class="hs-identifier hs-var">reifyDatatype</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038777"><span class="hs-identifier hs-var">ty</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-comment">-- XXX: Quasi-quote splice does not work for case matches list</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679038782"><span class="annot"><span class="annottext">cs :: [Con]
+</span><a href="#local-6989586621679038782"><span class="hs-identifier hs-var hs-var">cs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; [Name] -&gt; [Con]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679038783"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038783"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; [BangType] -&gt; Con
+</span><span class="hs-identifier hs-var">NormalC</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; String -&gt; Name
+</span><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-var">addSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038783"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038778"><span class="hs-identifier hs-var">suff</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038781"><span class="hs-identifier hs-var">csNames</span></a></span><span>
+</span><span id="line-67"></span><span>      </span><span id="local-6989586621679038784"><span class="annot"><span class="annottext">v :: Dec
+</span><a href="#local-6989586621679038784"><span class="hs-identifier hs-var hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>        </span><span class="annot"><span class="annottext">Cxt
+-&gt; Name
+-&gt; [TyVarBndr ()]
+-&gt; Maybe Kind
+-&gt; [Con]
+-&gt; [DerivClause]
+-&gt; Dec
+</span><span class="hs-identifier hs-var">DataD</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; String -&gt; Name
+</span><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-var">addSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038780"><span class="hs-identifier hs-var">tyName</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038778"><span class="hs-identifier hs-var">suff</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Maybe Kind
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">[Con]
+</span><a href="#local-6989586621679038782"><span class="hs-identifier hs-var">cs</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Maybe DerivStrategy -&gt; Cxt -&gt; DerivClause
+</span><span class="hs-identifier hs-var">DerivClause</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DerivStrategy -&gt; Maybe DerivStrategy
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">DerivStrategy
+</span><span class="hs-identifier hs-var">StockStrategy</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">ConT</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Kind) -&gt; [Name] -&gt; Cxt
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038779"><span class="hs-identifier hs-var">classes</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><span class="annottext">[Dec] -&gt; Q [Dec]
+forall a. a -&gt; Q a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Dec
+</span><a href="#local-6989586621679038784"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Data.Spine.html#deriveMapping"><span class="hs-identifier hs-type">deriveMapping</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Exp</span></span><span>
+</span><span id="line-72"></span><span id="deriveMapping"><span class="annot"><span class="annottext">deriveMapping :: Name -&gt; String -&gt; Q Exp
+</span><a href="Data.Spine.html#deriveMapping"><span class="hs-identifier hs-var hs-var">deriveMapping</span></a></span></span><span> </span><span id="local-6989586621679038790"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038790"><span class="hs-identifier hs-var">ty</span></a></span></span><span> </span><span id="local-6989586621679038791"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038791"><span class="hs-identifier hs-var">suff</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679038792"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038792"><span class="hs-identifier hs-var">csNames</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Q (Name, [Name])
+</span><a href="Data.Spine.html#reifyDatatype"><span class="hs-identifier hs-var">reifyDatatype</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038790"><span class="hs-identifier hs-var">ty</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-comment">-- XXX: Quasi-quote splice does not work for case matches list</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-76"></span><span>    </span><span id="local-6989586621679038793"><span class="annot"><span class="annottext">matches :: [Match]
+</span><a href="#local-6989586621679038793"><span class="hs-identifier hs-var hs-var">matches</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><span class="annottext">(Name -&gt; Match) -&gt; [Name] -&gt; [Match]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span>
+</span><span id="line-78"></span><span>        </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679038794"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038794"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Pat -&gt; Body -&gt; [Dec] -&gt; Match
+</span><span class="hs-identifier hs-var">Match</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; [FieldPat] -&gt; Pat
+</span><span class="hs-identifier hs-var">RecP</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038794"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Exp -&gt; Body
+</span><span class="hs-identifier hs-var">NormalB</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Exp
+</span><span class="hs-identifier hs-var">ConE</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; String -&gt; Name
+</span><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-var">addSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038794"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038791"><span class="hs-identifier hs-var">suff</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>        </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679038792"><span class="hs-identifier hs-var">csNames</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="annot"><span class="annottext">Exp -&gt; Q Exp
+forall a. a -&gt; Q a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Exp -&gt; Q Exp) -&gt; Exp -&gt; Q Exp
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Match] -&gt; Exp
+</span><span class="hs-identifier hs-var">LamCaseE</span></span><span> </span><span class="annot"><span class="annottext">[Match]
+</span><a href="#local-6989586621679038793"><span class="hs-identifier hs-var">matches</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">{- | Derives `HasSpine`
+| Usage: `$(deriveSpine ''HydraEvent)`
+-}</span></span><span>
+</span><span id="line-85"></span><span class="annot"><a href="Data.Spine.html#deriveSpine"><span class="hs-identifier hs-type">deriveSpine</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Dec</span></span><span class="hs-special">]</span><span>
+</span><span id="line-86"></span><span id="deriveSpine"><span class="annot"><span class="annottext">deriveSpine :: Name -&gt; Q [Dec]
+</span><a href="Data.Spine.html#deriveSpine"><span class="hs-identifier hs-var hs-var">deriveSpine</span></a></span></span><span> </span><span id="local-6989586621679038800"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-keyword">let</span><span>
+</span><span id="line-88"></span><span>    </span><span id="local-6989586621679038804"><span class="annot"><span class="annottext">suffix :: String
+</span><a href="#local-6989586621679038804"><span class="hs-identifier hs-var hs-var">suffix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Spine&quot;</span></span><span>
+</span><span id="line-89"></span><span>    </span><span id="local-6989586621679038805"><span class="annot"><span class="annottext">spineName :: Name
+</span><a href="#local-6989586621679038805"><span class="hs-identifier hs-var hs-var">spineName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; String -&gt; Name
+</span><a href="Data.Spine.html#addSuffix"><span class="hs-identifier hs-var">addSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038804"><span class="hs-identifier hs-var">suffix</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span id="local-6989586621679038806"><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679038806"><span class="hs-identifier hs-var">spineDec</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Name -&gt; String -&gt; [Name] -&gt; Q [Dec]
+</span><a href="Data.Spine.html#deriveTags"><span class="hs-identifier hs-var">deriveTags</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038804"><span class="hs-identifier hs-var">suffix</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">''</span><span class="hs-identifier">Eq</span><span class="hs-special">,</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Ord</span><span class="hs-special">,</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Enum</span><span class="hs-special">,</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Show</span><span class="hs-special">]</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-comment">-- TODO: derive Sing</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-comment">-- TODO: derive HasField (OfSpine ...)</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span>  </span><span id="local-6989586621679038807"><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679038807"><span class="hs-identifier hs-var">decls</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-special">[d|</span><span>
+</span><span id="line-96"></span><span>      </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.Spine.html#HasSpine"><span class="hs-identifier hs-type">HasSpine</span></a></span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Q Kind
+forall (m :: * -&gt; *). Quote m =&gt; Name -&gt; m Kind
+</span><span class="hs-identifier hs-var">conT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>        </span><span class="hs-keyword">type</span><span> </span><span id="Spine"><span class="annot"><a href="Data.Spine.html#Spine"><span class="hs-identifier hs-var">Spine</span></a></span></span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Q Kind
+forall (m :: * -&gt; *). Quote m =&gt; Name -&gt; m Kind
+</span><span class="hs-identifier hs-var">conT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Q Kind
+forall (m :: * -&gt; *). Quote m =&gt; Name -&gt; m Kind
+</span><span class="hs-identifier hs-var">conT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038805"><span class="hs-identifier hs-var">spineName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-98"></span><span>        </span><span class="annot"><a href="Data.Spine.html#getSpine"><span class="hs-identifier hs-var hs-var">getSpine</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">$</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; String -&gt; Q Exp
+</span><a href="Data.Spine.html#deriveMapping"><span class="hs-identifier hs-var">deriveMapping</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679038800"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679038804"><span class="hs-identifier hs-var">suffix</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span>      </span><span class="hs-special">|]</span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><span class="annottext">[Dec] -&gt; Q [Dec]
+forall a. a -&gt; Q a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">([Dec] -&gt; Q [Dec]) -&gt; [Dec] -&gt; Q [Dec]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679038806"><span class="hs-identifier hs-var">spineDec</span></a></span><span> </span><span class="annot"><span class="annottext">[Dec] -&gt; [Dec] -&gt; [Dec]
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Dec]
+</span><a href="#local-6989586621679038807"><span class="hs-identifier hs-var">decls</span></a></span><span>
+</span><span id="line-101"></span></pre></body></html>

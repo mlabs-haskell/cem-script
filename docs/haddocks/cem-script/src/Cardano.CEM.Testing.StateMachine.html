@@ -1,0 +1,876 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# OPTIONS_GHC -Wno-orphans #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="annot"><span class="hs-comment">-- | Generic utils for using `quickcheck-dynamic`</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Cardano.CEM.Testing.StateMachine</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">void</span></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bifunctor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Bifunctor</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Data</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">mapMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.html"><span class="hs-identifier">PlutusLedgerApi.V1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier">PubKeyHash</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.html"><span class="hs-identifier">PlutusTx.IsData</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.Class.html#FromData"><span class="hs-identifier">FromData</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-9ce61ed6f4f6a48753883a4b458503c397451c80e8ace4b49db7a1ba5822eb9f/share/doc/html/src/Cardano.Api.html"><span class="hs-identifier">Cardano.Api</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier">PaymentKey</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier">SigningKey</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Value.html#Value"><span class="hs-identifier">Value</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/clb-1.0.0-64159e4b2669f7e8248c43be9160b2c5e364781bf6427df65ec0beb08c85ea92/share/doc/html/src/Clb.html"><span class="hs-identifier">Clb</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/clb-1.0.0-64159e4b2669f7e8248c43be9160b2c5e364781bf6427df65ec0beb08c85ea92/share/doc/html/src/Clb.html#ClbT"><span class="hs-identifier">ClbT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.html"><span class="hs-identifier">Test.QuickCheck</span></a></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.DynamicLogic.html"><span class="hs-identifier">Test.QuickCheck.DynamicLogic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.DynamicLogic.Internal.html#DynLogicModel"><span class="hs-identifier">DynLogicModel</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Gen.html"><span class="hs-identifier">Test.QuickCheck.Gen</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Gen</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Monadic.html"><span class="hs-identifier">Test.QuickCheck.Monadic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Monadic.html#monadic"><span class="hs-identifier">monadic</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html"><span class="hs-identifier">Test.QuickCheck.StateModel</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Actions"><span class="hs-identifier">Actions</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#Any"><span class="hs-identifier">Any</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#HasVariables"><span class="hs-identifier">HasVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Realized"><span class="hs-identifier">Realized</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#RunModel"><span class="hs-identifier">RunModel</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#StateModel"><span class="hs-identifier">StateModel</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#runActions"><span class="hs-identifier">runActions</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/pretty-show-1.10-83d1358d88e340d7fba4cd04ab4f89605f737edf4d193ab57afa7da8e874d4b1/share/doc/html/src/Text.Show.Pretty.html"><span class="hs-identifier">Text.Show.Pretty</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/pretty-show-1.10-83d1358d88e340d7fba4cd04ab4f89605f737edf4d193ab57afa7da8e874d4b1/share/doc/html/src/Text.Show.Pretty.html#ppShow"><span class="hs-identifier">ppShow</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.html"><span class="hs-identifier">Cardano.CEM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier">CEMParams</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.html"><span class="hs-identifier">Cardano.CEM</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#%24sel%3AscriptParams%3AMkCEMParams"><span class="hs-identifier">scriptParams</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html"><span class="hs-identifier">Cardano.CEM.Monads</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadSubmitTx"><span class="hs-identifier">MonadSubmitTx</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.CLB.html"><span class="hs-identifier">Cardano.CEM.Monads.CLB</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.OffChain.html"><span class="hs-identifier">Cardano.CEM.OffChain</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Cardano.CEM.OnChain.html"><span class="hs-identifier">Cardano.CEM.OnChain</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.OnChain.html#CEMScriptCompiled"><span class="hs-identifier">CEMScriptCompiled</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html"><span class="hs-identifier">Cardano.Extras</span></a></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html"><span class="hs-identifier">Data.Spine</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#HasSpine"><span class="hs-identifier">HasSpine</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="ScriptStateParams"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-var">ScriptStateParams</span></a></span></span><span> </span><span id="local-6989586621679560949"><span class="annot"><a href="#local-6989586621679560949"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkScriptStateParams"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#MkScriptStateParams"><span class="hs-identifier hs-var">MkScriptStateParams</span></a></span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aactors%3AMkScriptStateParams"><span class="annot"><span class="annottext">forall a. ScriptStateParams a -&gt; [SigningKey PaymentKey]
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Aactors%3AMkScriptStateParams"><span class="hs-identifier hs-var hs-var">actors</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AcemParams%3AMkScriptStateParams"><span class="annot"><span class="annottext">forall a. ScriptStateParams a -&gt; CEMParams a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AcemParams%3AMkScriptStateParams"><span class="hs-identifier hs-var hs-var">cemParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560949"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679561196"><span id="local-6989586621679561198"><span class="annot"><span class="annottext">(forall x. ScriptStateParams a -&gt; Rep (ScriptStateParams a) x)
+-&gt; (forall x. Rep (ScriptStateParams a) x -&gt; ScriptStateParams a)
+-&gt; Generic (ScriptStateParams a)
+forall x. Rep (ScriptStateParams a) x -&gt; ScriptStateParams a
+forall x. ScriptStateParams a -&gt; Rep (ScriptStateParams a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (ScriptStateParams a) x -&gt; ScriptStateParams a
+forall a x. ScriptStateParams a -&gt; Rep (ScriptStateParams a) x
+$cfrom :: forall a x. ScriptStateParams a -&gt; Rep (ScriptStateParams a) x
+from :: forall x. ScriptStateParams a -&gt; Rep (ScriptStateParams a) x
+$cto :: forall a x. Rep (ScriptStateParams a) x -&gt; ScriptStateParams a
+to :: forall x. Rep (ScriptStateParams a) x -&gt; ScriptStateParams a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span id="local-6989586621679560958"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#params"><span class="hs-identifier hs-type">params</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-type">ScriptStateParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560958"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Cardano.CEM.html#Params"><span class="hs-identifier hs-type">Params</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560958"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-53"></span><span id="params"><span class="annot"><span class="annottext">params :: forall script. ScriptStateParams script -&gt; Params script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#params"><span class="hs-identifier hs-var hs-var">params</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CEMParams script -&gt; Params script
+forall script. CEMParams script -&gt; Params script
+</span><a href="Cardano.CEM.html#%24sel%3AscriptParams%3AMkCEMParams"><span class="hs-identifier hs-var">scriptParams</span></a></span><span> </span><span class="annot"><span class="annottext">(CEMParams script -&gt; Params script)
+-&gt; (ScriptStateParams script -&gt; CEMParams script)
+-&gt; ScriptStateParams script
+-&gt; Params script
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; CEMParams script
+forall a. ScriptStateParams a -&gt; CEMParams a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AcemParams%3AMkScriptStateParams"><span class="hs-identifier hs-var">cemParams</span></a></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span id="local-6989586621679561205"><span id="local-6989586621679561210"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679560968"><span class="annot"><a href="#local-6989586621679560968"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560968"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-type">ScriptStateParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560968"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-56"></span><span id="local-6989586621679561216"><span id="local-6989586621679561224"><span id="local-6989586621679561228"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679560973"><span class="annot"><a href="#local-6989586621679560973"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560973"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-type">ScriptStateParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560973"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">data</span><span> </span><span id="ScriptState"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-var">ScriptState</span></a></span></span><span> </span><span id="local-6989586621679560974"><span class="annot"><a href="#local-6989586621679560974"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Void"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-var">Void</span></a></span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ActorsKnown"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-var">ActorsKnown</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ScriptState"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-var">ScriptState</span></a></span></span><span>
+</span><span id="line-62"></span><span>      </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AdappParams%3AVoid"><span class="annot"><span class="annottext">forall a. ScriptState a -&gt; ScriptStateParams a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var hs-var">dappParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-type">ScriptStateParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560974"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-63"></span><span>      </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Astate%3AVoid"><span class="annot"><span class="annottext">forall a. ScriptState a -&gt; Maybe (State a)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560974"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>      </span><span class="hs-special">,</span><span> </span><span id="%24sel%3AinvolvedActors%3AVoid"><span class="annot"><span class="annottext">forall a. ScriptState a -&gt; Set PubKeyHash
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AinvolvedActors%3AVoid"><span class="hs-identifier hs-var hs-var">involvedActors</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span>
+</span><span id="line-65"></span><span>      </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Afinished%3AVoid"><span class="annot"><span class="annottext">forall a. ScriptState a -&gt; Bool
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Afinished%3AVoid"><span class="hs-identifier hs-var hs-var">finished</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-66"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679561240"><span id="local-6989586621679561242"><span class="annot"><span class="annottext">(forall x. ScriptState a -&gt; Rep (ScriptState a) x)
+-&gt; (forall x. Rep (ScriptState a) x -&gt; ScriptState a)
+-&gt; Generic (ScriptState a)
+forall x. Rep (ScriptState a) x -&gt; ScriptState a
+forall x. ScriptState a -&gt; Rep (ScriptState a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (ScriptState a) x -&gt; ScriptState a
+forall a x. ScriptState a -&gt; Rep (ScriptState a) x
+$cfrom :: forall a x. ScriptState a -&gt; Rep (ScriptState a) x
+from :: forall x. ScriptState a -&gt; Rep (ScriptState a) x
+$cto :: forall a x. Rep (ScriptState a) x -&gt; ScriptState a
+to :: forall x. Rep (ScriptState a) x -&gt; ScriptState a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span id="local-6989586621679561247"><span id="local-6989586621679561258"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679560987"><span class="annot"><a href="#local-6989586621679560987"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560987"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560987"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560987"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-71"></span><span id="local-6989586621679561264"><span id="local-6989586621679561278"><span id="local-6989586621679561282"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679560991"><span class="annot"><a href="#local-6989586621679560991"><span class="hs-keyword hs-type">stock</span></a></span></span><span> </span><span class="hs-keyword">instance</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560991"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560991"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560991"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679560997"><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#HasVariables"><span class="hs-identifier hs-type">HasVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679560997"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621679561288"><span class="annot"><span class="annottext">getAllVariables :: ScriptState a -&gt; Set (Any Var)
+</span><a href="#local-6989586621679561288"><span class="hs-identifier hs-var hs-var hs-var hs-var">getAllVariables</span></a></span></span><span> </span><span class="annot"><span class="annottext">ScriptState a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set (Any Var)
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-keyword">instance</span><span> </span><span class="hs-pragma">{-# OVERLAPS</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span id="local-6989586621679561002"><span id="local-6989586621679561003"><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#HasVariables"><span class="hs-identifier hs-type">HasVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561002"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679561003"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-78"></span><span>  </span><span id="local-6989586621679561293"><span class="annot"><span class="annottext">getAllVariables :: Action (ScriptState script) a -&gt; Set (Any Var)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#getAllVariables"><span class="hs-identifier hs-var hs-var hs-var hs-var">getAllVariables</span></a></span></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set (Any Var)
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">class</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Cardano.CEM.OnChain.html#CEMScriptCompiled"><span class="hs-identifier hs-type">CEMScriptCompiled</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-89"></span><span>  </span><span id="CEMScriptArbitrary"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-var">CEMScriptArbitrary</span></a></span></span><span> </span><span id="local-6989586621679561004"><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-91"></span><span>  </span><span id="arbitraryCEMParams"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#arbitraryCEMParams"><span class="hs-identifier hs-type">arbitraryCEMParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Gen.html#Gen"><span class="hs-identifier hs-type">Gen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>  </span><span id="arbitraryTransition"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#arbitraryTransition"><span class="hs-identifier hs-type">arbitraryTransition</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptStateParams"><span class="hs-identifier hs-type">ScriptStateParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Gen.html#Gen"><span class="hs-identifier hs-type">Gen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561004"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679561031"><span id="local-6989586621679561317"><span id="local-6989586621679561325"><span id="local-6989586621679561331"><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#StateModel"><span class="hs-identifier hs-type">StateModel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-keyword">data</span><span> </span><span id="Action"><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-var">Action</span></a></span></span><span> </span><span id="local-6989586621679561343"><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679561343"><span class="hs-identifier hs-type">output</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>    </span><span id="local-6989586621679561344"><span id="SetupActors"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-var">SetupActors</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561344"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-98"></span><span>    </span><span id="local-6989586621679561043"><span id="SetupCEMParams"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-var">SetupCEMParams</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Cardano.CEM.html#CEMParams"><span class="hs-identifier hs-type">CEMParams</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561043"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561043"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-99"></span><span>    </span><span id="local-6989586621679561047"><span id="ScriptTransition"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-var">ScriptTransition</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-100"></span><span>      </span><span class="annot"><a href="Cardano.CEM.html#Transition"><span class="hs-identifier hs-type">Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561047"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561047"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="annot"><span class="hs-keyword">stock</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Error"><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Error"><span class="hs-identifier hs-var">Error</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span>  </span><span id="local-6989586621679561348"><span class="annot"><span class="annottext">initialState :: ScriptState script
+</span><a href="#local-6989586621679561348"><span class="hs-identifier hs-var hs-var hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScriptState script
+forall a. ScriptState a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-var">Void</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span>  </span><span id="local-6989586621679561350"><span class="annot"><span class="annottext">actionName :: forall a. Action (ScriptState script) a -&gt; String
+</span><a href="#local-6989586621679561350"><span class="hs-identifier hs-var hs-var hs-var hs-var">actionName</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-type">ScriptTransition</span></a></span><span> </span><span id="local-6989586621679561356"><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561356"><span class="hs-identifier hs-var">transition</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[String] -&gt; String
+forall a. HasCallStack =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">([String] -&gt; String)
+-&gt; (Transition script -&gt; [String]) -&gt; Transition script -&gt; String
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; [String]
+</span><span class="hs-identifier hs-var">words</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; [String])
+-&gt; (Transition script -&gt; String) -&gt; Transition script -&gt; [String]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Transition script -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">(Transition script -&gt; String) -&gt; Transition script -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561356"><span class="hs-identifier hs-var">transition</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#actionName"><span class="hs-identifier hs-var">actionName</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-type">SetupActors</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SetupActors&quot;</span></span><span>
+</span><span id="line-109"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#actionName"><span class="hs-identifier hs-var">actionName</span></a></span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-type">SetupCEMParams</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SetupCEMParams&quot;</span></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621679561372"><span class="annot"><span class="annottext">arbitraryAction :: VarContext
+-&gt; ScriptState script -&gt; Gen (Any (Action (ScriptState script)))
+</span><a href="#local-6989586621679561372"><span class="hs-identifier hs-var hs-var hs-var hs-var">arbitraryAction</span></a></span></span><span> </span><span id="local-6989586621679561374"><span class="annot"><span class="annottext">VarContext
+</span><a href="#local-6989586621679561374"><span class="hs-identifier hs-var">_varCtx</span></a></span></span><span> </span><span id="local-6989586621679561375"><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561375"><span class="hs-identifier hs-var">modelState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561375"><span class="hs-identifier hs-var">modelState</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-112"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-type">Void</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Gen (Any (Action (ScriptState script)))]
+-&gt; Gen (Any (Action (ScriptState script)))
+forall a. [Gen a] -&gt; Gen a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Gen.html#oneof"><span class="hs-identifier hs-var">Gen.oneof</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- SetupActors should be done manually</span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-type">ActorsKnown</span></a></span><span> </span><span id="local-6989586621679561377"><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561377"><span class="hs-identifier hs-var">actors</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-114"></span><span>      </span><span class="annot"><span class="annottext">Action (ScriptState script) () -&gt; Any (Action (ScriptState script))
+forall a (f :: * -&gt; *). (Typeable a, Eq (f a)) =&gt; f a -&gt; Any f
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Action (ScriptState script) ()
+ -&gt; Any (Action (ScriptState script)))
+-&gt; (CEMParams script -&gt; Action (ScriptState script) ())
+-&gt; CEMParams script
+-&gt; Any (Action (ScriptState script))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">CEMParams script -&gt; Action (ScriptState script) ()
+forall script. CEMParams script -&gt; Action (ScriptState script) ()
+</span><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-var">SetupCEMParams</span></a></span><span> </span><span class="annot"><span class="annottext">(CEMParams script -&gt; Any (Action (ScriptState script)))
+-&gt; Gen (CEMParams script)
+-&gt; Gen (Any (Action (ScriptState script)))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey] -&gt; Gen (CEMParams script)
+forall script.
+CEMScriptArbitrary script =&gt;
+[SigningKey PaymentKey] -&gt; Gen (CEMParams script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#arbitraryCEMParams"><span class="hs-identifier hs-var">arbitraryCEMParams</span></a></span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561377"><span class="hs-identifier hs-var">actors</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561380"><span class="annot"><span class="annottext">ScriptStateParams script
+$sel:dappParams:Void :: forall a. ScriptState a -&gt; ScriptStateParams a
+dappParams :: ScriptStateParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var hs-var">dappParams</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561381"><span class="annot"><span class="annottext">Maybe (State script)
+$sel:state:Void :: forall a. ScriptState a -&gt; Maybe (State a)
+state :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-116"></span><span>      </span><span class="annot"><span class="annottext">Action (ScriptState script) () -&gt; Any (Action (ScriptState script))
+forall a (f :: * -&gt; *). (Typeable a, Eq (f a)) =&gt; f a -&gt; Any f
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#Some"><span class="hs-identifier hs-var">Some</span></a></span><span> </span><span class="annot"><span class="annottext">(Action (ScriptState script) ()
+ -&gt; Any (Action (ScriptState script)))
+-&gt; (Transition script -&gt; Action (ScriptState script) ())
+-&gt; Transition script
+-&gt; Any (Action (ScriptState script))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Transition script -&gt; Action (ScriptState script) ()
+forall script. Transition script -&gt; Action (ScriptState script) ()
+</span><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-var">ScriptTransition</span></a></span><span> </span><span class="annot"><span class="annottext">(Transition script -&gt; Any (Action (ScriptState script)))
+-&gt; Gen (Transition script)
+-&gt; Gen (Any (Action (ScriptState script)))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+-&gt; Maybe (State script) -&gt; Gen (Transition script)
+forall script.
+CEMScriptArbitrary script =&gt;
+ScriptStateParams script
+-&gt; Maybe (State script) -&gt; Gen (Transition script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#arbitraryTransition"><span class="hs-identifier hs-var">arbitraryTransition</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561380"><span class="hs-identifier hs-var">dappParams</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+</span><a href="#local-6989586621679561381"><span class="hs-identifier hs-var">state</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>  </span><span id="local-6989586621679561382"><span class="annot"><span class="annottext">precondition :: forall a.
+ScriptState script -&gt; Action (ScriptState script) a -&gt; Bool
+</span><a href="#local-6989586621679561382"><span class="hs-identifier hs-var hs-var hs-var hs-var">precondition</span></a></span></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-var">Void</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-type">SetupActors</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-119"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#precondition"><span class="hs-identifier hs-var">precondition</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-type">ActorsKnown</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-type">SetupCEMParams</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#precondition"><span class="hs-identifier hs-var">precondition</span></a></span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561386"><span class="annot"><span class="annottext">ScriptStateParams script
+$sel:dappParams:Void :: forall a. ScriptState a -&gt; ScriptStateParams a
+dappParams :: ScriptStateParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var hs-var">dappParams</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561387"><span class="annot"><span class="annottext">Maybe (State script)
+$sel:state:Void :: forall a. ScriptState a -&gt; Maybe (State a)
+state :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561388"><span class="annot"><span class="annottext">Bool
+$sel:finished:Void :: forall a. ScriptState a -&gt; Bool
+finished :: Bool
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Afinished%3AVoid"><span class="hs-identifier hs-var hs-var">finished</span></a></span></span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-type">ScriptTransition</span></a></span><span> </span><span id="local-6989586621679561391"><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561391"><span class="hs-identifier hs-var">transition</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-123"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall script.
+CEMScript script =&gt;
+Params script
+-&gt; Maybe (State script)
+-&gt; Transition script
+-&gt; Either BuiltinString (TransitionSpec script)
+</span><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-var">transitionSpec</span></a></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; Params script
+forall script. ScriptStateParams script -&gt; Params script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#params"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561386"><span class="hs-identifier hs-var">dappParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+</span><a href="#local-6989586621679561387"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561391"><span class="hs-identifier hs-var">transition</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-124"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679561388"><span class="hs-identifier hs-var">finished</span></a></span><span>
+</span><span id="line-125"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-comment">-- Unreachable</span><span>
+</span><span id="line-127"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#precondition"><span class="hs-identifier hs-var">precondition</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span>  </span><span id="local-6989586621679561397"><span class="annot"><span class="annottext">nextState :: forall a.
+Typeable a =&gt;
+ScriptState script
+-&gt; Action (ScriptState script) a -&gt; Var a -&gt; ScriptState script
+</span><a href="#local-6989586621679561397"><span class="hs-identifier hs-var hs-var hs-var hs-var">nextState</span></a></span></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-var">Void</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-type">SetupActors</span></a></span><span> </span><span id="local-6989586621679561400"><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561400"><span class="hs-identifier hs-var">actors</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679561401"><span class="annot"><span class="annottext">Var a
+</span><a href="#local-6989586621679561401"><span class="hs-identifier hs-var">_var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey] -&gt; ScriptState script
+forall a. [SigningKey PaymentKey] -&gt; ScriptState a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-var">ActorsKnown</span></a></span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561400"><span class="hs-identifier hs-var">actors</span></a></span><span>
+</span><span id="line-130"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#nextState"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-type">ActorsKnown</span></a></span><span> </span><span id="local-6989586621679561402"><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561402"><span class="hs-identifier hs-var">actors</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-type">SetupCEMParams</span></a></span><span> </span><span id="local-6989586621679561404"><span class="annot"><span class="annottext">CEMParams script
+</span><a href="#local-6989586621679561404"><span class="hs-identifier hs-var">cemParams</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679561405"><span class="annot"><span class="annottext">Var a
+</span><a href="#local-6989586621679561405"><span class="hs-identifier hs-var">_var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-131"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span>
+</span><span id="line-132"></span><span>      </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:dappParams:Void :: ScriptStateParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var">dappParams</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#MkScriptStateParams"><span class="hs-identifier hs-type">MkScriptStateParams</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+$sel:actors:MkScriptStateParams :: [SigningKey PaymentKey]
+actors :: [SigningKey PaymentKey]
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Aactors%3AMkScriptStateParams"><span class="hs-identifier hs-var hs-var">actors</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CEMParams script
+$sel:cemParams:MkScriptStateParams :: CEMParams script
+cemParams :: CEMParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AcemParams%3AMkScriptStateParams"><span class="hs-identifier hs-var hs-var">cemParams</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-133"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:state:Void :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-134"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:involvedActors:Void :: Set PubKeyHash
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AinvolvedActors%3AVoid"><span class="hs-identifier hs-var">involvedActors</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set PubKeyHash
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-135"></span><span>      </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:finished:Void :: Bool
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Afinished%3AVoid"><span class="hs-identifier hs-var">finished</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-136"></span><span>      </span><span class="hs-special">}</span><span>
+</span><span id="line-137"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#nextState"><span class="hs-identifier hs-var">nextState</span></a></span><span>
+</span><span id="line-138"></span><span>    </span><span id="local-6989586621679561406"><span class="annot"><span class="annottext">as :: ScriptState script
+</span><a href="#local-6989586621679561406"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561407"><span class="annot"><span class="annottext">ScriptStateParams script
+$sel:dappParams:Void :: forall a. ScriptState a -&gt; ScriptStateParams a
+dappParams :: ScriptStateParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var hs-var">dappParams</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561408"><span class="annot"><span class="annottext">Maybe (State script)
+$sel:state:Void :: forall a. ScriptState a -&gt; Maybe (State a)
+state :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span class="hs-special">}</span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-type">ScriptTransition</span></a></span><span> </span><span id="local-6989586621679561422"><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561422"><span class="hs-identifier hs-var">transition</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>    </span><span id="local-6989586621679561423"><span class="annot"><span class="annottext">Var a
+</span><a href="#local-6989586621679561423"><span class="hs-identifier hs-var">_var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-141"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Params script
+-&gt; Maybe (State script)
+-&gt; Transition script
+-&gt; Either BuiltinString (TransitionSpec script)
+forall script.
+CEMScript script =&gt;
+Params script
+-&gt; Maybe (State script)
+-&gt; Transition script
+-&gt; Either BuiltinString (TransitionSpec script)
+</span><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-var">transitionSpec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; Params script
+forall script. ScriptStateParams script -&gt; Params script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#params"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561407"><span class="hs-identifier hs-var">dappParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+</span><a href="#local-6989586621679561408"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561422"><span class="hs-identifier hs-var">transition</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-142"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679561424"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561424"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-143"></span><span>          </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561406"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-144"></span><span>            </span><span class="hs-special">{</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621679561425"><span class="hs-identifier hs-type">nextCEMState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561424"><span class="hs-identifier hs-type">spec</span></a></span><span>
+</span><span id="line-145"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AinvolvedActors%3AVoid"><span class="hs-identifier hs-var">involvedActors</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-146"></span><span>                </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AinvolvedActors%3AVoid"><span class="hs-identifier hs-var">involvedActors</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561406"><span class="hs-keyword hs-type">as</span></a></span><span>
+</span><span id="line-147"></span><span>                  </span><span class="annot"><span class="hs-operator hs-type">&lt;&gt;</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#getAllSpecSigners"><span class="hs-identifier hs-type">getAllSpecSigners</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561424"><span class="hs-identifier hs-type">spec</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>            </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Afinished%3AVoid"><span class="hs-identifier hs-var">finished</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621679561425"><span class="hs-identifier hs-type">nextCEMState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561424"><span class="hs-identifier hs-type">spec</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">==</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span>
+</span><span id="line-149"></span><span>            </span><span class="hs-special">}</span><span>
+</span><span id="line-150"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; ScriptState script
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unreachable&quot;</span></span><span>
+</span><span id="line-151"></span><span>      </span><span class="hs-keyword">where</span><span>
+</span><span id="line-152"></span><span>        </span><span id="local-6989586621679561425"><span class="annot"><span class="annottext">nextCEMState :: TransitionSpec script -&gt; Maybe (State script)
+</span><a href="#local-6989586621679561425"><span class="hs-identifier hs-var hs-var">nextCEMState</span></a></span></span><span> </span><span id="local-6989586621679561429"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561429"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; [State script]
+</span><a href="#local-6989586621679561430"><span class="hs-identifier hs-var">outStates</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561429"><span class="hs-identifier hs-var">spec</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-153"></span><span>          </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-154"></span><span>          </span><span class="hs-special">[</span><span id="local-6989586621679561431"><span class="annot"><span class="annottext">State script
+</span><a href="#local-6989586621679561431"><span class="hs-identifier hs-var">state'</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">State script -&gt; Maybe (State script)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">State script
+</span><a href="#local-6989586621679561431"><span class="hs-identifier hs-var">state'</span></a></span><span>
+</span><span id="line-155"></span><span>          </span><span class="annot"><span class="annottext">[State script]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-156"></span><span>            </span><span class="annot"><span class="annottext">String -&gt; Maybe (State script)
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span>
+</span><span id="line-157"></span><span>              </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;This StateModel instance support only with single-output scripts&quot;</span></span><span>
+</span><span id="line-158"></span><span>        </span><span id="local-6989586621679561430"><span class="annot"><span class="annottext">outStates :: TransitionSpec script -&gt; [State script]
+</span><a href="#local-6989586621679561430"><span class="hs-identifier hs-var hs-var">outStates</span></a></span></span><span> </span><span id="local-6989586621679561432"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561432"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(TxFanConstraint script -&gt; Maybe (State script))
+-&gt; [TxFanConstraint script] -&gt; [State script]
+forall a b. (a -&gt; Maybe b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">mapMaybe</span></span><span> </span><span class="annot"><span class="annottext">TxFanConstraint script -&gt; Maybe (State script)
+</span><a href="#local-6989586621679561433"><span class="hs-identifier hs-var">decodeOutState</span></a></span><span> </span><span class="annot"><span class="annottext">([TxFanConstraint script] -&gt; [State script])
+-&gt; [TxFanConstraint script] -&gt; [State script]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; [TxFanConstraint script]
+forall script. TransitionSpec script -&gt; [TxFanConstraint script]
+</span><a href="Cardano.CEM.html#%24sel%3Aconstraints%3AMkTransitionSpec"><span class="hs-identifier hs-var">constraints</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561432"><span class="hs-identifier hs-var">spec</span></a></span><span>
+</span><span id="line-159"></span><span>        </span><span id="local-6989586621679561433"><span class="annot"><span class="annottext">decodeOutState :: TxFanConstraint script -&gt; Maybe (State script)
+</span><a href="#local-6989586621679561433"><span class="hs-identifier hs-var hs-var">decodeOutState</span></a></span></span><span> </span><span id="local-6989586621679561435"><span class="annot"><span class="annottext">TxFanConstraint script
+</span><a href="#local-6989586621679561435"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TxFanFilter script -&gt; TxFanFilter' script
+forall script. TxFanFilter script -&gt; TxFanFilter' script
+</span><a href="Cardano.CEM.html#%24sel%3Arest%3AMkTxFanFilter"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TxFanConstraint script -&gt; TxFanFilter script
+forall script. TxFanConstraint script -&gt; TxFanFilter script
+</span><a href="Cardano.CEM.html#%24sel%3AtxFanCFilter%3AMkTxFanC"><span class="hs-identifier hs-var">txFanCFilter</span></a></span><span> </span><span class="annot"><span class="annottext">TxFanConstraint script
+</span><a href="#local-6989586621679561435"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-160"></span><span>          </span><span class="annot"><a href="Cardano.CEM.html#UnsafeBySameCEM"><span class="hs-identifier hs-type">UnsafeBySameCEM</span></a></span><span> </span><span id="local-6989586621679561439"><span class="annot"><span class="annottext">BuiltinData
+</span><a href="#local-6989586621679561439"><span class="hs-identifier hs-var">stateBS</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-161"></span><span>            </span><span class="annot"><span class="annottext">forall a. FromData a =&gt; BuiltinData -&gt; Maybe a
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-tx-1.21.0.0-3d2b6b90b431fd10c385af250c9cbf5353d9dd2c7b595a24bf8345c705ac5ca0/share/doc/html/src/PlutusTx.IsData.Class.html#fromBuiltinData"><span class="hs-identifier hs-var">fromBuiltinData</span></a></span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561031"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">BuiltinData
+</span><a href="#local-6989586621679561439"><span class="hs-identifier hs-var">stateBS</span></a></span><span>
+</span><span id="line-162"></span><span>          </span><span class="annot"><span class="annottext">TxFanFilter' script
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-163"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#nextState"><span class="hs-identifier hs-var">nextState</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Var a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; ScriptState script
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unreachable&quot;</span></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679561071"><span id="local-6989586621679561072"><span id="local-6989586621679561443"><span id="local-6989586621679561448"><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561071"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561071"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679561072"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-166"></span><span>  </span><span id="local-6989586621679561451"><span class="annot"><span class="annottext">show :: Action (ScriptState script) a -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-type">ScriptTransition</span></a></span><span> </span><span id="local-6989586621679561459"><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561459"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;ScriptTransition &quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Transition script -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561459"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-type">SetupActors</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SetupActors&quot;</span></span><span>
+</span><span id="line-168"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-type">SetupCEMParams</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SetupCEMParams&quot;</span></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span id="local-6989586621679561464"><span id="local-6989586621679561466"><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679561038"><span id="local-6989586621679561039"><span class="annot"><a href="#local-6989586621679561038"><span class="hs-keyword hs-type hs-type">stock</span></a></span></span></span><span> </span><span class="hs-keyword">instance</span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561038"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561038"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679561039"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679561080"><span id="local-6989586621679561472"><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561080"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.DynamicLogic.Internal.html#DynLogicModel"><span class="hs-identifier hs-type">DynLogicModel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561080"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- RunModel</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="hs-keyword">type</span><span> </span><span class="hs-keyword">instance</span><span> </span><span id="Realized"><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Realized"><span class="hs-identifier hs-var">Realized</span></a></span></span><span> </span><span id="local-6989586621679561476"><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/clb-1.0.0-64159e4b2669f7e8248c43be9160b2c5e364781bf6427df65ec0beb08c85ea92/share/doc/html/src/Clb.html#ClbT"><span class="hs-identifier hs-type">ClbT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561476"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#findSkForPKH"><span class="hs-identifier hs-type">findSkForPKH</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/plutus-ledger-api-1.21.0.0-1b57f518c9186e0f88796bb5ca61ae8aad79286aaddc760c0b547f08904e829b/share/doc/html/src/PlutusLedgerApi.V1.Crypto.html#PubKeyHash"><span class="hs-identifier hs-type">PubKeyHash</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span>
+</span><span id="line-180"></span><span id="findSkForPKH"><span class="annot"><span class="annottext">findSkForPKH :: [SigningKey PaymentKey] -&gt; PubKeyHash -&gt; SigningKey PaymentKey
+</span><a href="Cardano.CEM.Testing.StateMachine.html#findSkForPKH"><span class="hs-identifier hs-var hs-var">findSkForPKH</span></a></span></span><span> </span><span id="local-6989586621679561478"><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561478"><span class="hs-identifier hs-var">sks</span></a></span></span><span> </span><span id="local-6989586621679561479"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679561479"><span class="hs-identifier hs-var">phk</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey] -&gt; SigningKey PaymentKey
+forall a. HasCallStack =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">([SigningKey PaymentKey] -&gt; SigningKey PaymentKey)
+-&gt; [SigningKey PaymentKey] -&gt; SigningKey PaymentKey
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(SigningKey PaymentKey -&gt; Bool)
+-&gt; [SigningKey PaymentKey] -&gt; [SigningKey PaymentKey]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679561480"><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679561480"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey -&gt; PubKeyHash
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/cardano-extras/doc/html/cem-script/src/Cardano.Extras.html#signingKeyToPKH"><span class="hs-identifier hs-var">signingKeyToPKH</span></a></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><a href="#local-6989586621679561480"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">PubKeyHash -&gt; PubKeyHash -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679561479"><span class="hs-identifier hs-var">phk</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey]
+</span><a href="#local-6989586621679561478"><span class="hs-identifier hs-var">sks</span></a></span><span>
+</span><span id="line-181"></span><span>
+</span><span id="line-182"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561082"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="CEMScriptRunModel"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptRunModel"><span class="hs-identifier hs-var">CEMScriptRunModel</span></a></span></span><span> </span><span id="local-6989586621679561082"><span class="annot"><a href="#local-6989586621679561082"><span class="hs-identifier hs-type">script</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-183"></span><span>  </span><span id="performHook"><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#performHook"><span class="hs-identifier hs-type">performHook</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-184"></span><span>    </span><span id="local-6989586621679561112"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679561112"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadSubmitTx"><span class="hs-identifier hs-type">MonadSubmitTx</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561112"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-185"></span><span>    </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561082"><span class="hs-identifier hs-type">script</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-186"></span><span>    </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Action"><span class="hs-identifier hs-type">Action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561082"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-187"></span><span>    </span><span class="annot"><a href="#local-6989586621679561112"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-keyword">instance</span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621679561109"><span id="local-6989586621679561110"><span id="local-6989586621679561496"><span id="local-6989586621679561501"><span class="hs-special">(</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Realized"><span class="hs-identifier hs-type">Realized</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561109"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679561109"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Monads.html#MonadSubmitTx"><span class="hs-identifier hs-type">MonadSubmitTx</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561109"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptArbitrary"><span class="hs-identifier hs-type">CEMScriptArbitrary</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561110"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-194"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#CEMScriptRunModel"><span class="hs-identifier hs-type">CEMScriptRunModel</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561110"><span class="hs-identifier hs-type">script</span></a></span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-196"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#RunModel"><span class="hs-identifier hs-type">RunModel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561110"><span class="hs-identifier hs-type">script</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679561109"><span class="hs-identifier hs-type">m</span></a></span></span></span></span></span><span>
+</span><span id="line-197"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-198"></span><span>  </span><span id="local-6989586621679561525"><span class="annot"><span class="annottext">perform :: forall a.
+Typeable a =&gt;
+ScriptState script
+-&gt; Action (ScriptState script) a
+-&gt; LookUp m
+-&gt; m (PerformResult (Error (ScriptState script)) (Realized m a))
+</span><a href="#local-6989586621679561525"><span class="hs-identifier hs-var hs-var hs-var hs-var">perform</span></a></span></span><span> </span><span id="local-6989586621679561527"><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561527"><span class="hs-identifier hs-var">modelState</span></a></span></span><span> </span><span id="local-6989586621679561528"><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><a href="#local-6989586621679561528"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span id="local-6989586621679561529"><span class="annot"><span class="annottext">LookUp m
+</span><a href="#local-6989586621679561529"><span class="hs-identifier hs-var">_lookup</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-199"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561527"><span class="hs-identifier hs-var">modelState</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><a href="#local-6989586621679561528"><span class="hs-identifier hs-var">action</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-200"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#Void"><span class="hs-identifier hs-var">Void</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupActors"><span class="hs-identifier hs-type">SetupActors</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-201"></span><span>        </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall script (m :: * -&gt; *).
+(CEMScriptRunModel script, MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+</span><a href="Cardano.CEM.Testing.StateMachine.html#performHook"><span class="hs-identifier hs-var">performHook</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561527"><span class="hs-identifier hs-var">modelState</span></a></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+Action (ScriptState script) ()
+</span><a href="#local-6989586621679561528"><span class="hs-identifier hs-var">action</span></a></span><span>
+</span><span id="line-202"></span><span>        </span><span class="annot"><span class="annottext">Either String () -&gt; m (Either String ())
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either String () -&gt; m (Either String ()))
+-&gt; Either String () -&gt; m (Either String ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">() -&gt; Either String ()
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-203"></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ActorsKnown"><span class="hs-identifier hs-type">ActorsKnown</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#SetupCEMParams"><span class="hs-identifier hs-type">SetupCEMParams</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-204"></span><span>        </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall script (m :: * -&gt; *).
+(CEMScriptRunModel script, MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+</span><a href="Cardano.CEM.Testing.StateMachine.html#performHook"><span class="hs-identifier hs-var">performHook</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561527"><span class="hs-identifier hs-var">modelState</span></a></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+Action (ScriptState script) ()
+</span><a href="#local-6989586621679561528"><span class="hs-identifier hs-var">action</span></a></span><span>
+</span><span id="line-205"></span><span>        </span><span class="annot"><span class="annottext">Either String () -&gt; m (Either String ())
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either String () -&gt; m (Either String ()))
+-&gt; Either String () -&gt; m (Either String ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">() -&gt; Either String ()
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-206"></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561542"><span class="annot"><span class="annottext">ScriptStateParams script
+$sel:dappParams:Void :: forall a. ScriptState a -&gt; ScriptStateParams a
+dappParams :: ScriptStateParams script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AdappParams%3AVoid"><span class="hs-identifier hs-var hs-var">dappParams</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561543"><span class="annot"><span class="annottext">Maybe (State script)
+$sel:state:Void :: forall a. ScriptState a -&gt; Maybe (State a)
+state :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span class="hs-special">}</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptTransition"><span class="hs-identifier hs-type">ScriptTransition</span></a></span><span> </span><span id="local-6989586621679561568"><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561568"><span class="hs-identifier hs-var">transition</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-207"></span><span>        </span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall script (m :: * -&gt; *).
+(CEMScriptRunModel script, MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+forall (m :: * -&gt; *).
+(MonadIO m, MonadSubmitTx m) =&gt;
+ScriptState script -&gt; Action (ScriptState script) () -&gt; m ()
+</span><a href="Cardano.CEM.Testing.StateMachine.html#performHook"><span class="hs-identifier hs-var">performHook</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561527"><span class="hs-identifier hs-var">modelState</span></a></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+Action (ScriptState script) ()
+</span><a href="#local-6989586621679561528"><span class="hs-identifier hs-var">action</span></a></span><span>
+</span><span id="line-208"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Params script
+-&gt; Maybe (State script)
+-&gt; Transition script
+-&gt; Either BuiltinString (TransitionSpec script)
+forall script.
+CEMScript script =&gt;
+Params script
+-&gt; Maybe (State script)
+-&gt; Transition script
+-&gt; Either BuiltinString (TransitionSpec script)
+</span><a href="Cardano.CEM.html#transitionSpec"><span class="hs-identifier hs-var">transitionSpec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; Params script
+forall script. ScriptStateParams script -&gt; Params script
+</span><a href="Cardano.CEM.Testing.StateMachine.html#params"><span class="hs-identifier hs-var">params</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561542"><span class="hs-identifier hs-var">dappParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+</span><a href="#local-6989586621679561543"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561568"><span class="hs-identifier hs-var">transition</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-209"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679561569"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561569"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-210"></span><span>            </span><span id="local-6989586621679561570"><span class="annot"><span class="annottext">Either TxResolutionError TxId
+</span><a href="#local-6989586621679561570"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-211"></span><span>              </span><span class="annot"><span class="annottext">TxSpec -&gt; m (Either TxResolutionError TxId)
+forall (m :: * -&gt; *).
+(MonadQueryUtxo m, MonadSubmitTx m, MonadIO m) =&gt;
+TxSpec -&gt; m (Either TxResolutionError TxId)
+</span><a href="Cardano.CEM.OffChain.html#resolveTxAndSubmit"><span class="hs-identifier hs-var">resolveTxAndSubmit</span></a></span><span> </span><span class="annot"><span class="annottext">(TxSpec -&gt; m (Either TxResolutionError TxId))
+-&gt; TxSpec -&gt; m (Either TxResolutionError TxId)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-212"></span><span>                </span><span class="annot"><a href="Cardano.CEM.OffChain.html#MkTxSpec"><span class="hs-identifier hs-type">MkTxSpec</span></a></span><span>
+</span><span id="line-213"></span><span>                  </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:actions:MkTxSpec :: [SomeCEMAction]
+</span><a href="#local-6989586621679561573"><span class="hs-identifier hs-var">actions</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-214"></span><span>                      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">CEMAction script -&gt; SomeCEMAction
+forall script.
+(CEMScriptCompiled script, Show (CEMAction script),
+ Show (State script), Show (Transition script),
+ Eq (CEMParams script)) =&gt;
+CEMAction script -&gt; SomeCEMAction
+</span><a href="Cardano.CEM.OffChain.html#MkSomeCEMAction"><span class="hs-identifier hs-var">MkSomeCEMAction</span></a></span><span> </span><span class="annot"><span class="annottext">(CEMAction script -&gt; SomeCEMAction)
+-&gt; CEMAction script -&gt; SomeCEMAction
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CEMParams script -&gt; Transition script -&gt; CEMAction script
+forall script.
+CEMParams script -&gt; Transition script -&gt; CEMAction script
+</span><a href="Cardano.CEM.OffChain.html#MkCEMAction"><span class="hs-identifier hs-var">MkCEMAction</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; CEMParams script
+forall a. ScriptStateParams a -&gt; CEMParams a
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AcemParams%3AMkScriptStateParams"><span class="hs-identifier hs-var">cemParams</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561542"><span class="hs-identifier hs-var">dappParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Transition script
+</span><a href="#local-6989586621679561568"><span class="hs-identifier hs-var">transition</span></a></span><span>
+</span><span id="line-215"></span><span>                      </span><span class="hs-special">]</span><span>
+</span><span id="line-216"></span><span>                  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:specSigner:MkTxSpec :: SigningKey PaymentKey
+</span><a href="#local-6989586621679561576"><span class="hs-identifier hs-var">specSigner</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SigningKey PaymentKey] -&gt; PubKeyHash -&gt; SigningKey PaymentKey
+</span><a href="Cardano.CEM.Testing.StateMachine.html#findSkForPKH"><span class="hs-identifier hs-var">findSkForPKH</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptStateParams script -&gt; [SigningKey PaymentKey]
+forall a. ScriptStateParams a -&gt; [SigningKey PaymentKey]
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Aactors%3AMkScriptStateParams"><span class="hs-identifier hs-var">actors</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptStateParams script
+</span><a href="#local-6989586621679561542"><span class="hs-identifier hs-var">dappParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(PubKeyHash -&gt; SigningKey PaymentKey)
+-&gt; PubKeyHash -&gt; SigningKey PaymentKey
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; PubKeyHash
+forall {script}. TransitionSpec script -&gt; PubKeyHash
+</span><a href="#local-6989586621679561577"><span class="hs-identifier hs-var">signerPKH</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561569"><span class="hs-identifier hs-var">spec</span></a></span><span>
+</span><span id="line-217"></span><span>                  </span><span class="hs-special">}</span><span>
+</span><span id="line-218"></span><span>            </span><span class="annot"><span class="annottext">Either String () -&gt; m (Either String ())
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either String () -&gt; m (Either String ()))
+-&gt; Either String () -&gt; m (Either String ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(TxResolutionError -&gt; String)
+-&gt; (TxId -&gt; ())
+-&gt; Either TxResolutionError TxId
+-&gt; Either String ()
+forall a b c d. (a -&gt; b) -&gt; (c -&gt; d) -&gt; Either a c -&gt; Either b d
+forall (p :: * -&gt; * -&gt; *) a b c d.
+Bifunctor p =&gt;
+(a -&gt; b) -&gt; (c -&gt; d) -&gt; p a c -&gt; p b d
+</span><span class="hs-identifier hs-var">bimap</span></span><span> </span><span class="annot"><span class="annottext">TxResolutionError -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; TxId -&gt; ()
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Either TxResolutionError TxId
+</span><a href="#local-6989586621679561570"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-219"></span><span>          </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679561580"><span class="annot"><span class="annottext">BuiltinString
+</span><a href="#local-6989586621679561580"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either String () -&gt; m (Either String ())
+forall a. a -&gt; m a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either String () -&gt; m (Either String ()))
+-&gt; Either String () -&gt; m (Either String ())
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String ()
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Either String ()) -&gt; String -&gt; Either String ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">BuiltinString
+</span><a href="#local-6989586621679561580"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-220"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-221"></span><span>          </span><span id="local-6989586621679561577"><span class="annot"><span class="annottext">signerPKH :: TransitionSpec script -&gt; PubKeyHash
+</span><a href="#local-6989586621679561577"><span class="hs-identifier hs-var hs-var">signerPKH</span></a></span></span><span> </span><span id="local-6989586621679561583"><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561583"><span class="hs-identifier hs-var">spec</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">TransitionSpec script -&gt; [PubKeyHash]
+forall script. TransitionSpec script -&gt; [PubKeyHash]
+</span><a href="Cardano.CEM.html#getAllSpecSigners"><span class="hs-identifier hs-var">getAllSpecSigners</span></a></span><span> </span><span class="annot"><span class="annottext">TransitionSpec script
+</span><a href="#local-6989586621679561583"><span class="hs-identifier hs-var">spec</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-222"></span><span>            </span><span class="hs-special">[</span><span id="local-6989586621679561584"><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679561584"><span class="hs-identifier hs-var">singleSigner</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">PubKeyHash
+</span><a href="#local-6989586621679561584"><span class="hs-identifier hs-var">singleSigner</span></a></span><span>
+</span><span id="line-223"></span><span>            </span><span class="annot"><span class="annottext">[PubKeyHash]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; PubKeyHash
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Transition should have exactly one signer&quot;</span></span><span>
+</span><span id="line-224"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScriptState script
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; m (Either String (Realized m a))
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Unreachable&quot;</span></span><span>
+</span><span id="line-225"></span><span>
+</span><span id="line-226"></span><span>  </span><span id="local-6989586621679561597"><span class="annot"><span class="annottext">monitoring :: forall a.
+(ScriptState script, ScriptState script)
+-&gt; Action (ScriptState script) a
+-&gt; LookUp m
+-&gt; Either (Error (ScriptState script)) (Realized m a)
+-&gt; Property
+-&gt; Property
+</span><a href="#local-6989586621679561597"><span class="hs-identifier hs-var hs-var hs-var hs-var">monitoring</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679561599"><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561599"><span class="hs-identifier hs-var">stateFrom</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679561600"><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561600"><span class="hs-identifier hs-var">stateTo</span></a></span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LookUp m
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Either (Error (ScriptState script)) (Realized m a)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679561601"><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561601"><span class="hs-identifier hs-var">prop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-227"></span><span>    </span><span class="annot"><span class="annottext">Property -&gt; Property
+</span><a href="#local-6989586621679561602"><span class="hs-identifier hs-var">tabStateFrom</span></a></span><span> </span><span class="annot"><span class="annottext">(Property -&gt; Property) -&gt; Property -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Property -&gt; Property
+</span><a href="#local-6989586621679561603"><span class="hs-identifier hs-var">labelIfFinished</span></a></span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561601"><span class="hs-identifier hs-var">prop</span></a></span><span>
+</span><span id="line-228"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-229"></span><span>      </span><span id="local-6989586621679561604"><span class="annot"><span class="annottext">isFinished :: ScriptState a -&gt; Bool
+</span><a href="#local-6989586621679561604"><span class="hs-identifier hs-var hs-var">isFinished</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561605"><span class="annot"><span class="annottext">Bool
+$sel:finished:Void :: forall a. ScriptState a -&gt; Bool
+finished :: Bool
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Afinished%3AVoid"><span class="hs-identifier hs-var hs-var">finished</span></a></span></span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679561605"><span class="hs-identifier hs-var">finished</span></a></span><span>
+</span><span id="line-230"></span><span>      </span><span class="annot"><a href="#local-6989586621679561604"><span class="hs-identifier hs-var">isFinished</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-231"></span><span>      </span><span id="local-6989586621679561603"><span class="annot"><span class="annottext">labelIfFinished :: Property -&gt; Property
+</span><a href="#local-6989586621679561603"><span class="hs-identifier hs-var hs-var">labelIfFinished</span></a></span></span><span> </span><span id="local-6989586621679561606"><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561606"><span class="hs-identifier hs-var">prop'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-232"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; Bool
+forall a. ScriptState a -&gt; Bool
+</span><a href="#local-6989586621679561604"><span class="hs-identifier hs-var">isFinished</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561600"><span class="hs-identifier hs-var">stateTo</span></a></span><span>
+</span><span id="line-233"></span><span>          </span><span class="hs-keyword">then</span><span>
+</span><span id="line-234"></span><span>            </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; Property -&gt; Property
+forall prop.
+Testable prop =&gt;
+String -&gt; [String] -&gt; prop -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#tabulate"><span class="hs-identifier hs-var">tabulate</span></a></span><span>
+</span><span id="line-235"></span><span>              </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Actors involved (in finished tests)&quot;</span></span><span>
+</span><span id="line-236"></span><span>              </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; String) -&gt; Int -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set PubKeyHash -&gt; Int
+forall a. Set a -&gt; Int
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">(Set PubKeyHash -&gt; Int) -&gt; Set PubKeyHash -&gt; Int
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; Set PubKeyHash
+forall a. ScriptState a -&gt; Set PubKeyHash
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3AinvolvedActors%3AVoid"><span class="hs-identifier hs-var">involvedActors</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561600"><span class="hs-identifier hs-var">stateTo</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-237"></span><span>              </span><span class="annot"><span class="annottext">(Property -&gt; Property) -&gt; Property -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Property -&gt; Property
+forall prop. Testable prop =&gt; String -&gt; prop -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#label"><span class="hs-keyword hs-var">label</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Reached final state&quot;</span></span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561606"><span class="hs-identifier hs-var">prop'</span></a></span><span>
+</span><span id="line-238"></span><span>          </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561606"><span class="hs-identifier hs-var">prop'</span></a></span><span>
+</span><span id="line-239"></span><span>      </span><span id="local-6989586621679561602"><span class="annot"><span class="annottext">tabStateFrom :: Property -&gt; Property
+</span><a href="#local-6989586621679561602"><span class="hs-identifier hs-var hs-var">tabStateFrom</span></a></span></span><span> </span><span id="local-6989586621679561610"><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561610"><span class="hs-identifier hs-var">prop'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-240"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561599"><span class="hs-identifier hs-var">stateFrom</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-241"></span><span>          </span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="hs-special">{</span><span id="local-6989586621679561611"><span class="annot"><span class="annottext">Maybe (State script)
+$sel:state:Void :: forall a. ScriptState a -&gt; Maybe (State a)
+state :: Maybe (State script)
+</span><a href="Cardano.CEM.Testing.StateMachine.html#%24sel%3Astate%3AVoid"><span class="hs-identifier hs-var hs-var">state</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-242"></span><span>            </span><span class="annot"><span class="annottext">String -&gt; [String] -&gt; Property -&gt; Property
+forall prop.
+Testable prop =&gt;
+String -&gt; [String] -&gt; prop -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#tabulate"><span class="hs-identifier hs-var">tabulate</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;States (from)&quot;</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Spine (Maybe (State script)) -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">(Spine (Maybe (State script)) -&gt; String)
+-&gt; Spine (Maybe (State script)) -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe (State script) -&gt; Spine (Maybe (State script))
+forall sop. HasSpine sop =&gt; sop -&gt; Spine sop
+</span><a href="file:///home/gregory/Programming/cem-script/dist-newstyle/build/x86_64-linux/ghc-9.6.3/cem-script-0.1.0/l/data-spine/doc/html/cem-script/src/Data.Spine.html#getSpine"><span class="hs-identifier hs-var">getSpine</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe (State script)
+</span><a href="#local-6989586621679561611"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561610"><span class="hs-identifier hs-var">prop'</span></a></span><span>
+</span><span id="line-243"></span><span>          </span><span class="annot"><span class="annottext">ScriptState script
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561610"><span class="hs-identifier hs-var">prop'</span></a></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span>  </span><span id="local-6989586621679561621"><span class="annot"><span class="annottext">monitoringFailure :: forall a.
+ScriptState script
+-&gt; Action (ScriptState script) a
+-&gt; LookUp m
+-&gt; Error (ScriptState script)
+-&gt; Property
+-&gt; Property
+</span><a href="#local-6989586621679561621"><span class="hs-identifier hs-var hs-var hs-var hs-var">monitoringFailure</span></a></span></span><span> </span><span id="local-6989586621679561623"><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561623"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="annot"><span class="annottext">Action (ScriptState script) a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">LookUp m
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679561624"><span class="annot"><span class="annottext">Error (ScriptState script)
+</span><a href="#local-6989586621679561624"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span id="local-6989586621679561625"><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561625"><span class="hs-identifier hs-var">prop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-246"></span><span>    </span><span class="annot"><span class="annottext">String -&gt; Property -&gt; Property
+forall prop. Testable prop =&gt; String -&gt; prop -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#counterexample"><span class="hs-identifier hs-var">counterexample</span></a></span><span>
+</span><span id="line-247"></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;In model state &quot;</span></span><span>
+</span><span id="line-248"></span><span>          </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">ScriptState script -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/pretty-show-1.10-83d1358d88e340d7fba4cd04ab4f89605f737edf4d193ab57afa7da8e874d4b1/share/doc/html/src/Text.Show.Pretty.html#ppShow"><span class="hs-identifier hs-var">ppShow</span></a></span><span> </span><span class="annot"><span class="annottext">ScriptState script
+</span><a href="#local-6989586621679561623"><span class="hs-identifier hs-var">state</span></a></span><span>
+</span><span id="line-249"></span><span>          </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\nGot error from emulator: &quot;</span></span><span>
+</span><span id="line-250"></span><span>          </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">String
+Error (ScriptState script)
+</span><a href="#local-6989586621679561624"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-251"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-252"></span><span>      </span><span class="annot"><span class="annottext">Property
+</span><a href="#local-6989586621679561625"><span class="hs-identifier hs-var">prop</span></a></span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#runActionsInClb"><span class="hs-identifier hs-type">runActionsInClb</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-255"></span><span>  </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679561144"><span class="annot"><a href="#local-6989586621679561144"><span class="hs-identifier hs-type">state</span></a></span></span><span class="hs-operator">.</span><span>
+</span><span id="line-256"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#StateModel"><span class="hs-identifier hs-type">StateModel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561144"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#RunModel"><span class="hs-identifier hs-type">RunModel</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561144"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/clb-1.0.0-64159e4b2669f7e8248c43be9160b2c5e364781bf6427df65ec0beb08c85ea92/share/doc/html/src/Clb.html#ClbT"><span class="hs-identifier hs-type">ClbT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-257"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Value.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-258"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#Actions"><span class="hs-identifier hs-type">Actions</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561144"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-259"></span><span>  </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#Property"><span class="hs-identifier hs-type">Property</span></a></span><span>
+</span><span id="line-260"></span><span id="runActionsInClb"><span class="annot"><span class="annottext">runActionsInClb :: forall state.
+(StateModel (ScriptState state),
+ RunModel (ScriptState state) (ClbT IO)) =&gt;
+Value -&gt; Actions (ScriptState state) -&gt; Property
+</span><a href="Cardano.CEM.Testing.StateMachine.html#runActionsInClb"><span class="hs-identifier hs-var hs-var">runActionsInClb</span></a></span></span><span> </span><span id="local-6989586621679561643"><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679561643"><span class="hs-identifier hs-var">genesisValue</span></a></span></span><span> </span><span id="local-6989586621679561644"><span class="annot"><span class="annottext">Actions (ScriptState state)
+</span><a href="#local-6989586621679561644"><span class="hs-identifier hs-var">actions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-261"></span><span>  </span><span class="annot"><span class="annottext">(ClbT IO Property -&gt; Property)
+-&gt; PropertyM (ClbT IO) () -&gt; Property
+forall a (m :: * -&gt; *).
+(Testable a, Monad m) =&gt;
+(m Property -&gt; Property) -&gt; PropertyM m a -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Monadic.html#monadic"><span class="hs-identifier hs-var">monadic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IO Property -&gt; Property
+forall prop. Testable prop =&gt; IO prop -&gt; Property
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/QuickCheck-2.14.3-85e2c0f915684282bc03eb93917bd9b6b5e89d825f82a0da03d4ea39c9343049/share/doc/html/src/Test.QuickCheck.Property.html#ioProperty"><span class="hs-identifier hs-var">ioProperty</span></a></span><span> </span><span class="annot"><span class="annottext">(IO Property -&gt; Property)
+-&gt; (ClbT IO Property -&gt; IO Property)
+-&gt; ClbT IO Property
+-&gt; Property
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Value -&gt; ClbT IO Property -&gt; IO Property
+forall a. Value -&gt; ClbT IO a -&gt; IO a
+</span><a href="Cardano.CEM.Monads.CLB.html#execOnIsolatedClb"><span class="hs-identifier hs-var">execOnIsolatedClb</span></a></span><span> </span><span class="annot"><span class="annottext">Value
+</span><a href="#local-6989586621679561643"><span class="hs-identifier hs-var">genesisValue</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(PropertyM (ClbT IO) () -&gt; Property)
+-&gt; PropertyM (ClbT IO) () -&gt; Property
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-262"></span><span>    </span><span class="annot"><span class="annottext">PropertyM (ClbT IO) (Annotated (ScriptState state), Env (ClbT IO))
+-&gt; PropertyM (ClbT IO) ()
+forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">(PropertyM (ClbT IO) (Annotated (ScriptState state), Env (ClbT IO))
+ -&gt; PropertyM (ClbT IO) ())
+-&gt; PropertyM
+     (ClbT IO) (Annotated (ScriptState state), Env (ClbT IO))
+-&gt; PropertyM (ClbT IO) ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-263"></span><span>      </span><span class="annot"><span class="annottext">forall state (m :: * -&gt; *) e.
+(StateModel state, RunModel state m, e ~ Error state,
+ forall a. IsPerformResult e a) =&gt;
+Actions state -&gt; PropertyM m (Annotated state, Env m)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.html#runActions"><span class="hs-identifier hs-var">runActions</span></a></span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Cardano.CEM.Testing.StateMachine.html#ScriptState"><span class="hs-identifier hs-type">ScriptState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679561144"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/clb-1.0.0-64159e4b2669f7e8248c43be9160b2c5e364781bf6427df65ec0beb08c85ea92/share/doc/html/src/Clb.html#ClbT"><span class="hs-identifier hs-type">ClbT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Actions (ScriptState state)
+</span><a href="#local-6989586621679561644"><span class="hs-identifier hs-var">actions</span></a></span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- Orphans</span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#HasVariables"><span class="hs-identifier hs-type">HasVariables</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Class.html#SigningKey"><span class="hs-identifier hs-type">SigningKey</span></a></span><span> </span><span class="annot"><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/cardano-api-8.38.0.0-l-internal-31ab96ab6aea6df2f00a941c7882e1845dd1479d00b8c3ab8f8e2677843a00e7/share/doc/html/src/Cardano.Api.Keys.Shelley.html#PaymentKey"><span class="hs-identifier hs-type">PaymentKey</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-268"></span><span>  </span><span id="local-6989586621679561649"><span class="annot"><span class="annottext">getAllVariables :: SigningKey PaymentKey -&gt; Set (Any Var)
+</span><a href="file:///home/gregory/.cabal/store/ghc-9.6.3/quickcheck-dynamic-3.4.1-9f97261bd8f842d4206990e0a51c8c330f88fd03860fca8858ccc356a57e1c43/share/doc/html/src/Test.QuickCheck.StateModel.Variables.html#getAllVariables"><span class="hs-identifier hs-var hs-var hs-var hs-var">getAllVariables</span></a></span></span><span> </span><span class="annot"><span class="annottext">SigningKey PaymentKey
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set (Any Var)
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-269"></span></pre></body></html>
