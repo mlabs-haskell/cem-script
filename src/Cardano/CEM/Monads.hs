@@ -124,7 +124,7 @@ data TxSubmittingError
 
 -- | Error occurred while trying to execute CEMScript transition
 data TransitionError
-  = CannotFindTransitionInput
+  = CannotFindTransitionInput String
   | CompilationError String
   | SpecExecutionError {errorMessage :: String}
   deriving stock (Show, Eq)

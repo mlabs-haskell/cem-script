@@ -19,8 +19,8 @@ import Plutarch.Prelude (
   (#&&),
  )
 import PlutusLedgerApi.V2 (PubKeyHash, ToData (..), Value)
-import Prelude hiding (error)
-import Prelude qualified (error)
+import Prelude hiding (Eq, error)
+import Prelude qualified (Eq, error)
 
 -- -----------------------------------------------------------------------------
 -- Helpers to be used in actual definitions
@@ -118,7 +118,7 @@ inState ::
 inState spine = UnsafeUpdateOfSpine ctxState spine []
 
 (@==) ::
-  (Eq x) => ConstraintDSL script x -> ConstraintDSL script x -> ConstraintDSL script Bool
+  (Prelude.Eq x) => ConstraintDSL script x -> ConstraintDSL script x -> ConstraintDSL script Bool
 (@==) = Eq
 
 (@<=) ::
@@ -254,3 +254,19 @@ match ::
   Map (Spine datatype) (TxConstraint resolved script) ->
   TxConstraint resolved script
 match = MatchBySpine
+
+if' ::
+  forall (resolved :: Bool) script.
+  DSLPattern resolved script Bool ->
+  TxConstraint resolved script ->
+  TxConstraint resolved script ->
+  TxConstraint resolved script
+if' = If
+
+eq' ::
+  forall x script.
+  (Prelude.Eq x) =>
+  ConstraintDSL script x ->
+  ConstraintDSL script x ->
+  ConstraintDSL script Bool
+eq' = Eq

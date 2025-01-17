@@ -138,8 +138,7 @@ construct rs = constructGo rs emptyResolvedTx
         , toMint = TxMintNone
         , additionalSigners = []
         , signer = error "TODO: Unreachable laziness trick"
-        , -- FIXME
-          interval = always
+        , interval = always -- TODO: use validity intervals
         }
     constructGo (r : rest) !acc =
       let newAcc = case r of
@@ -197,7 +196,7 @@ process (MkCEMAction params transition) ec = case ec of
           map (withKeyWitness . fst) $ Map.toList $ unUTxO utxo
     -- FIXME: do actuall coin selection
     return $ TxInR $ head utxoPairs
-  (Utxo kind fanFilter value) -> do
+  c@(Utxo kind fanFilter value) -> do
     case kind of
       Out -> do
         let value' = convertTxOut $ fromPlutusValue value
@@ -208,6 +207,7 @@ process (MkCEMAction params transition) ec = case ec of
       someIn -> do
         utxo <- lift $ queryUtxo $ ByAddresses [address]
         let
+          -- utxoPairs = traceShowId $ Map.toList $ unUTxO utxo
           utxoPairs = Map.toList $ unUTxO utxo
           matchingUtxos =
             map (addWittness . fst) $ filter predicate utxoPairs
@@ -217,7 +217,7 @@ process (MkCEMAction params transition) ec = case ec of
             In -> TxInR x
             InRef -> TxInRefR x
           [] ->
-            throwError $ PerTransitionErrors [CannotFindTransitionInput]
+            throwError $ PerTransitionErrors [CannotFindTransitionInput $ show c]
     where
       predicate (_, txOut) =
         txOutValue txOut == fromPlutusValue value
@@ -264,11 +264,11 @@ process (MkCEMAction params transition) ec = case ec of
 -- -----------------------------------------------------------------------------
 
 data TxResolutionError
-  = CEMScriptTxInResolutionError
-  | -- FIXME: record transition and action involved
+  = NoSignerError
+  | CEMScriptTxInResolutionError
+  | -- TODO: record transition and action involved
     PerTransitionErrors [TransitionError]
-  | -- FIXME: this is weird
-    UnhandledSubmittingError TxSubmittingError
+  | UnhandledSubmittingError TxSubmittingError
   deriving stock (Show)
 
 resolveTx ::

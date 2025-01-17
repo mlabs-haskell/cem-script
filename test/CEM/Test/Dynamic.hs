@@ -7,13 +7,35 @@ import CEM.Example.Compiled ()
 import CEM.Test.TestNFT (testNftAssetClass)
 import CEM.Test.Utils (execClb, mintTestTokens)
 import Cardano.Api (lovelaceToValue)
-import Cardano.CEM
-import Cardano.CEM.Testing.StateMachine
+import Cardano.CEM (MonadTest (getTestWalletSks))
+import Cardano.CEM.Testing.StateMachine (
+  Action (SetupConfig, SetupParams),
+  CEMScriptArbitrary (..),
+  CEMScriptRunModel (..),
+  ScriptState (ConfigSet),
+  ScriptStateParams (config),
+  TestConfig (MkTestConfig, actors, doMutationTesting),
+  findSkForPKH,
+  runActionsInClb,
+ )
 import Cardano.Extras (signingKeyToPKH)
 import PlutusLedgerApi.V1.Value (assetClassValue)
 import Test.Hspec (describe, it, shouldBe)
-import Test.QuickCheck
-import Test.QuickCheck.DynamicLogic
+import Test.QuickCheck (
+  Property,
+  chooseInteger,
+  elements,
+  frequency,
+  isSuccess,
+  quickCheckResult,
+  withMaxSuccess,
+ )
+import Test.QuickCheck.DynamicLogic (
+  DL,
+  action,
+  anyActions_,
+  forAllDL,
+ )
 import Prelude
 
 -- Defining generic instances
@@ -41,7 +63,7 @@ instance CEMScriptArbitrary SimpleAuction where
     Just (Winner {}) -> return Buyout
     where
       genBidder = elements (map signingKeyToPKH $ actors $ config dappParams)
-      genBid bid = (betAmount bid +) <$> chooseInteger (0, 100_500)
+      genBid bid = (bidAmount bid +) <$> chooseInteger (0, 100_500)
 
 instance CEMScriptRunModel SimpleAuction where
   performHook
@@ -59,14 +81,10 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
     quickCheckDLScript $ do
       anyActions_
   where
-    genesisValue = lovelaceToValue 300_000_000_000
-    runDLScript dl =
-      forAllDL
-        dl
-        (runActionsInClb @SimpleAuction genesisValue)
+    quickCheckDLScript :: DL (ScriptState SimpleAuction) () -> IO ()
     quickCheckDLScript dl = do
       actors <- execClb getTestWalletSks
-      result <- quickCheckResult $ runDLScript $ do
+      result <- quickCheckResult $ withMaxSuccess 100 $ runDLScript $ do
         _ <-
           action $
             SetupConfig $
@@ -76,3 +94,11 @@ dynamicSpec = describe "Quickcheck Dynamic" $ do
                 }
         dl
       isSuccess result `shouldBe` True
+
+    runDLScript :: DL (ScriptState SimpleAuction) () -> Property
+    runDLScript dl =
+      forAllDL
+        dl
+        (runActionsInClb @SimpleAuction genesisValue)
+
+    genesisValue = lovelaceToValue 300_000_000_000

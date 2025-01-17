@@ -58,8 +58,8 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 1_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 1_000_000
           }
 
     result <-
@@ -111,8 +111,8 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 0
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 0
           }
 
     result <-
@@ -164,18 +164,18 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       initBid =
         MkBet
-          { better = signingKeyToPKH seller
-          , betAmount = 0
+          { bidder = signingKeyToPKH seller
+          , bidAmount = 0
           }
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 3_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 3_000_000
           }
       bid2 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 4_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 4_000_000
           }
 
     (preBody, utxo) <-
@@ -254,6 +254,73 @@ auctionSpec = describe "AuctionSpec" $ do
 
     mEvent <- liftIO $ extractEvent @SimpleAuction network $ resolvedTxToOura preBody utxo
     liftIO $ mEvent `shouldBe` Just (Following BuyoutSpine)
+
+  -- stats <- perTransitionStats
+  -- liftIO $ putStrLn $ ppShow stats
+
+  it "Zero bids flow" $ execClb $ do
+    seller <- (!! 0) <$> getTestWalletSks
+
+    let
+      auctionParams =
+        MkAuctionParams
+          { seller = signingKeyToPKH seller
+          , lot =
+              assetClassValue
+                testNftAssetClass
+                10
+          }
+
+    mintTestTokens seller 10
+
+    Nothing <- queryScriptState auctionParams
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $ MkCEMAction auctionParams Create
+            ]
+        , specSigner = seller
+        }
+
+    Just NotStarted <- queryScriptState auctionParams
+
+    let
+      initBid =
+        MkBet
+          { bidder = signingKeyToPKH seller
+          , bidAmount = 0
+          }
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Start
+            ]
+        , specSigner = seller
+        }
+
+    Just (CurrentBid currentBid') <- queryScriptState auctionParams
+    liftIO $ currentBid' `shouldBe` initBid
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Close
+            ]
+        , specSigner = seller
+        }
+
+    submitAndCheck $
+      MkTxSpec
+        { actions =
+            [ MkSomeCEMAction $
+                MkCEMAction auctionParams Buyout
+            ]
+        , specSigner = seller
+        }
 
 -- stats <- perTransitionStats
 -- liftIO $ putStrLn $ ppShow stats
