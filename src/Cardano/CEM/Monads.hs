@@ -17,7 +17,7 @@ import Cardano.Api.Shelley (PoolId)
 import Cardano.Ledger.Core (PParams)
 import Cardano.Ledger.Shelley.API (ApplyTxError (..), Coin)
 
-import Cardano.CEM
+import Cardano.CEM.DSL
 import Cardano.CEM.OnChain
 import Cardano.Extras
 
@@ -27,7 +27,7 @@ data CEMAction script = MkCEMAction (Params script) (Transition script)
 
 deriving stock instance (CEMScript script) => Show (CEMAction script)
 
--- FIXME: use generic Some
+-- TODO: can we rmove this by adding existential type to CEMAction?
 data SomeCEMAction where
   MkSomeCEMAction ::
     forall script.
@@ -36,10 +36,12 @@ data SomeCEMAction where
     SomeCEMAction
 
 instance Show SomeCEMAction where
-  -- FIXME: show script name
   show :: SomeCEMAction -> String
   show (MkSomeCEMAction action) = show action
 
+{- | Transaction specification reflects the fact that a single transaction
+can involve several scripts by having an action for every script.
+-}
 data TxSpec = MkTxSpec
   { actions :: [SomeCEMAction]
   , specSigner :: SigningKey PaymentKey
@@ -52,8 +54,7 @@ data TxSpec = MkTxSpec
 data BlockchainParams = MkBlockchainParams
   { protocolParameters :: PParams LedgerEra
   , systemStart :: SystemStart
-  , -- FIXME: rename
-    eraHistory :: LedgerEpochInfo
+  , ledgerEpochInfo :: LedgerEpochInfo
   , stakePools :: Set PoolId
   }
   deriving stock (Show)
@@ -66,7 +67,7 @@ data Fees = MkFees
   deriving stock (Show)
 
 data BlockchainMonadEvent
-  = SubmittedTxSpec TxSpec (Either TxResolutionError TxId)
+  = SubmittedTxSpec TxSpec (Either () TxId) -- (Either TxResolutionError TxId)
   | UserSpentFee
       { txId :: TxId
       , txSigner :: SigningKey PaymentKey
@@ -107,8 +108,7 @@ data ResolvedTx = MkResolvedTx
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
   , additionalSigners :: [PubKeyHash]
-  , -- FIXME
-    signer :: ~(SigningKey PaymentKey)
+  , signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 
@@ -124,22 +124,17 @@ data TxSubmittingError
 
 -- | Error occurred while trying to execute CEMScript transition
 data TransitionError
-  = CannotFindTransitionInput
+  = CannotFindTransitionInput String
   | CompilationError String
   | SpecExecutionError {errorMessage :: String}
   deriving stock (Show, Eq)
 
-data TxResolutionError
-  = CEMScriptTxInResolutionError
-  | -- FIXME: record transition and action involved
-    PerTransitionErrors [TransitionError]
-  | -- FIXME: this is weird
-    UnhandledSubmittingError TxSubmittingError
-  deriving stock (Show)
-
 -- | Ability to send transaction to chain
 class (MonadQueryUtxo m) => MonadSubmitTx m where
   submitResolvedTx :: ResolvedTx -> m (Either TxSubmittingError TxId)
+  submitResolvedTxRet ::
+    ResolvedTx ->
+    m (Either TxSubmittingError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
 
 -- | Stuff needed to use monad for local testing
 class (MonadSubmitTx m) => MonadTest m where

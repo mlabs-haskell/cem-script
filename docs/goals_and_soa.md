@@ -2,13 +2,16 @@
 
 ## Why Cardano DApp modeling language is important?
 
-While prototypes can be easily constructed with existing Cardano frameworks, making it secure and production ready is sisyphean task.
+While prototypes can be easily constructed with existing Cardano frameworks,
+making it secure and production ready is sisyphean task.
 
-We believe, that onchain PL improvements by themselves could not change that. Only higher-level modeling framework can lead to reliable DApp production.
+We believe, that onchain PL improvements by themselves could not change that.
+Only higher-level modeling framework can lead to reliable DApp production.
 
 In following enumerate our high-level design goals
 and demonstrate them by list of specific problems
 arising in existing DApps codebase.
+
 Such problems are specific security vulnerabilities types
 and various kinds development, audit and support cost increase.
 After that we examine how existing solutions

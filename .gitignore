@@ -27,3 +27,4 @@ haddocks
 # Functions changed by runing local testnet
 devnet/db
 devnet/genesis-*.json
+test.log

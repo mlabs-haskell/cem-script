@@ -2,18 +2,12 @@
 
 module Cardano.CEM.Monads.CLB where
 
-import Prelude
-
-import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
-import Control.Monad.State (StateT (..), gets)
-import Data.Map qualified as Map
-import Data.Set qualified as Set
-
--- Cardano imports
 import Cardano.Api hiding (queryUtxo)
 import Cardano.Api.Query (fromLedgerUTxO)
-
--- Lib imports
+import Cardano.CEM.Monads
+import Cardano.CEM.Monads.L1Commons
+import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Cardano.Extras (Era)
 import Clb (
   ClbState (mockConfig),
   ClbT (..),
@@ -29,13 +23,13 @@ import Clb (
  )
 import Clb.MockConfig (defaultBabbage)
 import Clb.TimeSlot (posixTimeToUTCTime)
-
--- CEM imports
-
-import Cardano.CEM.Monads
-import Cardano.CEM.Monads.L1Commons
-import Cardano.CEM.OffChain (fromPlutusAddressInMonad)
+import Control.Concurrent.MVar (MVar, modifyMVar_, newMVar, readMVar)
 import Control.Monad.Reader (MonadReader (..), ReaderT (..))
+import Control.Monad.State (StateT (..), gets)
+import Data.Either.Extra (mapRight)
+import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Prelude
 
 instance (MonadReader r m) => MonadReader r (ClbT m) where
   ask = lift ask
@@ -57,14 +51,14 @@ instance
   queryBlockchainParams = do
     protocolParameters <- gets (mockConfigProtocol . mockConfig)
     slotConfig <- gets (mockConfigSlotConfig . mockConfig)
-    eraHistory <- LedgerEpochInfo <$> getEpochInfo
+    ledgerEpochInfo <- LedgerEpochInfo <$> getEpochInfo
     let systemStart =
           SystemStart $ posixTimeToUTCTime $ scSlotZeroTime slotConfig
     return $
       MkBlockchainParams
         { protocolParameters
         , systemStart
-        , eraHistory
+        , ledgerEpochInfo
         , -- Staking is not supported
           stakePools = Set.empty
         }
@@ -77,7 +71,7 @@ instance
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadQueryUtxo (ClbT m) where
   queryUtxo query = do
-    utxos <- fromLedgerUTxO shelleyBasedEra <$> gets getUtxosAtState
+    utxos <- gets (fromLedgerUTxO shelleyBasedEra . getUtxosAtState)
     predicate <- mkPredicate
     return $ UTxO $ Map.filterWithKey predicate $ unUTxO utxos
     where
@@ -88,17 +82,22 @@ instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadQueryUtxo (ClbT m) wh
         ByTxIns txIns -> return $ \txIn _ -> txIn `elem` txIns
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadSubmitTx (ClbT m) where
-  submitResolvedTx :: ResolvedTx -> ClbT m (Either TxSubmittingError TxId)
-  submitResolvedTx tx = do
+  submitResolvedTxRet ::
+    ResolvedTx ->
+    ClbT m (Either TxSubmittingError (TxBodyContent BuildTx Era, TxBody Era, TxInMode, UTxO Era))
+  submitResolvedTxRet tx = do
     cardanoTxBodyFromResolvedTx tx >>= \case
-      Right (body, TxInMode ShelleyBasedEraBabbage tx') -> do
+      Right (preBody, body, txInMode@(TxInMode ShelleyBasedEraBabbage tx'), utxo) -> do
         result <- sendTx tx'
         case result of
-          Success _ _ -> return $ Right $ getTxId body
+          Success _ _ -> return $ Right (preBody, body, txInMode, utxo)
           Fail _ validationError ->
             return $ Left $ UnhandledNodeSubmissionError validationError
-      Right (_, _) -> fail "Unsupported tx format"
+      Right _ -> fail "Unsupported tx format"
       Left e -> return $ Left $ UnhandledAutobalanceError e
+
+  submitResolvedTx :: ResolvedTx -> ClbT m (Either TxSubmittingError TxId)
+  submitResolvedTx tx = mapRight (getTxId . (\(_, a, _, _) -> a)) <$> submitResolvedTxRet tx
 
 instance (Monad m, MonadBlockchainParams (ClbT m)) => MonadTest (ClbT m) where
   getTestWalletSks = return $ map intToCardanoSk [1 .. 10]

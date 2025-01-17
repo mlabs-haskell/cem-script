@@ -1,61 +1,28 @@
 module Cardano.CEM.TH (
   deriveCEMAssociatedTypes,
-  resolveFamily,
-  compileCEM,
-  unstableMakeIsDataSchema,
-  defaultIndex,
-  unstableMakeHasSchemaInstance,
+  compileCEMOnchain,
 ) where
 
-import Prelude
-
+import Cardano.CEM.Compile (preProcessForOnChainCompilation)
+import Cardano.CEM.DSL (
+  CEMScript (..),
+  CEMScriptTypes (..),
+  CompilationConfig (..),
+  TxConstraint (Error, If, MatchBySpine),
+ )
+import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
 import Data.Data (Proxy (..))
 import Data.Map qualified as Map
+import Data.Spine (derivePlutusSpine)
+import Data.Text (pack, unpack)
 import Data.Tuple (swap)
-import GHC.Num.Natural (Natural)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (sequenceQ)
-
+import Plutarch (Config (..), LogLevel (..), TracingMode (..), compile)
 import PlutusTx qualified
-import PlutusTx.Blueprint.TH
 import PlutusTx.IsData (unsafeFromBuiltinData)
 import PlutusTx.Show (deriveShow)
-
-import Language.Haskell.TH.Datatype (
-  ConstructorInfo (..),
-  DatatypeInfo (..),
-  reifyDatatype,
- )
-import Plutarch (Config (..), LogLevel (..), TracingMode (..), compile)
-
-import Cardano.CEM (CEMScript (..), CEMScriptTypes (..), CompilationConfig (..))
-import Cardano.CEM.DSL
-import Cardano.CEM.OnChain (CEMScriptCompiled (..), genericPlutarchScript)
-import Data.Spine (derivePlutusSpine)
-
-defaultIndex :: Name -> Q [(Name, Natural)]
-defaultIndex name = do
-  info <- reifyDatatype name
-  pure $ zip (constructorName <$> datatypeCons info) [0 ..]
-
-unstableMakeIsDataSchema :: Name -> Q [InstanceDec]
-unstableMakeIsDataSchema name = do
-  index <- defaultIndex name
-  PlutusTx.makeIsDataSchemaIndexed name index
-
-unstableMakeHasSchemaInstance :: Name -> Q [InstanceDec]
-unstableMakeHasSchemaInstance name = do
-  index <- defaultIndex name
-  dec <- makeHasSchemaInstance name index
-  return [dec]
-
--- | Get `TypeFamily Datatype` result as TH Name
-resolveFamily :: Name -> Name -> Q Name
-resolveFamily familyName argName = do
-  argType <- conT argName
-  [TySynInstD (TySynEqn _ _ (ConT name))] <-
-    reifyInstances familyName [argType]
-  return name
+import Prelude
 
 deriveCEMAssociatedTypes :: Bool -> Name -> Q [Dec]
 deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
@@ -74,9 +41,17 @@ deriveCEMAssociatedTypes _deriveBlueprint scriptName = do
       name <- resolveFamily family scriptName
       deriver name
 
-compileCEM :: Bool -> Name -> Q [Dec]
-compileCEM debugBuild name = do
-  -- FIXIT: two duplicating cases on `transitionComp`
+    -- \| Get `TypeFamily Datatype` result as TH Name
+    resolveFamily :: Name -> Name -> Q Name
+    resolveFamily familyName argName = do
+      argType <- conT argName
+      [TySynInstD (TySynEqn _ _ (ConT name))] <-
+        reifyInstances familyName [argType]
+      return name
+
+compileCEMOnchain :: Bool -> Name -> Q [Dec]
+compileCEMOnchain debugBuild name = do
+  -- TODO: two duplicating cases on `transitionComp`
   let plutusScript =
         [|
           \a b c -> case transitionComp @($(conT name)) of
@@ -102,7 +77,7 @@ compileCEM debugBuild name = do
           Nothing -> Nothing
         spec' =
           preProcessForOnChainCompilation $
-            perTransitionScriptSpec @($(conT name))
+            transitionSpec @($(conT name))
         MkCompilationConfig prefix = compilationConfig @($(conT name))
         errorCodes' = parseErrorCodes prefix spec'
         spec =
@@ -124,3 +99,36 @@ compileCEM debugBuild name = do
       errorCodes Proxy = fst $(varE compiledName)
       cemScriptCompiled Proxy = snd $(varE compiledName)
     |]
+
+parseErrorCodes ::
+  String ->
+  Map.Map k [TxConstraint resolved script] ->
+  [(String, String)]
+parseErrorCodes prefix spec =
+  go [] $ concat $ Map.elems spec
+  where
+    go table (constraint : rest) =
+      case constraint of
+        Error message ->
+          let
+            code = prefix <> show (length table)
+           in
+            go ((code, unpack message) : table) rest
+        If _ t e -> go table (t : e : rest)
+        (MatchBySpine _ caseSwitch) ->
+          go table (Map.elems caseSwitch ++ rest)
+        _ -> go table rest
+    go table [] = reverse table
+
+substErrors ::
+  Map.Map String String ->
+  Map.Map k [TxConstraint a b] ->
+  Map.Map k [TxConstraint a b]
+substErrors mapping spec =
+  Map.map (map go) spec
+  where
+    go (Error message) = Error $ pack $ mapping Map.! unpack message
+    go (If x t e) = If x (go t) (go e)
+    go (MatchBySpine @a @b @c s caseSwitch) =
+      MatchBySpine @a @b @c s $ Map.map go caseSwitch
+    go x = x
