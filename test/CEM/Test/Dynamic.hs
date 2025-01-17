@@ -63,7 +63,7 @@ instance CEMScriptArbitrary SimpleAuction where
     Just (Winner {}) -> return Buyout
     where
       genBidder = elements (map signingKeyToPKH $ actors $ config dappParams)
-      genBid bid = (betAmount bid +) <$> chooseInteger (0, 100_500)
+      genBid bid = (bidAmount bid +) <$> chooseInteger (0, 100_500)
 
 instance CEMScriptRunModel SimpleAuction where
   performHook

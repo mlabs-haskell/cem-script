@@ -16,8 +16,8 @@ data SimpleAuction
 
 -- | A bid
 data Bid = MkBet
-  { better :: PubKeyHash
-  , betAmount :: Integer
+  { bidder :: PubKeyHash -- FIXME: rename to bidder
+  , bidAmount :: Integer -- FIXME: rename to bidder
   }
   deriving stock (Prelude.Eq, Prelude.Show)
 
@@ -69,8 +69,8 @@ instance CEMScript SimpleAuction where
       initialBid =
         cOfSpine
           MkBetSpine
-          [ #better ::= ctxParams.seller
-          , #betAmount ::= lift 0
+          [ #bidder ::= ctxParams.seller
+          , #bidAmount ::= lift 0
           ]
 
       auctionValue = cMinLovelace @<> ctxParams.lot
@@ -96,7 +96,7 @@ instance CEMScript SimpleAuction where
           ,
             [ input (ownUtxo $ inState CurrentBidSpine) auctionValue
             , byFlagError
-                (ctxTransition.bid.betAmount @<= ctxState.bid.betAmount)
+                (ctxTransition.bid.bidAmount @<= ctxState.bid.bidAmount)
                 "Bid amount is less or equal to current bid"
             , output
                 ( ownUtxo
@@ -105,7 +105,7 @@ instance CEMScript SimpleAuction where
                       [#bid ::= ctxTransition.bid]
                 )
                 auctionValue
-            , signedBy ctxTransition.bid.better
+            , signedBy ctxTransition.bid.bidder
             ]
           )
         ,
@@ -124,31 +124,28 @@ instance CEMScript SimpleAuction where
           ( BuyoutSpine
           ,
             [ input (ownUtxo $ inState WinnerSpine) auctionValue
+            , byFlagError (lift False) "Some err"
+            , byFlagError (lift False) "Another err"
             , -- Example: In constraints redundant for on-chain
               offchainOnly
-                ( spentBy
-                    buyoutBid.better
-                    ( cMkAdaOnlyValue buyoutBid.betAmount
-                        @<> cMinLovelace
-                    )
+                (if'
+                  (ctxParams.seller `eq'` buyoutBid.bidder)
+                  (signedBy ctxParams.seller)
+                  (spentBy
+                    buyoutBid.bidder
+                    (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
                     cEmptyValue
+                  )
                 )
+            , output
+                (userUtxo buyoutBid.bidder) -- NOTE: initial zero bidder is seller
+                auctionValue
             , if'
-                (ctxParams.seller `eq'` buyoutBid.better)
-                ( output
-                    (userUtxo ctxParams.seller)
-                    (cMinLovelace @<> ctxParams.lot)
-                )
-                ( output
-                    (userUtxo buyoutBid.better)
-                    (cMinLovelace @<> ctxParams.lot)
-                )
-            , if'
-                (ctxParams.seller `eq'` buyoutBid.better)
+                (ctxParams.seller `eq'` buyoutBid.bidder)
                 noop
                 ( output
-                    (userUtxo ctxParams.seller)
-                    (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.betAmount)
+                  (userUtxo ctxParams.seller)
+                  (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
                 )
             ]
           )

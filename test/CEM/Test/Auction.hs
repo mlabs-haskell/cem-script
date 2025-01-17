@@ -58,8 +58,8 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 1_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 1_000_000
           }
 
     result <-
@@ -111,8 +111,8 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 0
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 0
           }
 
     result <-
@@ -164,18 +164,18 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       initBid =
         MkBet
-          { better = signingKeyToPKH seller
-          , betAmount = 0
+          { bidder = signingKeyToPKH seller
+          , bidAmount = 0
           }
       bid1 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 3_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 3_000_000
           }
       bid2 =
         MkBet
-          { better = signingKeyToPKH bidder1
-          , betAmount = 4_000_000
+          { bidder = signingKeyToPKH bidder1
+          , bidAmount = 4_000_000
           }
 
     (preBody, utxo) <-
@@ -288,8 +288,8 @@ auctionSpec = describe "AuctionSpec" $ do
     let
       initBid =
         MkBet
-          { better = signingKeyToPKH seller
-          , betAmount = 0
+          { bidder = signingKeyToPKH seller
+          , bidAmount = 0
           }
 
     submitAndCheck $

@@ -90,7 +90,7 @@ import Prelude
 -- We use mutations to verify that on-chain and off-chain implementations
 -- work the same way:
 --  1. The order of constrainsts doesn't matter
---  2. All non-noop constraints are important - if we remove them both impls stop working.
+--  2. All non-noop constraints are important - if we remove any the app stops working.
 
 data TxMutation
   = RemoveConstraint {num :: Int}
@@ -110,6 +110,7 @@ isNegativeMutation (Just (ShuffleConstraints {})) _ = False
 applyMutation ::
   Maybe TxMutation ->
   [TxConstraint True script] ->
+  -- (mutated, maybe removed constraint)
   ([TxConstraint True script], Maybe (TxConstraint True script))
 applyMutation Nothing cs = (cs, Nothing)
 -- \| Removes num+1 element from the list of constraints
