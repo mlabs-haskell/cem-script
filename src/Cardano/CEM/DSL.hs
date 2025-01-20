@@ -346,8 +346,8 @@ class
   -- | The crux part - a map that defines constraints for each transition via DSL.
   transitionSpec :: CEMScriptSpec False script
 
-  -- | Optional Plutus script to calculate things, whic can be used in the cases
-  -- when CEM constrainsts and/or inlining Plutarch functions are not expresisble
+  -- | Optional Plutus script to calculate things, which can be used in the cases
+  -- when CEM constraints and/or inlining Plutarch functions are not expressible
   -- enough.
   transitionComp ::
     Maybe

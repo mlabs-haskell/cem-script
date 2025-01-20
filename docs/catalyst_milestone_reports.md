@@ -6,9 +6,14 @@
   * [Basic indexing support PR #98](https://github.com/mlabs-haskell/cem-script/pull/98)
   * [Oura config generation PR #100](https://github.com/mlabs-haskell/cem-script/pull/100)
   * [Source](https://github.com/mlabs-haskell/cem-script/blob/master/src/Cardano/CEM/Indexing.hs)
-  * [Tests for Auction example](https://github.com/mlabs-haskell/cem-script/blob/master/test/OuraFilter/Auction.hs)
-* Final code clean-up
+  * [Indexing tests for Auction example](https://github.com/mlabs-haskell/cem-script/blob/master/test/OuraFilter/Auction.hs)
+* Final code clean-up:
+  * [PR#113 - finalize mutation tests](https://github.com/mlabs-haskell/cem-script/pull/113)
+  * [PR#109 - cosmetic changes](https://github.com/mlabs-haskell/cem-script/pull/109)
 * Final tutorial and docs
+  * [PR on docs](https://github.com/mlabs-haskell/cem-script/pull/115)
+    * [Getting Started Guide](https://github.com/mlabs-haskell/cem-script/pull/115/files#diff-31bcba2ccafa41d46fbbd6d1219f7f1e3b1fb3cad9faa8e4dc521bbb579dd7b3)
+    * Updated [Goals And Design](TODO: link)
 
 ## Clarifications on M3 Deliverables
 
