@@ -106,7 +106,7 @@ See the reference section for a full reference of `TxConstraint`.
 - `script` is a phantom type parameter, just like in `TxConstraint`.
 - `value` is the type of what this expression will resolve during runtime.
 
-`ConstraintDSL` allows us to reference parts of the state machine's parameters, 
+`ConstraintDSL` allows us to reference parts of the state machine's parameters,
 the current state, the transition arguments, and so forth.
 
 It also lets us perform checks (like equality) and apply transformations (like lifting a Plutarch function).
@@ -452,14 +452,14 @@ The following are lifted versions of Plutarch operators
 
 #### Setup: The Types
 
-First, we define a type to denote our script. It’s an uninhabited type, it can’t be constructed. 
+First, we define a type to denote our script. It’s an uninhabited type, it can’t be constructed.
 It’s only used as a tag for connecting all instances of type classes together.
 
 ```haskell
 data SimpleAuction
 ```
 
-We define a type for the read-only state of our script. This state can’t be modified once created. 
+We define a type for the read-only state of our script. This state can’t be modified once created.
 This becomes the `Params` associated type of the `CEMScript` type class.
 
 ```haskell
@@ -507,8 +507,8 @@ data SimpleAuctionTransition
 ```
 
 We can now define an instance of the `CEMScriptTypes` for `SimpleAuction`.
-`CEMScriptTypes` is a superclass of `CEMScript`, which just includes the associated types. 
-By defining the associated types separately, we can use the `deriveCEMAssociatedTypes` 
+`CEMScriptTypes` is a superclass of `CEMScript`, which just includes the associated types.
+By defining the associated types separately, we can use the `deriveCEMAssociatedTypes`
 Template Haskell function to generate some boilerplate.
 
 ```haskell
@@ -520,8 +520,8 @@ instance CEMScriptTypes SimpleAuction where
 $(deriveCEMAssociatedTypes False ''SimpleAuction)
 ```
 
-`deriveCEMAssociatedTypes` just executes `derivePlutusSpine` for all three of the associated types. 
-But it can only do that if all the members of a type have a `HasPlutusSpine` implementation. 
+`deriveCEMAssociatedTypes` just executes `derivePlutusSpine` for all three of the associated types.
+But it can only do that if all the members of a type have a `HasPlutusSpine` implementation.
 This is why we need to do `derivePlutusSpine` for the `Bid` type ourselves.
 
 The boolean argument to `deriveCEMAssociatedTypes` is unused for now, and it is recommended to use a value of `False`.
@@ -534,7 +534,7 @@ To implement the logic of our script, we define an instance of `CEMScript` for o
 instance CEMScript SimpleAuction where
 ```
 
-We provide a value for `compilationConfig`, which at the moment contains 
+We provide a value for `compilationConfig`, which at the moment contains
 only a prefix for error codes to tell errors from different programs apart.
 
 ```haskell
@@ -661,3 +661,14 @@ Let’s examine each of the entries in the map in detail.
       ]
     )
     ```
+
+### Generating state diagram
+
+Use `genCemGraph` function from `Cardano.CEM.Documentation` module
+to produce `graphviz` definition:
+
+```bash
+$ cabal repl cem-script-example
+ghci> :m +System.IO Cardano.CEM CEM.Example.Auction Data.Proxy
+ghci> withFile "auction_diagram.dot" WriteMode (\h -> hPutStrLn h (genCemGraph "CEM Simple Acutoin" (Proxy :: Proxy SimpleAuction)))
+```

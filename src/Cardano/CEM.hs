@@ -8,6 +8,7 @@ import Cardano.CEM.Address as X (
   cemScriptPlutusCredential,
  )
 import Cardano.CEM.Compile as X
+import Cardano.CEM.Documentation as X (genCemGraph)
 import Cardano.CEM.DSL as X (
   CEMScript (..),
   CEMScriptDatum,
