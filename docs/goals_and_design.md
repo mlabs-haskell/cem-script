@@ -13,7 +13,7 @@ and demonstrate them by listing specific problems that
 arouse in the existing dApps codebase.
 
 Such problems are specific security vulnerabilities of different
-types. They are still common in development which increases 
+types. They are still common in development which increases
 audit and support costs.
 
 Also, this document describes how existing solutions
@@ -183,7 +183,7 @@ At least three errors of this kind are known in Cardano/Plutus
 interval logic, showing that it is not easy to do.
 
 Another problem is keeping time logic in sync between on-
-and off-chain code. This is even harder given that Plutus' 
+and off-chain code. This is even harder given that Plutus'
 time-to-slot conversion gets in the way.
 Slot time differences and overall need to make test cases match
 real blockchain behavior may lead to flaky test behavior.
@@ -192,7 +192,7 @@ Our script stages abstraction cover all those kinds of problems.
 
 ### Matching to off-chain logic
 
-The problem of duplicating logic between on-chain and off-chain 
+The problem of duplicating logic between on-chain and off-chain
 is twofold.
 Testing is essentially done off-chain, thus, one may easily miss
 that your on-chain code is not actually enforcing some parts of
@@ -256,7 +256,7 @@ for possible utxo changes.
 
 Our project encodes scripts in the form of a deterministic machine,
 which contains enough information to construct transactions automatically.
-This also gives a way to check for potential on-chain 
+This also gives a way to check for potential on-chain
 vs off-chain logic differences semi-automatically.
 
 Examples:
@@ -371,14 +371,14 @@ but only partially covers
 While it, surely, can do transaction emulation,
 it, to the best of our knowledge, does not have a monad instance
 for real L1 blockchain. So one still cannot reuse the same code
-across tests and real blockchain Tx construction.
+across tests and real blockchain transaction construction.
 
 `TxSkel` datatype is similar to the design we are implementing,
 and other parts of API have a lot of cool DX decisions.
 But `cooked-validators` lack script transition model,
 so it cannot provide declarative transaction submission error handling
 we aim to get because it does not have information to decide
-whether a specific Tx input is critical (like an auth token),
+whether a specific transaction input is critical (like an auth token),
 or can be re-selected again (like coin-selected ADA for payment).
 
 Having a declarative transition model is even
@@ -394,7 +394,7 @@ to attack vectors missed by accident.
 
 Our API presumes that means of on-chain validation,
 in our case behavior equivalence (AKA bi-similarity)
-of a declarative CEM state machine and a real on-chain 
+of a declarative CEM state machine and a real on-chain
 script is verified and validated semi-automatically.
 Also, we plan to make some kind of the vulnerabilities covered by
 `cooked-validators` impossible by construction,
