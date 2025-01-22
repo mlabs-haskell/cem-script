@@ -124,16 +124,15 @@ import PlutusTx qualified
 import Text.Show.Pretty (ppShow)
 import Prelude
 
--- Interfaces
-
+-- | Interface of a compiled CEM Script.
 class (CEMScript script) => CEMScriptCompiled script where
   -- | Code, original error message
-  -- FIXME: track transition it might be raised
+  -- TODO: track transitions along with the errors
   errorCodes :: Proxy script -> [(String, String)]
 
   cemScriptCompiled :: Proxy script -> Script
 
--- Compilation
+-- | On-chain compilation logic.
 genericPlutarchScript ::
   forall script.
   (CEMScript script) =>
@@ -153,6 +152,10 @@ genericPlutarchScript spec code =
       ctx <- pletFields @'["txInfo"] ctx'
       ownAddress <- plet $ getOwnAddress # ctx'
       spineIndex <- plet $ pfstBuiltin # (pasConstr # redm)
+      -- We _always_ delay `comp` and force it _only_ when a user asks for
+      -- its result and this is the moment when Nothing should error.
+      -- TODO: Can we prevent user from calling `askC @CComp` if
+      -- 'transitionComp' is not set?
       comp <- plet $ pdelay $ case code of
         Just x ->
           let
@@ -160,142 +163,163 @@ genericPlutarchScript spec code =
             script = foreignImport x
            in
             script # params # state # redm
-        Nothing -> ptraceInfo "Unreachable" perror
-      perSpineChecks ctx.txInfo ownAddress comp spineIndex
+        Nothing -> ptraceInfo "transitionComp is nothing" perror
+      -- Builds checks for transition (its spine)
+      let checks = perTransitionCheck ctx.txInfo ownAddress comp
+      -- Checks for transition spine from redeemer
+      compileSpineCaseSwitch spineIndex checks
       where
-        params = datumTupleOf 0
-        state = datumTupleOf 1
-        datumTupleOf ix = getRecordField ix datum
-        getRecordField ix d = ptryIndex ix $ psndBuiltin # (pasConstr # d)
-        perSpineChecks txInfo ownAddress comp spineIndex =
-          compileSpineCaseSwitch spineIndex f
-          where
-            f = perTransitionCheck txInfo ownAddress redm comp
-        perTransitionCheck txInfo ownAddress transition comp transitionSpine = P.do
+        -- We are done
+
+        -- Builds 'Spine (Transition script) -> Term s PUnit'
+        perTransitionCheck txInfo ownAddress comp transitionSpine = P.do
           ptraceDebug
             (pconstant $ fromString $ "Checking transition " <> Prelude.show transitionSpine)
-            constraintChecks
+            perTransitionCheck'
           where
-            -- FIXME: fold better
-            constraintChecks = P.do
+            perTransitionCheck' = P.do
               pif
-                (foldr ((\x y -> pand' # x # y) . compileConstr) (pconstant True) constrs)
-                (commonChecks # pfromData txInfo)
-                (ptraceInfoError "Constraint check failed")
-            compileConstr :: TxConstraint False script -> Term s PBool
-            compileConstr c =
-              ptraceInfoIfFalse
-                ( pconstant $ fromString $ "Checking constraint " <> Prelude.show c
+                -- Constraints
+                ( foldr
+                    ((\x y -> pand' # x # y) . compileConstr)
+                    (pconstant True)
+                    constrs
                 )
-                $ case c of
-                  MainSignerCoinSelect pkhDsl inValueDsl outValueDsl ->
-                    P.do
-                      -- FIXME: check final difference
-                      -- FIXME: DRY with TxSpec implemenation
-                      let
-                        txIns = resolve #$ pfromData $ pfield @"inputs" # txInfo
-                        txOuts = pfromData $ pfield @"outputs" # txInfo
-                      punsafeCoerce (compileDsl inValueDsl)
-                        #<= (txFansValue txIns)
-                        #&& (punsafeCoerce (compileDsl outValueDsl) #<= (txFansValue txOuts))
-                    where
-                      merge ::
-                        Term
-                          s
-                          ( PValue Unsorted NonZero
-                              :--> ( (PValue Sorted NonZero)
-                                      :--> PValue Sorted NonZero
-                                   )
-                          )
-                      merge = plam $ \x y -> ((passertSorted # x) <> y)
-                      mapGetValues ::
-                        Term
-                          s
-                          (PBuiltinList PTxOut :--> PBuiltinList (PValue Unsorted NonZero))
-                      mapGetValues =
-                        pmap
-                          # plam (\x -> pforgetSorted $ pforgetPositive $ pfromData $ pfield @"value" # x)
-                      resolve =
-                        pmap # plam (\x -> pfromData $ pfield @"resolved" # x)
-                      predicate :: Term s (PTxOut :--> PBool)
-                      predicate = plam $ \txOut ->
-                        (ppkhAddress #$ punsafeCoerce $ compileDsl pkhDsl)
-                          #== pfromData (pfield @"address" # txOut)
-                      txFansValue txIns =
-                        let validTxIns = pfilter # predicate # txIns
-                         in pfoldr
-                              # merge
-                              # (passertSorted #$ pMkAdaOnlyValue # 0)
-                              #$ mapGetValues
-                              # validTxIns
-                  Utxo fanKind fanSpec value ->
+                -- Common checks
+                (commonChecks # pfromData txInfo)
+                -- Fail
+                (ptraceInfoError "Constraint check failed")
+
+            -- Get constraints from the definition
+            constrs = case Map.lookup transitionSpine spec of
+              Just x -> x
+              Nothing ->
+                error $
+                  "Compilation error: transition: "
+                    <> (Prelude.show transitionSpine)
+                    <> " lacks spec"
+
+            -- Actual constraint compilation
+            compileConstr :: TxConstraint False script -> Term s PBool
+            compileConstr c = ptraceInfoIfFalse
+              (pconstant $ fromString $ "Checking constraint " <> Prelude.show c)
+              $ case c of
+                --
+                MainSignerCoinSelect pkhDsl inValueDsl outValueDsl ->
+                  P.do
                     let
-                      resolve =
-                        pmap # plam (\x -> pfromData $ pfield @"resolved" # x)
-                      fanList :: Term s (PBuiltinList PTxOut)
-                      fanList = case fanKind of
-                        In ->
-                          resolve #$ pfromData $ pfield @"inputs" # txInfo
-                        InRef -> resolve #$ pfield @"referenceInputs" # txInfo
-                        Out -> pfromData $ pfield @"outputs" # txInfo
-                      predicate = plam $ \txOut -> case fanSpec of
-                        UserAddress pkhDsl ->
-                          let
-                            correctAddress =
-                              (ppkhAddress #$ punsafeCoerce $ compileDsl pkhDsl)
-                                #== pfromData (pfield @"address" # txOut)
-                           in
-                            correctAddress
-                        SameScript (MkSameScriptArg expectedState) ->
-                          pmatch (pfromData (pfield @"datum" # txOut)) $ \case
-                            POutputDatum datum' -> P.do
-                              PDatum fanDatum <-
-                                pmatch $ pfromData $ pfield @"outputDatum" # datum'
-                              let
-                                fanParams = getRecordField 0 fanDatum
-                                fanState = getRecordField 1 fanDatum
-                              ( (ownAddress #== pfield @"address" # txOut)
-                                  #&& ( (checkDsl expectedState fanState)
-                                          #&& fanParams
-                                          #== params
-                                      )
-                                )
-                            _ -> pconstant False
-                     in
-                      -- FIXME: do not use phead
-                      checkDsl
-                        value
-                        (punsafeCoerce $ pfield @"value" #$ phead #$ pfilter # predicate # fanList)
-                  MainSignerNoValue dsl ->
-                    let
-                      signatories = pfromData $ pfield @"signatories" # txInfo
-                      xSigner = punsafeCoerce $ pdata (compileDsl dsl)
-                     in
-                      ptraceInfoIfFalse (pshow xSigner) $
-                        ptraceInfoIfFalse (pshow signatories) $
-                          pelem # xSigner # signatories
-                  Noop -> pconstant True
-                  Error message -> ptraceInfoError $ pconstant message
-                  If condDsl thenDsl elseDsl ->
-                    pif
-                      (pfromData $ punsafeCoerce $ compileDsl condDsl)
-                      (compileConstr thenDsl)
-                      (compileConstr elseDsl)
-                  MatchBySpine valueDsl caseSwitch ->
-                    let
-                      value = punsafeCoerce $ compileDsl valueDsl
-                      valueSpineNum = pfstBuiltin # (pasConstr # value)
-                     in
-                      compileSpineCaseSwitch
-                        valueSpineNum
-                        (compileConstr . (caseSwitch Map.!))
+                      txIns = resolve #$ pfromData $ pfield @"inputs" # txInfo
+                      txOuts = pfromData $ pfield @"outputs" # txInfo
+                    punsafeCoerce (compileDsl inValueDsl)
+                      #<= (txFansValue txIns)
+                      #&& (punsafeCoerce (compileDsl outValueDsl) #<= (txFansValue txOuts))
+                  where
+                    merge ::
+                      Term
+                        s
+                        ( PValue Unsorted NonZero
+                            :--> ( (PValue Sorted NonZero)
+                                    :--> PValue Sorted NonZero
+                                 )
+                        )
+                    merge = plam $ \x y -> ((passertSorted # x) <> y)
+                    mapGetValues ::
+                      Term
+                        s
+                        (PBuiltinList PTxOut :--> PBuiltinList (PValue Unsorted NonZero))
+                    mapGetValues =
+                      pmap
+                        # plam (\x -> pforgetSorted $ pforgetPositive $ pfromData $ pfield @"value" # x)
+                    resolve =
+                      pmap # plam (\x -> pfromData $ pfield @"resolved" # x)
+                    predicate :: Term s (PTxOut :--> PBool)
+                    predicate = plam $ \txOut ->
+                      (ppkhAddress #$ punsafeCoerce $ compileDsl pkhDsl)
+                        #== pfromData (pfield @"address" # txOut)
+                    txFansValue txIns =
+                      let validTxIns = pfilter # predicate # txIns
+                       in pfoldr
+                            # merge
+                            # (passertSorted #$ pMkAdaOnlyValue # 0)
+                            #$ mapGetValues
+                            # validTxIns
+                --
+                Utxo fanKind fanSpec value ->
+                  let
+                    resolve =
+                      pmap # plam (\x -> pfromData $ pfield @"resolved" # x)
+                    fanList :: Term s (PBuiltinList PTxOut)
+                    fanList = case fanKind of
+                      In ->
+                        resolve #$ pfromData $ pfield @"inputs" # txInfo
+                      InRef -> resolve #$ pfield @"referenceInputs" # txInfo
+                      Out -> pfromData $ pfield @"outputs" # txInfo
+                    predicate = plam $ \txOut -> case fanSpec of
+                      UserAddress pkhDsl ->
+                        let
+                          correctAddress =
+                            (ppkhAddress #$ punsafeCoerce $ compileDsl pkhDsl)
+                              #== pfromData (pfield @"address" # txOut)
+                         in
+                          correctAddress
+                      SameScript (MkSameScriptArg expectedState) ->
+                        pmatch (pfromData (pfield @"datum" # txOut)) $ \case
+                          POutputDatum datum' -> P.do
+                            PDatum fanDatum <-
+                              pmatch $ pfromData $ pfield @"outputDatum" # datum'
+                            let
+                              fanParams = getRecordField 0 fanDatum
+                              fanState = getRecordField 1 fanDatum
+                            ( (ownAddress #== pfield @"address" # txOut)
+                                #&& ( (checkDsl expectedState fanState)
+                                        #&& fanParams
+                                        #== params
+                                    )
+                              )
+                          _ -> pconstant False
+                   in
+                    checkDsl
+                      value
+                      (punsafeCoerce $ pfield @"value" #$ phead #$ pfilter # predicate # fanList)
+                --
+                MainSignerNoValue dsl ->
+                  let
+                    signatories = pfromData $ pfield @"signatories" # txInfo
+                    xSigner = punsafeCoerce $ pdata (compileDsl dsl)
+                   in
+                    ptraceInfoIfFalse (pshow xSigner) $
+                      ptraceInfoIfFalse (pshow signatories) $
+                        pelem # xSigner # signatories
+                --
+                Noop -> pconstant True
+                --
+                Error message -> ptraceInfoError $ pconstant message
+                --
+                If condDsl thenDsl elseDsl ->
+                  pif
+                    (pfromData $ punsafeCoerce $ compileDsl condDsl)
+                    (compileConstr thenDsl)
+                    (compileConstr elseDsl)
+                --
+                MatchBySpine valueDsl caseSwitch ->
+                  let
+                    value = punsafeCoerce $ compileDsl valueDsl
+                    valueSpineNum = pfstBuiltin # (pasConstr # value)
+                   in
+                    compileSpineCaseSwitch
+                      valueSpineNum
+                      (compileConstr . (caseSwitch Map.!))
+
+            -- Compiles and check the value
             checkDsl ::
               ConstraintDSL script1 x ->
               Term s PData ->
               Term s PBool
             checkDsl expectationDsl value =
               case expectationDsl of
+                -- Trivial case
                 Anything -> pconstant True
+                -- Special case - compares spine and all fields that defined by setters
                 UnsafeOfSpine spine setters ->
                   (pfstBuiltin #$ pasConstr # xValue)
                     #== pconstant (Prelude.toInteger $ Prelude.fromEnum spine)
@@ -307,24 +331,22 @@ genericPlutarchScript spec code =
                           foldAnd (!x : xs) = x #&& (foldAnd xs)
                           foldAnd [] = pconstant True
                          in
-                          foldAnd $
-                            map perIxCheck ixAndSetters
+                          foldAnd $ map perIxCheck ixAndSetters
+                -- Standard case - evaluate and compare
                 _ -> xValue #== value
               where
                 xValue = compileDsl expectationDsl
-            -- FIXME: Some typing? `newtype MyPData x`?
-            -- ConstraintDSL script1 (PLifted x) -> Term s (AsData x)
+
+            -- Compiles a DSL term into a value
             compileDsl :: forall script1 x. ConstraintDSL script1 x -> Term s PData
             compileDsl dsl = punsafeCoerce $ case dsl of
               Pure x -> pconstant $ PlutusTx.toData x
-              IsOnChain -> compileDsl $ Pure True
-              -- XXX: returns PBuiltinList PData in fact
+              IsOnChain -> compileDsl $ Pure True -- short-cut
               Ask @cvar @_ @dt Proxy ->
                 case sing @cvar of
                   SCParams -> params
                   SCState -> state
-                  SCTransition -> transition
-                  -- FIXME: is this force good?
+                  SCTransition -> redm
                   SCComp -> pforce comp
               GetField @_ @y @_ @value valueDsl proxyLabel ->
                 getRecordField
@@ -339,7 +361,7 @@ genericPlutarchScript spec code =
                 where
                   pcons' x y = pcons # x # y
                   fieldValue (_ ::= valueDsl) = compileDsl valueDsl
-              -- FIXME: Should we lift AsData functins?
+              -- TODO: Should we lift AsData functions?
               LiftPlutarch @_ @py plutrachFunc valueDsl ->
                 let
                   x = pfromDataImpl $ punsafeCoerce $ compileDsl valueDsl
@@ -356,8 +378,7 @@ genericPlutarchScript spec code =
               Eq xDsl yDsl -> case (xDsl, yDsl) of
                 (Anything, _) -> compileDsl $ Pure True
                 (_, Anything) -> compileDsl $ Pure True
-                (_, _) ->
-                  pdataImpl $ (compileDsl xDsl) #== (compileDsl yDsl)
+                (_, _) -> pdataImpl $ (compileDsl xDsl) #== (compileDsl yDsl)
               UnsafeUpdateOfSpine @_ @datatype notUpdatedValueDsl spine setters ->
                 pmatch
                   ( (pfstBuiltin #$ pasConstr # notUpdatedValue)
@@ -373,8 +394,7 @@ genericPlutarchScript spec code =
                               # pconstant (Prelude.toInteger $ Prelude.fromEnum spine)
                               #$ foldr pcons' pnil
                             $ map perIxValue [0 .. (toInteger (spineFieldsNum spine) - 1)]
-                    -- FIXME: use error code
-                    PFalse -> ptraceInfoError "Spines not matching"
+                    PFalse -> ptraceInfoError "Spines do not match"
                 where
                   pcons' x y = pcons # x # y
                   notUpdatedValue = compileDsl notUpdatedValueDsl
@@ -389,30 +409,21 @@ genericPlutarchScript spec code =
                   perIxValue ix = case updatedFields Map.!? ix of
                     Just value -> value
                     Nothing -> ptryIndex (fromInteger ix) notUpdatedFields
-              Anything -> nonDetMessage dsl
-            nonDetMessage dsl =
-              error $
-                "Non-deterministic code in place it should not be "
-                  <> " while compiling on-chain: \n"
-                  <> ppShow dsl
-            constrs = case Map.lookup transitionSpine spec of
-              Just x -> x
-              Nothing -> error "Compilation error: some spine lacks spec"
+              Anything ->
+                error $
+                  "Non-deterministic code in place it should not be "
+                    <> " while compiling on-chain: \n"
+                    <> ppShow dsl
 
-commonChecks :: Term s (PTxInfo :--> PUnit)
-commonChecks = plam go
-  where
-    go :: Term s1 PTxInfo -> Term s1 PUnit
-    go txInfo =
-      pif
-        (stackingStuffDisabled txInfo)
-        (pconstant ())
-        (ptraceInfo "Stacking feature used" perror)
-    stackingStuffDisabled :: Term s1 PTxInfo -> Term s1 PBool
-    stackingStuffDisabled txInfo =
-      (pnull # pfromData (pfield @"dcert" # txInfo))
-        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
+        -- Datum deconstruction
+        params = datumTupleOf 0
+        state = datumTupleOf 1
+        datumTupleOf ix = getRecordField ix datum
+        getRecordField ix d = ptryIndex ix $ psndBuiltin # (pasConstr # d)
 
+{- | Tries all spines from 'Spine sop' and if it matches the index
+calculates 'Term s x' by applying given `caseSwitchFunc' to the spine.
+-}
 compileSpineCaseSwitch ::
   forall x sop s.
   (HasPlutusSpine sop) =>
@@ -436,3 +447,18 @@ compileSpineCaseSwitch spineIndex caseSwitchFunc =
           )
           cont
       )
+
+-- | Currently checks that staking features are not used.
+commonChecks :: Term s (PTxInfo :--> PUnit)
+commonChecks = plam go
+  where
+    go :: Term s1 PTxInfo -> Term s1 PUnit
+    go txInfo =
+      pif
+        (stakingStuffDetected txInfo)
+        (pconstant ())
+        (ptraceInfo "Staking feature was used: currently not supported" perror)
+    stakingStuffDetected :: Term s1 PTxInfo -> Term s1 PBool
+    stakingStuffDetected txInfo =
+      (pnull # pfromData (pfield @"dcert" # txInfo))
+        #&& (PMap.pnull #$ pfromData (pfield @"wdrl" # txInfo))
