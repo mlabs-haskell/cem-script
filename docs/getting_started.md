@@ -175,8 +175,7 @@ data ResolvedTx = MkResolvedTx
   , toMint :: TxMintValue BuildTx Era
   , interval :: Interval POSIXTime
   , additionalSigners :: [PubKeyHash]
-  , -- FIXME
-    signer :: ~(SigningKey PaymentKey)
+  , signer :: ~(SigningKey PaymentKey)
   }
   deriving stock (Show, Eq)
 
@@ -302,7 +301,7 @@ data TxConstraint (resolved :: Bool) script
       -- | Value being matched by its Spine
       (DSLPattern resolved script sop)
       -- | Case switch
-      -- FIXME: might use function instead, will bring `_` syntax,
+      -- TODO: might use function instead, will bring `_` syntax,
       -- reusing matched var and probably implicitly type-checking spine
       -- by saving it to such var DSL value
       (Map.Map (Spine sop) (TxConstraint resolved script))

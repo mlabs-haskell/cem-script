@@ -122,7 +122,7 @@ data ConstraintDSL script value where
     Proxy label ->
     ConstraintDSL script value
   -- | Builds a datatype value from the spine and field setters.
-  -- Used in Utxo Out spec.
+  -- Used in Utxo Out spec. Only specified fields are compared.
   UnsafeOfSpine ::
     forall script datatype spine.
     ( spine ~ Spine datatype
@@ -173,7 +173,7 @@ instance Show (ConstraintDSL x y) where
     (GetField valueDsl proxyLabel) ->
       show valueDsl <> "." <> symbolVal proxyLabel
     Eq x y -> show x <> " @== " <> show y
-    -- FIXME: add user annotations
+    -- TODO: add user annotations
     LiftPlutarch _ x -> "somePlutarchCode (" <> show x <> ")"
     LiftPlutarch2 _ x y ->
       "somePlutarchCode (" <> show x <> ") (" <> show y <> ")"
@@ -346,9 +346,10 @@ class
   -- | The crux part - a map that defines constraints for each transition via DSL.
   transitionSpec :: CEMScriptSpec False script
 
-  -- | Optional Plutus script to calculate things, which can be used in the cases
-  -- when CEM constraints and/or inlining Plutarch functions are not expressible
-  -- enough.
+  -- | Optional Plutus script to calculate a value of type
+  -- (TransitionComp script), which can be used in the cases
+  -- when CEM constraints and/or inlining Plutarch functions
+  -- are not expressive enough.
   transitionComp ::
     Maybe
       ( Params script ->
@@ -385,6 +386,7 @@ class CEMScriptTypes script where
   -- | See 'transitionComp'
   type TransitionComp script
 
+  -- | By default it's not set.
   type TransitionComp script = Void
 
 -- | Options used for compiling.

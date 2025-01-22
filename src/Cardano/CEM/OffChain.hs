@@ -118,7 +118,6 @@ queryScriptState params = do
   mTxInOut <- queryScriptTxInOut params
   return (cemTxOutState . snd =<< mTxInOut)
 
--- FIXME: doc, naming
 data OffchainTxIR
   = TxInR (TxIn, TxInWitness)
   | TxInRefR (TxIn, TxInWitness)
@@ -171,15 +170,16 @@ compileActionConstraints
         throwError CEMScriptTxInResolutionError
 
       let
-        -- FIXME: fromJust laziness trick
+        -- TODO: fromJust laziness trick
         datum = (params, fromJust mState)
         compiled' = map (compileConstraint datum transition) uncompiled
 
-      -- FIXME: raise lefts from compiled
+      -- NB: raise lefts from compiled
       let f x = case x of
             Left message -> throwError $ PerTransitionErrors [CompilationError message]
             Right x' -> return x'
-      -- FIXME: add resolution logging
+
+      -- TODO: add resolution logging
       mapM f compiled'
 
 process ::
@@ -194,7 +194,7 @@ process (MkCEMAction params transition) ec = case ec of
     utxo <- lift $ queryUtxo $ ByAddresses [pubKeyHashAddress $ user c]
     let utxoPairs =
           map (withKeyWitness . fst) $ Map.toList $ unUTxO utxo
-    -- FIXME: do actuall coin selection
+    -- TODO: do actuall coin selection
     return $ TxInR $ head utxoPairs
   c@(Utxo kind fanFilter value) -> do
     case kind of
@@ -213,7 +213,7 @@ process (MkCEMAction params transition) ec = case ec of
             map (addWittness . fst) $ filter predicate utxoPairs
         case matchingUtxos of
           x : _ -> return $ case someIn of
-            -- FIXME: log/fail on >1 options to choose for script
+            -- TODO: log/fail on >1 options to choose for script
             In -> TxInR x
             InRef -> TxInRefR x
           [] ->
@@ -222,7 +222,7 @@ process (MkCEMAction params transition) ec = case ec of
       predicate (_, txOut) =
         txOutValue txOut == fromPlutusValue value
           && case fanFilter of
-            -- FIXME: refactor DRY
+            -- TODO: refactor DRY
             SameScript (MkSameScriptArg state) ->
               cemTxOutDatum txOut
                 == Just
@@ -240,9 +240,10 @@ process (MkCEMAction params transition) ec = case ec of
               , state
               )
           )
-      -- FIXME: understand what is happening
+
       convertTxOut x =
         TxOutValueShelleyBased shelleyBasedEra $ toMaryValue x
+
       addWittness = case fanFilter of
         UserAddress {} -> withKeyWitness
         SameScript {} -> (,scriptWitness)
@@ -315,7 +316,7 @@ awaitTx txId = do
   go 5
   where
     go :: Integer -> m ()
-    go 0 = liftIO $ fail "Tx was not awaited." -- FIXME:
+    go 0 = liftIO $ fail "Tx was not awaited."
     go n = do
       exists <- checkTxIdExists
       liftIO $ threadDelay 1_000_000
@@ -404,7 +405,7 @@ compileDsl datum@(params, state) transition dsl = case dsl of
   UnsafeUpdateOfSpine valueDsl _spine setters -> do
     case setters of
       [] -> recur valueDsl
-      _ -> error "FIXME: not implemented"
+      _ -> error "Not implemented yet."
   LiftPlutarch pterm argDsl -> do
     arg <- recur argDsl
     case evalTerm NoTracing $ pterm # pconstant arg of
