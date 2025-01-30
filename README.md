@@ -1,59 +1,32 @@
-# CEM SDK
+# CEM Script
 
 ## Project pitch
 
-Define and reuse Cardano DApp logic via annotated CEM-machines, resulting in free implementations for:
+CEM Script is a framework to define Cardano DApp logic via annotated CEM-machines,
+resulting in free implementations for:
 
 * On-chain scripts
-* Tx building/submission/resubmission on L1/emulated testnet
-* Tx parsing/indexing
+* Transaction building/submission (off-chain)
+* Transaction parsing/indexing
 * Automatically testing invariants
 * Human-readable specs
 
+## Documentation
+
+* [Getting Started Guide](https://github.com/mlabs-haskell/cem-script/blob/master/docs/getting_started.md)
+* [Goals and Design](https://github.com/mlabs-haskell/cem-script/blob/master/docs/goals_and_design.md)
+* Article about [testing dApps on Cardano with CLB](https://www.mlabs.city/blog/testing-dapps-on-cardano-with-clb-emulator) is another introduction to testing CEM Script dApps.
+
 ## Building
 
-Building is performed with cabal.
-Building requires `libblst` and `libsodium` installed.
-
-Arch Linux has `libblst` in AUR, nix are exemplified by IOHK,
-and manual installation is described here:
-https://github.com/input-output-hk/cardano-node-wiki/blob/main/docs/getting-started/install.md#installing-blst
+Building is performed with `cabal`inside IOG's `github:input-output-hk/devx` shell.
+See `.envrc` for details.
 
 Make sure to `cabal update` before building.
 
-The project uses `github:input-output-hk/devx` to make the development shell. See `.envrc` for details.
-
 ## Running tests
 
-Tests are runned in emulated environment by default.
+Tests are runned in emulated environment using
+[CLB](https://github.com/mlabs-haskell/clb).
 
-Just run: `cabal test`.
-
-For development and fast response once could consider `ghcid`.
-
-## Starting local devnet
-
-Tests depend on localdevnet, which is runned in Docker.
-To start it do:
-
-```bash
-./prepare-devnet.sh
-docker-compose  -f docker-compose.devnet.yaml up
-sudo chown -R $USER:$USER ./devnet/
-```
-
-## Devnet stalling bug
-
-Sometimes devnet stalls, due to some bug, in that case one should restart it,
-and wipe directory `./devnet/db`. To look for stalling one could check:
-`CARDANO_NODE_SOCKET_PATH=./devnet/node.socket cardano-cli query tip --testnet-magic 42`. For properly working devnet slots should change
-and sync be marked as 100%.
-
-On this bug:
-https://forum.cardano.org/t/restarting-custom-private-networks-cardano-node-forge35/116921
-
-## Project status
-
-Project is in early development stage and is funded by
-[Catalyst proposal](https://projectcatalyst.io/funds/10/f10-development-and-infrastructure/mlabs-cemscript-sdk-get-your-dapp-implementation-from-annotated-on-chain-logic-state-machine).
-Detailed milestones of proposal and their status [are available](https://milestones.projectcatalyst.io/projects/1000118) as well.
+Just run: `cabal run cem-script-test`.

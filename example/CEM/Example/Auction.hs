@@ -16,8 +16,8 @@ data SimpleAuction
 
 -- | A bid
 data Bid = MkBet
-  { bidder :: PubKeyHash -- FIXME: rename to bidder
-  , bidAmount :: Integer -- FIXME: rename to bidder
+  { bidder :: PubKeyHash
+  , bidAmount :: Integer
   }
   deriving stock (Prelude.Eq, Prelude.Show)
 
@@ -124,18 +124,16 @@ instance CEMScript SimpleAuction where
           ( BuyoutSpine
           ,
             [ input (ownUtxo $ inState WinnerSpine) auctionValue
-            , byFlagError (lift False) "Some err"
-            , byFlagError (lift False) "Another err"
             , -- Example: In constraints redundant for on-chain
               offchainOnly
-                (if'
-                  (ctxParams.seller `eq'` buyoutBid.bidder)
-                  (signedBy ctxParams.seller)
-                  (spentBy
-                    buyoutBid.bidder
-                    (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
-                    cEmptyValue
-                  )
+                ( if'
+                    (ctxParams.seller `eq'` buyoutBid.bidder)
+                    (signedBy ctxParams.seller)
+                    ( spentBy
+                        buyoutBid.bidder
+                        (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
+                        cEmptyValue
+                    )
                 )
             , output
                 (userUtxo buyoutBid.bidder) -- NOTE: initial zero bidder is seller
@@ -144,8 +142,8 @@ instance CEMScript SimpleAuction where
                 (ctxParams.seller `eq'` buyoutBid.bidder)
                 noop
                 ( output
-                  (userUtxo ctxParams.seller)
-                  (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
+                    (userUtxo ctxParams.seller)
+                    (cMinLovelace @<> cMkAdaOnlyValue buyoutBid.bidAmount)
                 )
             ]
           )

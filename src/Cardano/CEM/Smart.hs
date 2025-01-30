@@ -68,7 +68,7 @@ cOfSpine ::
   Spine datatype ->
   [RecordSetter (ConstraintDSL script) datatype] ->
   ConstraintDSL script datatype
--- FIXME: should it be ordered?
+-- TODO: should it be ordered?
 cOfSpine spine setters =
   if toInteger (length setters) == toInteger (spineFieldsNum spine)
     then UnsafeOfSpine spine setters

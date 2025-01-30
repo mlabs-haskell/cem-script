@@ -16,6 +16,7 @@ import Cardano.CEM.DSL as X (
   RecordSetter ((::=)),
   TxConstraint,
  )
+import Cardano.CEM.Documentation as X (genCemGraph)
 import Cardano.CEM.Monads as X
 import Cardano.CEM.Monads.CLB as X
 import Cardano.CEM.OffChain as X
