@@ -165,12 +165,11 @@ genericPlutarchScript spec code =
             script # params # state # redm
         Nothing -> ptraceInfo "transitionComp is nothing" perror
       -- Builds checks for transition (its spine)
+      -- checks :: Spine (Transition script) -> Term s PUnit
       let checks = perTransitionCheck ctx.txInfo ownAddress comp
       -- Checks for transition spine from redeemer
       compileSpineCaseSwitch spineIndex checks
       where
-        -- We are done
-
         -- Builds 'Spine (Transition script) -> Term s PUnit'
         perTransitionCheck txInfo ownAddress comp transitionSpine = P.do
           ptraceDebug
@@ -178,6 +177,14 @@ genericPlutarchScript spec code =
             perTransitionCheck'
           where
             perTransitionCheck' = P.do
+              -- Get constraints from the definition
+              let constrs = case Map.lookup transitionSpine spec of
+                    Just x -> x
+                    Nothing ->
+                      error $
+                        "Compilation error: transition: "
+                          <> (Prelude.show transitionSpine)
+                          <> " lacks spec"
               pif
                 -- Constraints
                 ( foldr
@@ -189,15 +196,6 @@ genericPlutarchScript spec code =
                 (commonChecks # pfromData txInfo)
                 -- Fail
                 (ptraceInfoError "Constraint check failed")
-
-            -- Get constraints from the definition
-            constrs = case Map.lookup transitionSpine spec of
-              Just x -> x
-              Nothing ->
-                error $
-                  "Compilation error: transition: "
-                    <> (Prelude.show transitionSpine)
-                    <> " lacks spec"
 
             -- Actual constraint compilation
             compileConstr :: TxConstraint False script -> Term s PBool

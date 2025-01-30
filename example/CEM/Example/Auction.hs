@@ -124,8 +124,6 @@ instance CEMScript SimpleAuction where
           ( BuyoutSpine
           ,
             [ input (ownUtxo $ inState WinnerSpine) auctionValue
-            , byFlagError (lift False) "Some err"
-            , byFlagError (lift False) "Another err"
             , -- Example: In constraints redundant for on-chain
               offchainOnly
                 ( if'

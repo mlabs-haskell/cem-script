@@ -166,6 +166,7 @@ compileActionConstraints
             Map.! getSpine transition
         xSpine = transitionInStateSpine uncompiled
 
+      -- Check input state
       when (fmap getSpine mState /= xSpine) $
         throwError CEMScriptTxInResolutionError
 
@@ -286,8 +287,8 @@ resolveTx spec = runExceptT $ do
       SomeCEMAction -> (ExceptT TxResolutionError m) [OffchainTxIR]
     resolveSomeAction (MkSomeCEMAction @script action) = do
       let MkCEMAction params _ = action
-      mScript <- lift $ queryScriptState params
-      cs <- ExceptT $ return $ compileActionConstraints mScript action
+      mState <- lift $ queryScriptState params
+      cs <- ExceptT $ return $ compileActionConstraints mState action
       mapM (process action) cs
 
 resolveTxAndSubmitRet ::
@@ -368,7 +369,6 @@ compileConstraint datum transition c = case c of
       UserAddress dsl -> UserAddress <$> compileDslRecur dsl
       SameScript (MkSameScriptArg stateDsl) -> SameScript . MkSameScriptArg <$> compileDslRecur stateDsl
 
--- TODO: types errors
 compileDsl ::
   forall script x.
   (CEMScript script) =>
