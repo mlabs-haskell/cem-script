@@ -1,6 +1,6 @@
 # Milestone 5
 
-## Summary
+## Summary of deliverables
 
 * L1 indexing:
   * [Basic indexing support PR #98](https://github.com/mlabs-haskell/cem-script/pull/98)
@@ -14,21 +14,17 @@
   * [PR on docs](https://github.com/mlabs-haskell/cem-script/pull/115)
     * [Getting Started Guide](https://github.com/mlabs-haskell/cem-script/pull/115/files#diff-31bcba2ccafa41d46fbbd6d1219f7f1e3b1fb3cad9faa8e4dc521bbb579dd7b3)
     * Updated [Goals And Design](https://github.com/mlabs-haskell/cem-script/pull/115/files#diff-ef1a1e144302d41f2687f34dc1885cd8434e6395aa5443c81a2bca8414911972)
-* [Closeout video](TODO: link)
+* [Closeout video](TODO:link)
 
-## Clarifications on M3 Deliverables
+## Clarifications on M5 deliverables
 
-### Running an Emulated Environment by CLB
+in the final milestone we added support for indexing CEM Scripts based on
+[Oura](https://github.com/txpipe/oura) utility. The framework provide utilities
+to generate Oura's configs and parse transaction from Oura-based format into
+CEM Script transitions.
 
-The CLB monad is designed to interact seamlessly with a Cardano mockchain environment. It can read from a shared environment, query blockchain parameters such as the current slot, and retrieve UTXO information, among other functions. This module facilitates simulation and testing, making it essential for unit tests and other testing scenarios where a controlled blockchain environment is needed. Using this emulated environment, developers can test and validate their Cardano applications in a reliable and repeatable manner.
-
-### Running QuickCheck Dynamic Tests, Including Mutation Support
-
-QuickCheck is a powerful Haskell library for property-based testing, which helps ensure that programs behave correctly for a wide range of inputs. The quickcheck-dynamic library extends this tool to stateful systems, making it particularly suitable for testing blockchain applications. Our testing framework uses a state machine model to simulate real-world scenarios, incorporating support for mutation testing. This approach helps verify that the system maintains correct behavior under various conditions, including edge cases and unexpected changes, thereby enhancing the robustness of the application.
-
-### Rendering CEMScript State Graphs
-
-Understanding state transitions and the overall system flow is critical for ensuring blockchain applications do not enter invalid states. To aid developers, we have implemented automated rendering of state graphs through our documentation module. This module generates DOT graph representations of CEMScript state transitions, providing an easy-to-understand visual model of how a DApp functions in real-world scenarios. This visualization tool increases developer confidence by highlighting the system's behavior and identifying potential shortcomings.
+The documentation has been reworked. Getting started guide has beeen added.
+An introductory video on CEM Script has been recorded and published on YouTube.
 
 # Milestone 4
 
