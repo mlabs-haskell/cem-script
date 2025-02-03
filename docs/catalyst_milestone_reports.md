@@ -15,6 +15,7 @@
     * [Getting Started Guide](https://github.com/mlabs-haskell/cem-script/pull/115/files#diff-31bcba2ccafa41d46fbbd6d1219f7f1e3b1fb3cad9faa8e4dc521bbb579dd7b3)
     * Updated [Goals And Design](https://github.com/mlabs-haskell/cem-script/pull/115/files#diff-ef1a1e144302d41f2687f34dc1885cd8434e6395aa5443c81a2bca8414911972)
 * [Closeout video](https://youtu.be/GRfrpu_KHAg)
+* [Closeout report](https://drive.google.com/file/d/1A7sEfwbI-rSqP8w4tZ-oJ51ttyvTQbZ7/view?usp=sharing)
 
 ## Clarifications on M5 deliverables
 
