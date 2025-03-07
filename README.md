@@ -16,6 +16,7 @@ resulting in free implementations for:
 * [Getting Started Guide](https://github.com/mlabs-haskell/cem-script/blob/master/docs/getting_started.md)
 * [Goals and Design](https://github.com/mlabs-haskell/cem-script/blob/master/docs/goals_and_design.md)
 * Article about [testing dApps on Cardano with CLB](https://www.mlabs.city/blog/testing-dapps-on-cardano-with-clb-emulator) is another introduction to testing CEM Script dApps.
+* [Project Overview Video](https://www.youtube.com/watch?v=GRfrpu_KHAg)
 
 ## Building
 
